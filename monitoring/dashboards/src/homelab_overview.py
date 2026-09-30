@@ -98,7 +98,8 @@ def bargauge(title, expr, legend, x, y, w=8, h=8, unit="none", steps=((None, BLU
         "fieldConfig": {"defaults": defaults, "overrides": []},
         "options": {"displayMode": "gradient", "orientation": "horizontal",
                     "valueMode": "color", "namePlacement": "left", "showUnfilled": True,
-                    "sizing": "auto", "minVizHeight": 14, "maxVizHeight": 22,
+                    "sizing": "manual", "minVizHeight": 16, "maxVizHeight": 20,
+                    "text": {"titleSize": 12, "valueSize": 13},
                     "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}},
     }
 

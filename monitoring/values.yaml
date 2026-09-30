@@ -123,6 +123,10 @@ grafana:
     resources:
       requests: {cpu: 5m, memory: 48Mi}
       limits: {memory: 96Mi}
+    datasources:
+      # Alertmanager is disabled, so don't provision a datasource pointing at it
+      alertmanager:
+        enabled: false
     dashboards:
       enabled: true
       label: grafana_dashboard

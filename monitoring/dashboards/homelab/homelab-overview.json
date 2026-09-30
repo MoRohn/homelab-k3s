@@ -890,9 +890,13 @@
         "valueMode": "color",
         "namePlacement": "left",
         "showUnfilled": true,
-        "sizing": "auto",
-        "minVizHeight": 14,
-        "maxVizHeight": 22,
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 20,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 13
+        },
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1043,9 +1047,13 @@
         "valueMode": "color",
         "namePlacement": "left",
         "showUnfilled": true,
-        "sizing": "auto",
-        "minVizHeight": 14,
-        "maxVizHeight": 22,
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 20,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 13
+        },
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1108,9 +1116,13 @@
         "valueMode": "color",
         "namePlacement": "left",
         "showUnfilled": true,
-        "sizing": "auto",
-        "minVizHeight": 14,
-        "maxVizHeight": 22,
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 20,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 13
+        },
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1822,9 +1834,13 @@
         "valueMode": "color",
         "namePlacement": "left",
         "showUnfilled": true,
-        "sizing": "auto",
-        "minVizHeight": 14,
-        "maxVizHeight": 22,
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 20,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 13
+        },
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
