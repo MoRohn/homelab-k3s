@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: monitoring
 resources:
   - extras/minio-scrape.yaml
+  - extras/gpusched-scrape.yaml
   - extras/homelab-rules.yaml
 
 # Dashboards: one ConfigMap per Grafana folder, mounted by Grafana

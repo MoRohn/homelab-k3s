@@ -343,8 +343,8 @@
     {
       "id": 6,
       "type": "stat",
-      "title": "GPU reserve headroom",
-      "description": "Available memory minus the 8 GiB bnn gpusched keeps free. Below zero, background GPU jobs are not admitted.",
+      "title": "GPU admissible",
+      "description": "Memory bnn gpusched can grant to background GPU jobs right now (falls back to MemAvailable minus the 8 GiB reserve).",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -361,7 +361,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "homelab:gpu_reserve_headroom_bytes",
+          "expr": "max(gpusched_capacity_admissible_mib) * 1024^2 or homelab:gpu_reserve_headroom_bytes",
           "legendFormat": "",
           "refId": "A",
           "range": true,
@@ -380,8 +380,12 @@
                 "value": null
               },
               {
+                "color": "#FF9830",
+                "value": 1
+              },
+              {
                 "color": "#73BF69",
-                "value": 0
+                "value": 4294967296
               }
             ]
           },
@@ -910,7 +914,7 @@
     {
       "id": 14,
       "type": "row",
-      "title": "Compute",
+      "title": "GPU scheduler (bnn gpusched)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -922,6 +926,720 @@
     },
     {
       "id": 15,
+      "type": "stat",
+      "title": "Scheduler",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(up{job=\"gpusched\"}) * max(gpusched_up)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#73BF69",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "#F2495C",
+                  "index": 1
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "#73BF69",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "Mode",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_enforce)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#5794F2",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Observe",
+                  "color": "#5794F2",
+                  "index": 1
+                },
+                "1": {
+                  "text": "Enforce",
+                  "color": "#B877D9",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Admissions",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_admitting)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#FF9830",
+                "value": null
+              },
+              {
+                "color": "#73BF69",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Holding",
+                  "color": "#FF9830",
+                  "index": 1
+                },
+                "1": {
+                  "text": "Admitting",
+                  "color": "#73BF69",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "GPU utilisation",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_gpu_util_percent)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 70
+              },
+              {
+                "color": "#F2495C",
+                "value": 90
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Queue depth",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_queue_depth)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 1
+              },
+              {
+                "color": "#FF9830",
+                "value": 5
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "P(demand next hour)",
+      "description": "Forecast probability that production GPU work arrives in the next hour",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_forecast_p_arrival_next_hour)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#5794F2",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Unified memory accounting",
+      "description": "How gpusched accounts for unified memory: resident model servers, active leases, GPU memory it doesn't manage, and what it can still admit.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_capacity_residents_mib) * 1024^2",
+          "legendFormat": "Resident models",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_capacity_leases_mib) * 1024^2",
+          "legendFormat": "Leased to jobs",
+          "refId": "B",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_capacity_unmanaged_mib) * 1024^2",
+          "legendFormat": "Unmanaged GPU",
+          "refId": "C",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(gpusched_capacity_admissible_mib) * 1024^2",
+          "legendFormat": "Admissible",
+          "refId": "D",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 40,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resident models"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Leased to jobs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Unmanaged GPU"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Admissible"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "bargauge",
+      "title": "Resident models (measured)",
+      "description": "Memory each resident model server actually uses",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 22,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sort_desc(max by (resident) (gpusched_resident_measured_mib) * 1024^2)",
+          "legendFormat": "{{resident}}",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#5794F2",
+                "value": null
+              }
+            ]
+          },
+          "displayName": "${__series.name}",
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "valueMode": "color",
+        "namePlacement": "left",
+        "showUnfilled": true,
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 20,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 13
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "row",
+      "title": "Compute",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 24,
       "type": "timeseries",
       "title": "CPU by mode",
       "description": "",
@@ -931,7 +1649,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 31,
         "w": 8,
         "h": 8
       },
@@ -996,7 +1714,7 @@
       }
     },
     {
-      "id": 16,
+      "id": 25,
       "type": "bargauge",
       "title": "Top pods by CPU",
       "description": "",
@@ -1006,7 +1724,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 18,
+        "y": 31,
         "w": 8,
         "h": 8
       },
@@ -1066,7 +1784,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 26,
       "type": "bargauge",
       "title": "Top pods by memory",
       "description": "",
@@ -1076,7 +1794,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 18,
+        "y": 31,
         "w": 8,
         "h": 8
       },
@@ -1136,20 +1854,20 @@
       }
     },
     {
-      "id": 18,
+      "id": 27,
       "type": "row",
       "title": "Network and disk",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 39,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 19,
+      "id": 28,
       "type": "timeseries",
       "title": "Network throughput",
       "description": "Inbound above the axis, outbound below.",
@@ -1159,7 +1877,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 40,
         "w": 12,
         "h": 8
       },
@@ -1234,7 +1952,7 @@
       }
     },
     {
-      "id": 20,
+      "id": 29,
       "type": "timeseries",
       "title": "Disk I/O",
       "description": "Reads above the axis, writes below.",
@@ -1244,7 +1962,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 27,
+        "y": 40,
         "w": 12,
         "h": 8
       },
@@ -1319,20 +2037,20 @@
       }
     },
     {
-      "id": 21,
+      "id": 30,
       "type": "row",
       "title": "Storage and backups",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 48,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 22,
+      "id": 31,
       "type": "stat",
       "title": "Backup target",
       "description": "Longhorn \u2192 s3://longhorn-backups",
@@ -1342,7 +2060,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 49,
         "w": 4,
         "h": 4
       },
@@ -1417,7 +2135,7 @@
       }
     },
     {
-      "id": 23,
+      "id": 32,
       "type": "stat",
       "title": "Last backup",
       "description": "",
@@ -1427,7 +2145,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 36,
+        "y": 49,
         "w": 4,
         "h": 4
       },
@@ -1491,7 +2209,7 @@
       }
     },
     {
-      "id": 24,
+      "id": 33,
       "type": "stat",
       "title": "Longhorn volumes",
       "description": "",
@@ -1501,7 +2219,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 36,
+        "y": 49,
         "w": 4,
         "h": 4
       },
@@ -1556,7 +2274,7 @@
       }
     },
     {
-      "id": 25,
+      "id": 34,
       "type": "stat",
       "title": "Volumes degraded / faulted",
       "description": "",
@@ -1566,7 +2284,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 49,
         "w": 4,
         "h": 4
       },
@@ -1625,7 +2343,7 @@
       }
     },
     {
-      "id": 26,
+      "id": 35,
       "type": "stat",
       "title": "MinIO",
       "description": "bnn-minio (Docker, outside the cluster)",
@@ -1635,7 +2353,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 36,
+        "y": 49,
         "w": 4,
         "h": 4
       },
@@ -1710,7 +2428,7 @@
       }
     },
     {
-      "id": 27,
+      "id": 36,
       "type": "stat",
       "title": "Backup bucket size",
       "description": "",
@@ -1720,7 +2438,7 @@
       },
       "gridPos": {
         "x": 20,
-        "y": 36,
+        "y": 49,
         "w": 4,
         "h": 4
       },
@@ -1776,7 +2494,7 @@
       }
     },
     {
-      "id": 28,
+      "id": 37,
       "type": "bargauge",
       "title": "Longhorn volume usage",
       "description": "Actual data written as a share of each volume's size",
@@ -1786,7 +2504,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 40,
+        "y": 53,
         "w": 8,
         "h": 8
       },
@@ -1855,7 +2573,7 @@
       }
     },
     {
-      "id": 29,
+      "id": 38,
       "type": "timeseries",
       "title": "Longhorn throughput",
       "description": "Reads above the axis, writes below.",
@@ -1865,7 +2583,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 40,
+        "y": 53,
         "w": 8,
         "h": 8
       },
@@ -1940,7 +2658,7 @@
       }
     },
     {
-      "id": 30,
+      "id": 39,
       "type": "timeseries",
       "title": "MinIO S3 traffic",
       "description": "Backups written above the axis, restores below.",
@@ -1950,7 +2668,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 40,
+        "y": 53,
         "w": 8,
         "h": 8
       },
@@ -2025,20 +2743,20 @@
       }
     },
     {
-      "id": 31,
+      "id": 40,
       "type": "row",
       "title": "Alerts and scrape health",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 61,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 32,
+      "id": 41,
       "type": "table",
       "title": "Active alerts",
       "datasource": {
@@ -2048,7 +2766,7 @@
       "description": "Firing and pending Prometheus alerts (Watchdog excluded). Empty means all clear.",
       "gridPos": {
         "x": 0,
-        "y": 49,
+        "y": 62,
         "w": 12,
         "h": 8
       },
@@ -2159,7 +2877,7 @@
       }
     },
     {
-      "id": 33,
+      "id": 42,
       "type": "table",
       "title": "Scrape targets",
       "datasource": {
@@ -2168,7 +2886,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 49,
+        "y": 62,
         "w": 12,
         "h": 8
       },

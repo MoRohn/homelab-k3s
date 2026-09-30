@@ -152,10 +152,11 @@ panels += [
     stat("Memory available", f'node_memory_MemAvailable_bytes{{{NODE}}}', 6, y, unit="bytes",
          decimals=1, steps=((None, RED), (4 * GIB, ORANGE), (8 * GIB, GREEN)),
          description="Unified memory (CPU + GPU) still available to new work"),
-    stat("GPU reserve headroom", 'homelab:gpu_reserve_headroom_bytes', 9, y, unit="bytes",
-         decimals=1, steps=((None, RED), (0, GREEN)),
-         description="Available memory minus the 8 GiB bnn gpusched keeps free. "
-                     "Below zero, background GPU jobs are not admitted."),
+    stat("GPU admissible", 'max(gpusched_capacity_admissible_mib) * 1024^2 '
+         'or homelab:gpu_reserve_headroom_bytes', 9, y, unit="bytes",
+         decimals=1, steps=((None, RED), (1, ORANGE), (4 * GIB, GREEN)),
+         description="Memory bnn gpusched can grant to background GPU jobs right now "
+                     "(falls back to MemAvailable minus the 8 GiB reserve)."),
     stat("Root disk free",
          f'100 * node_filesystem_avail_bytes{{{NODE},mountpoint="/",fstype!="rootfs"}} '
          f'/ node_filesystem_size_bytes{{{NODE},mountpoint="/",fstype!="rootfs"}}',
@@ -196,6 +197,50 @@ panels.append(bargauge(
     description="Working set of Kubernetes pods only; Docker containers and host processes "
                 "(model servers) are not included."))
 y += 9
+
+# ---- GPU scheduler (bnn gpusched) -----------------------------------------------------
+MODE = [{"type": "value", "options": {
+    "0": {"text": "Observe", "color": BLUE, "index": 1},
+    "1": {"text": "Enforce", "color": PURPLE, "index": 0}}}]
+YES_NO = [{"type": "value", "options": {
+    "0": {"text": "Holding", "color": ORANGE, "index": 1},
+    "1": {"text": "Admitting", "color": GREEN, "index": 0}}}]
+panels.append(row("GPU scheduler (bnn gpusched)", y)); y += 1
+panels += [
+    stat("Scheduler", 'max(up{job="gpusched"}) * max(gpusched_up)', 0, y, w=4, mappings=UP_DOWN,
+         spark=False, color_mode="background", steps=((None, RED), (1, GREEN))),
+    stat("Mode", 'max(gpusched_enforce)', 4, y, w=4, mappings=MODE, spark=False,
+         color_mode="background", steps=((None, BLUE),)),
+    stat("Admissions", 'max(gpusched_admitting)', 8, y, w=4, mappings=YES_NO, spark=False,
+         color_mode="background", steps=((None, ORANGE), (1, GREEN))),
+    stat("GPU utilisation", 'max(gpusched_gpu_util_percent)', 12, y, w=4, unit="percent",
+         steps=((None, GREEN), (70, YELLOW), (90, RED))),
+    stat("Queue depth", 'max(gpusched_queue_depth)', 16, y, w=4,
+         steps=((None, GREEN), (1, YELLOW), (5, ORANGE))),
+    stat("P(demand next hour)", 'max(gpusched_forecast_p_arrival_next_hour)', 20, y, w=4,
+         unit="percentunit", decimals=0, steps=((None, BLUE),),
+         description="Forecast probability that production GPU work arrives in the next hour"),
+]
+y += 4
+panels.append(timeseries(
+    "Unified memory accounting",
+    [target('max(gpusched_capacity_residents_mib) * 1024^2', "Resident models"),
+     target('max(gpusched_capacity_leases_mib) * 1024^2', "Leased to jobs", "B"),
+     target('max(gpusched_capacity_unmanaged_mib) * 1024^2', "Unmanaged GPU", "C"),
+     target('max(gpusched_capacity_admissible_mib) * 1024^2', "Admissible", "D")],
+    0, y, w=16, h=8, unit="bytes", stack=True, fill=40,
+    description="How gpusched accounts for unified memory: resident model servers, active "
+                "leases, GPU memory it doesn't manage, and what it can still admit.",
+    overrides=[{"matcher": {"id": "byName", "options": n},
+                "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": c}}]}
+               for n, c in (("Resident models", PURPLE), ("Leased to jobs", BLUE),
+                            ("Unmanaged GPU", RED), ("Admissible", GREEN))]))
+panels.append(bargauge(
+    "Resident models (measured)",
+    'sort_desc(max by (resident) (gpusched_resident_measured_mib) * 1024^2)',
+    "{{resident}}", 16, y, w=8, h=8, unit="bytes",
+    description="Memory each resident model server actually uses"))
+y += 8
 
 # ---- Compute --------------------------------------------------------------------------
 panels.append(row("Compute", y)); y += 1

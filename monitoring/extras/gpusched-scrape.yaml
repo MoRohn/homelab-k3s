@@ -1,0 +1,16 @@
+# bnn gpusched (GPU admission scheduler, host systemd service) on the k3s cni0 gateway.
+# Token: secret monitoring/gpusched-metrics (metrics-only scope), created by
+# scripts/install-monitoring.sh from ~/.config/bnn/gpusched.token.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: gpusched
+spec:
+  jobName: gpusched
+  metricsPath: /metrics
+  scrapeInterval: 30s   # gpusched asks for >= 15s
+  authorization:
+    credentials: {name: gpusched-metrics, key: token}
+  staticConfigs:
+    - targets: ["10.42.0.1:8770"]
+      labels: {instance: bnn-gpusched}

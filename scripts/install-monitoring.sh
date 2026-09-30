@@ -24,5 +24,13 @@ if [[ -f secrets/minio-prometheus.token ]]; then
     --dry-run=client -o yaml | kubectl apply -f -
 fi
 
+# bnn gpusched scrape token (metrics-only scope), owned by the bnn stack
+GPUSCHED_TOKENS=~/.config/bnn/gpusched.token
+if [[ -f $GPUSCHED_TOKENS ]]; then
+  kubectl -n monitoring create secret generic gpusched-metrics \
+    --from-literal=token="$(awk -F': *' '/^metrics:/ {print $2; exit}' "$GPUSCHED_TOKENS" | tr -d '[:space:]')" \
+    --dry-run=client -o yaml | kubectl apply -f -
+fi
+
 kubectl apply -f argocd/root.yaml
 echo "Argo CD is syncing. Watch: kubectl -n argocd get applications"

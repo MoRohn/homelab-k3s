@@ -79,3 +79,19 @@ spec:
           labels: {severity: critical}
           annotations:
             summary: MinIO reports an unhealthy cluster
+
+    - name: homelab.gpu
+      rules:
+        - alert: GpuSchedulerDown
+          expr: up{job="gpusched"} == 0 or gpusched_up == 0
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: bnn gpusched is not reporting
+            description: GPU admission control is unavailable; background GPU jobs fail closed.
+        - alert: GpuSchedulerHolding
+          expr: gpusched_holds > 0
+          for: 15m
+          labels: {severity: info}
+          annotations:
+            summary: bnn gpusched has held new GPU admissions for 15 minutes
