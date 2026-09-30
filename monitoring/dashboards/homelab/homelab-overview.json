@@ -1496,7 +1496,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(longhorn_volume_robustness) or vector(0)",
+          "expr": "count(count by (volume) (longhorn_volume_robustness)) or vector(0)",
           "legendFormat": "",
           "refId": "A",
           "range": true,
@@ -1561,7 +1561,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(longhorn_volume_robustness >= 2) or vector(0)",
+          "expr": "sum(longhorn_volume_robustness{state=~\"degraded|faulted\"}) or vector(0)",
           "legendFormat": "",
           "refId": "A",
           "range": true,
