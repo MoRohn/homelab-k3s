@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="t d">
+  <title id="t">The Last Node Standing</title>
+  <desc id="d">An epic, wildly exaggerated poster: a single small server glows on a mountain peak during a storm, guarded by a longhorn steer holding a shield, beside a treasure vault of backups. Storm clouds are labelled DHCP, multipathd and base64.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1026"/>
+      <stop offset="0.55" stop-color="#2a1b4d"/>
+      <stop offset="1" stop-color="#b3541e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7cf5c8" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#7cf5c8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gold" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#ffe9a3"/>
+      <stop offset="1" stop-color="#d49b1f"/>
+    </radialGradient>
+    <linearGradient id="mountain" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2f45"/>
+      <stop offset="1" stop-color="#11131f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1200" height="600" fill="url(#sky)"/>
+
+  <!-- Stars -->
+  <g fill="#fff" opacity="0.8">
+    <circle cx="80" cy="60" r="1.6"/><circle cx="210" cy="120" r="1.2"/><circle cx="330" cy="40" r="1.8"/>
+    <circle cx="470" cy="95" r="1.1"/><circle cx="760" cy="55" r="1.5"/><circle cx="880" cy="130" r="1.2"/>
+    <circle cx="1010" cy="70" r="1.7"/><circle cx="1130" cy="140" r="1.3"/><circle cx="600" cy="30" r="1.2"/>
+    <circle cx="150" cy="200" r="1"/><circle cx="1060" cy="210" r="1"/>
+  </g>
+
+  <!-- Storm clouds -->
+  <g font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="20" fill="#e8e3ff" text-anchor="middle">
+    <g>
+      <ellipse cx="190" cy="175" rx="120" ry="38" fill="#3b3560"/>
+      <ellipse cx="140" cy="160" rx="60" ry="32" fill="#453e70"/>
+      <ellipse cx="240" cy="158" rx="70" ry="34" fill="#453e70"/>
+      <text x="190" y="182">DHCP</text>
+    </g>
+    <g>
+      <ellipse cx="1000" cy="185" rx="130" ry="38" fill="#3b3560"/>
+      <ellipse cx="950" cy="168" rx="65" ry="32" fill="#453e70"/>
+      <ellipse cx="1060" cy="166" rx="70" ry="34" fill="#453e70"/>
+      <text x="1000" y="192">multipathd</text>
+    </g>
+    <g>
+      <ellipse cx="600" cy="95" rx="105" ry="30" fill="#3b3560"/>
+      <ellipse cx="560" cy="82" rx="55" ry="26" fill="#453e70"/>
+      <ellipse cx="645" cy="82" rx="55" ry="26" fill="#453e70"/>
+      <text x="600" y="102">base64</text>
+    </g>
+  </g>
+
+  <!-- Lightning, deflected by the shield -->
+  <g fill="none" stroke="#fff6a8" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <polyline points="230,210 260,265 238,272 285,340"/>
+    <polyline points="985,222 960,280 985,285 945,360"/>
+  </g>
+
+  <!-- Mountain -->
+  <path d="M0,600 L0,470 L180,400 L330,430 L470,330 L600,250 L730,330 L860,420 L1010,390 L1200,460 L1200,600 Z" fill="url(#mountain)"/>
+  <path d="M600,250 L560,290 L585,285 L600,300 L618,282 L640,292 Z" fill="#dfe6f5" opacity="0.9"/>
+
+  <!-- Server glow + server -->
+  <ellipse cx="600" cy="225" rx="150" ry="95" fill="url(#glow)"/>
+  <g>
+    <rect x="545" y="195" width="110" height="56" rx="8" fill="#1c2233" stroke="#7cf5c8" stroke-width="3"/>
+    <rect x="557" y="207" width="86" height="6" rx="3" fill="#2e3a55"/>
+    <rect x="557" y="219" width="86" height="6" rx="3" fill="#2e3a55"/>
+    <circle cx="559" cy="238" r="4" fill="#7cf5c8"/>
+    <circle cx="571" cy="238" r="4" fill="#7cf5c8"/>
+    <circle cx="583" cy="238" r="4" fill="#ffd35c"/>
+    <text x="622" y="242" font-family="Menlo, Consolas, monospace" font-size="11" fill="#cfe9ff" text-anchor="middle">tiny-dgx</text>
+  </g>
+
+  <!-- Longhorn guardian (left of peak) -->
+  <g transform="translate(330,355)">
+    <!-- legs -->
+    <g fill="#6b3f22">
+      <rect x="-48" y="28" width="12" height="46" rx="4"/>
+      <rect x="-22" y="30" width="12" height="44" rx="4"/>
+      <rect x="18" y="30" width="12" height="44" rx="4"/>
+      <rect x="42" y="28" width="12" height="46" rx="4"/>
+    </g>
+    <!-- body -->
+    <ellipse cx="0" cy="18" rx="70" ry="36" fill="#8a5330"/>
+    <ellipse cx="-10" cy="10" rx="30" ry="14" fill="#a96a3f" opacity="0.7"/>
+    <!-- tail -->
+    <path d="M-68,10 q-20,20 -10,45" fill="none" stroke="#6b3f22" stroke-width="5" stroke-linecap="round"/>
+    <!-- head -->
+    <g transform="translate(78,-18)">
+      <ellipse cx="0" cy="0" rx="24" ry="30" fill="#8a5330"/>
+      <ellipse cx="0" cy="20" rx="16" ry="12" fill="#d8a57b"/>
+      <circle cx="-8" cy="-6" r="3.5" fill="#1b1b1b"/>
+      <circle cx="8" cy="-6" r="3.5" fill="#1b1b1b"/>
+      <!-- the famous horns, exaggerated -->
+      <path d="M-14,-22 C-45,-34 -80,-28 -105,-55" fill="none" stroke="#f3e6c8" stroke-width="10" stroke-linecap="round"/>
+      <path d="M14,-22 C45,-34 80,-28 105,-55" fill="none" stroke="#f3e6c8" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <!-- shield -->
+    <g transform="translate(-8,8) scale(0.85)">
+      <path d="M0,-38 L34,-26 L30,14 Q18,36 0,46 Q-18,36 -30,14 L-34,-26 Z" fill="#1f4f7a" stroke="#ffe9a3" stroke-width="3"/>
+      <text x="0" y="6" font-family="Menlo, Consolas, monospace" font-size="13" font-weight="bold" fill="#ffe9a3" text-anchor="middle">1×</text>
+      <text x="0" y="22" font-family="Menlo, Consolas, monospace" font-size="8" fill="#ffe9a3" text-anchor="middle">REPLICA</text>
+    </g>
+  </g>
+
+  <!-- Vault of backups (right of peak) -->
+  <g transform="translate(800,340)">
+    <rect x="-70" y="-10" width="140" height="80" rx="10" fill="#3a3f55" stroke="#9aa4c7" stroke-width="3"/>
+    <circle cx="0" cy="30" r="24" fill="#2a2e40" stroke="#9aa4c7" stroke-width="3"/>
+    <g stroke="#9aa4c7" stroke-width="3">
+      <line x1="0" y1="10" x2="0" y2="50"/><line x1="-20" y1="30" x2="20" y2="30"/>
+    </g>
+    <!-- treasure spilling over -->
+    <g fill="url(#gold)" stroke="#a8740f" stroke-width="1.5">
+      <circle cx="-45" cy="-18" r="12"/><circle cx="-22" cy="-24" r="12"/><circle cx="4" cy="-20" r="12"/>
+      <circle cx="30" cy="-26" r="12"/><circle cx="52" cy="-16" r="12"/><circle cx="-8" cy="-40" r="12"/>
+      <circle cx="18" cy="-44" r="12"/>
+    </g>
+    <text x="0" y="92" font-family="Menlo, Consolas, monospace" font-size="13" fill="#e8e3ff" text-anchor="middle">s3://longhorn-backups</text>
+    <!-- sparkle: checksum verified -->
+    <g fill="#fff6a8">
+      <path d="M62,-48 l4,12 l12,4 l-12,4 l-4,12 l-4,-12 l-12,-4 l12,-4 Z"/>
+    </g>
+    <text x="0" y="-66" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#fff6a8" text-anchor="middle">sha256 matched</text>
+  </g>
+
+  <!-- Title banner -->
+  <g font-family="Georgia, 'Times New Roman', serif" text-anchor="middle">
+    <text x="600" y="500" font-size="54" font-weight="bold" fill="#fff" letter-spacing="4">THE LAST NODE STANDING</text>
+    <text x="600" y="536" font-size="20" font-style="italic" fill="#ffd9b0">One server. One replica. A bucket full of backups. Zero chill about data loss.</text>
+    <text x="600" y="580" font-size="13" fill="#c9c3e6" opacity="0.85">Dramatization. The actual node is a quiet box under a desk, and no livestock were provisioned.</text>
+  </g>
+</svg>

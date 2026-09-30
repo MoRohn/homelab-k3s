@@ -1,53 +1,142 @@
 # homelab-k3s
 
-Single-node k3s cluster on `tiny-dgx` (192.168.68.72), with Longhorn block storage
-backed up to MinIO.
+<p align="center">
+  <img src="docs/images/last-node-standing.svg" alt="The Last Node Standing: a single glowing server on a stormy mountain peak, guarded by a longhorn steer with a shield, next to a vault of backups" width="100%">
+</p>
 
-## Layout
+> *In a world of multi-region, multi-zone, multi-everything clusters, one machine dared to ask:
+> "What if there was just… me?"*
 
-| Path | What |
+This is the infrastructure for a **single-node k3s cluster** on `tiny-dgx` (192.168.68.72).
+It runs **Longhorn** for block storage and backs everything up to **MinIO**, because a
+homelab without backups is just an elaborate way to lose data.
+
+The whole thing is scripted, version-pinned, and was tested by deliberately backing up and
+restoring 50 MiB of random noise. The checksums matched. Nobody cried.
+
+---
+
+## The legend so far
+
+Every great saga has trials. This one had:
+
+| Trial | Villain | How it was defeated |
+|---|---|---|
+| I | `permission denied` on `/etc/rancher/k3s/k3s.yaml` | Copied the kubeconfig home, where it belongs |
+| II | `illegal base64 data at input byte 0` | Discovered `stringData:`, the field that accepts plain text |
+| III | `illegal base64 data at input byte 16` | Learned that 17 characters is not a valid base64 string, no matter how confidently it's typed |
+| IV | MinIO listening only to itself on `127.0.0.1` | Gave it a second ear on the LAN |
+| V | `multipathd`, the device thief | Blacklisted, politely but firmly |
+| VI | Three copies of everything on a cluster of one | Reduced to one copy each, reclaiming ~160 MiB of memory |
+
+The node remains standing. Details below, for those who prefer facts to folklore.
+
+---
+
+## What lives where
+
+| Path | What it holds |
 |---|---|
-| `host/` | One-time host prep (run with sudo) |
-| `longhorn/values.yaml` | Longhorn Helm values (chart 1.13.0) |
-| `minio/` | MinIO policy for the Longhorn backup user |
-| `scripts/` | Repeatable setup steps |
-| `secrets/` | Local credentials — git-ignored |
-| `docs/` | Reference docs |
-| `personal/` | Your own notes and drafts — git-ignored |
+| `host/` | One-time host prep. Needs sudo, like all things worth doing |
+| `longhorn/values.yaml` | Longhorn Helm values, pinned to chart 1.13.0 |
+| `minio/` | The MinIO policy that keeps the backup user in its lane |
+| `scripts/` | Every setup step, repeatable on demand |
+| `docs/` | Reference docs, plus the poster above |
+| `secrets/` | Local credentials. Git-ignored. Never leaves the machine |
+| `personal/` | Notes and drafts. Also git-ignored. Also never leaves |
 
-## Setup walkthrough
+---
 
-1. **kubectl access**: copy `/etc/rancher/k3s/k3s.yaml` to `~/.kube/config` (owned by you) and
-   `export KUBECONFIG=~/.kube/config` in `~/.bashrc`.
-2. **Host prep**: `sudo host/prep-longhorn.sh` (iscsid, iscsi_tcp, multipath blacklist).
-3. **Expose MinIO to the cluster**: see [docs/minio.md](docs/minio.md).
-4. **MinIO bucket and user**: `scripts/setup-minio-bucket.sh`.
-5. **Install Longhorn** (also creates the `minio-credentials` secret and sets the backup target):
-   `scripts/install-longhorn.sh`.
-6. **Verify**:
-   ```bash
-   kubectl -n longhorn-system get backuptargets.longhorn.io   # AVAILABLE should be true
-   kubectl get sc                                               # local-path (default) + longhorn
-   ```
-7. **Test backup and restore**: `scripts/test-backup.sh` writes 50 MiB to a Longhorn volume,
-   backs it up to MinIO, restores it to a new volume, compares checksums, then removes everything.
+## The setup, in seven acts
+
+**Act 1: Gain access.** Copy `/etc/rancher/k3s/k3s.yaml` to `~/.kube/config`, make yourself
+the owner, and add `export KUBECONFIG=~/.kube/config` to `~/.bashrc`. k3s's kubectl looks in
+`/etc` by default and will not take a hint.
+
+**Act 2: Prepare the host.**
+
+```bash
+sudo host/prep-longhorn.sh
+```
+
+This starts `iscsid`, loads `iscsi_tcp`, and tells `multipathd` to stop claiming disks that
+aren't its own. All three changes survive reboots.
+
+**Act 3: Let MinIO hear the cluster.** MinIO runs in the separate bnn Docker stack, not in
+k3s. See [docs/minio.md](docs/minio.md) for the port binding and the one restart rule you
+must never forget.
+
+**Act 4: Build the vault.**
+
+```bash
+scripts/setup-minio-bucket.sh
+```
+
+This creates the `longhorn-backups` bucket and a `longhorn` user who can touch that bucket and
+absolutely nothing else. The generated password goes straight into `secrets/`.
+
+**Act 5: Summon Longhorn.**
+
+```bash
+scripts/install-longhorn.sh
+```
+
+This creates the `minio-credentials` secret, installs Longhorn with the backup target already
+configured, and waits until every pod reports for duty.
+
+**Act 6: Trust, but verify.**
+
+```bash
+kubectl -n longhorn-system get backuptargets.longhorn.io   # AVAILABLE should be true
+kubectl get sc                                               # local-path (default) + longhorn
+```
+
+**Act 7: The trial by fire.**
+
+```bash
+scripts/test-backup.sh
+```
+
+This writes 50 MiB of random data to a Longhorn volume, backs it up to MinIO, restores it to a
+brand-new volume, and compares SHA-256 checksums. Then it cleans up after itself. It is the
+most well-mannered script in the repository.
+
+---
 
 ## Using Longhorn
 
-`local-path` stays the default StorageClass. Request Longhorn explicitly:
+`local-path` remains the default StorageClass, so existing workloads carry on undisturbed.
+Longhorn is opt-in:
 
 ```yaml
 spec:
   storageClassName: longhorn
 ```
 
-UI (no authentication, so not exposed on the LAN):
+The Longhorn UI has no login screen, so it is deliberately kept off the network. Visit it
+through a port-forward:
 
 ```bash
-kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80   # http://localhost:8080
+kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80
+# then open http://localhost:8080
 ```
 
-## Caveats
+GPU workloads on this cluster should go through the bnn GPU scheduler's gate
+(`~/bnn/deploy/k8s/gpusched`). The GPU is popular, and it keeps a strict guest list.
 
-- MinIO runs on this same machine, so backups protect against mistakes, not disk or host loss.
-- 192.168.68.72 is DHCP on Wi-Fi. Reserve it in the router or the node and backup endpoint break.
+---
+
+## Known plot holes
+
+Every saga has a few. This one's are documented:
+
+- **The backups live on the same machine they're backing up.** They protect against mistakes,
+  not against the machine itself having a very bad day. An off-machine copy is on the roadmap.
+- **The node's IP comes from DHCP, over Wi-Fi.** Reserve `192.168.68.72` in the router, or one
+  day the node and its backup endpoint will wake up somewhere unfamiliar.
+- **One replica means no redundancy inside the cluster.** That's the price of being the last
+  node standing. Backups are the safety net.
+
+---
+
+<p align="center"><sub>Built with patience, several checksums, and at least one long look at base64.</sub></p>
