@@ -1,0 +1,14 @@
+# https://grafana.<tailnet>.ts.net — reachable only from your tailnet. Grafana has its own login.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: monitoring-grafana
+      port: {number: 80}
+  tls:
+    - hosts: [grafana]

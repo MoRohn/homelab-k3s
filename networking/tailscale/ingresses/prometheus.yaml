@@ -1,0 +1,15 @@
+# https://prometheus.<tailnet>.ts.net — tailnet only. Prometheus has NO login of its own:
+# anyone on your tailnet can query it (read-only).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: monitoring-kube-prometheus-prometheus
+      port: {number: 9090}
+  tls:
+    - hosts: [prometheus]

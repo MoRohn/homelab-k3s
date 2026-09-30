@@ -1,0 +1,12 @@
+# Tailscale Kubernetes operator — chart tailscale/tailscale-operator 1.102.4
+# (Argo CD: argocd/apps/tailscale-operator.yaml). OAuth credentials live in the
+# operator-oauth Secret, created by scripts/install-tailscale.sh (not in git).
+operatorConfig:
+  hostname: tiny-dgx-k8s-operator
+  defaultTags: ["tag:k8s-operator"]
+  resources:
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 128Mi}
+proxyConfig:
+  defaultTags: "tag:k8s"
+  defaultProxyClass: small

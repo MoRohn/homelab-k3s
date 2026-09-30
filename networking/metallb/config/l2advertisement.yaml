@@ -1,0 +1,9 @@
+# Answer ARP for pool addresses on the Wi-Fi interface (the Ethernet port has no cable).
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: lan
+  namespace: metallb-system
+spec:
+  ipAddressPools: [lan]
+  interfaces: [wlP9s9]
