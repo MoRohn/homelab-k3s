@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - extras/minio-scrape.yaml
+  - extras/homelab-rules.yaml
+
+# Dashboards: one ConfigMap per Grafana folder, loaded by the Grafana sidecar
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
+configMapGenerator:
+  - name: dashboards-homelab
+    options: {annotations: {grafana_folder: Homelab}}
+    files:
+      - dashboards/homelab/homelab-overview.json
+  - name: dashboards-node
+    options: {annotations: {grafana_folder: Node}}
+    files:
+      - dashboards/node/node-exporter-full.json
+  - name: dashboards-kubernetes
+    options: {annotations: {grafana_folder: Kubernetes}}
+    files:
+      - dashboards/kubernetes/k8s-views-global.json
+      - dashboards/kubernetes/k8s-views-namespaces.json
+      - dashboards/kubernetes/k8s-views-nodes.json
+      - dashboards/kubernetes/k8s-views-pods.json
+  - name: dashboards-storage
+    options: {annotations: {grafana_folder: Storage}}
+    files:
+      - dashboards/storage/longhorn.json

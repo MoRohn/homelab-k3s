@@ -1,4 +1,4 @@
-# Dashboards, extra scrape targets and homelab alert rules (monitoring/extras)
+# Dashboards, extra scrape targets and homelab alert rules (monitoring/kustomization.yaml)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/MoRohn/homelab-k3s.git
     targetRevision: main
-    path: monitoring/extras
+    path: monitoring
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

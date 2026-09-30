@@ -24,6 +24,39 @@ defaultRules:
     kubeProxy: false
     windows: false
     alertmanager: false
+    # Multi-window SLO burn-rate rules need the API-server histograms dropped below
+    kubeApiserverAvailability: false
+    kubeApiserverBurnrate: false
+    kubeApiserverHistogram: false
+    kubeApiserverSlos: false
+  disabled:
+    # No Alertmanager on purpose
+    PrometheusNotConnectedToAlertmanagers: true
+    # This box runs >90% memory used by design (resident models); replaced by
+    # the MemAvailable-based rules in monitoring/extras/homelab-rules.yaml
+    NodeMemoryHighUtilization: true
+
+# ---- Cardinality: k3s runs the API server, etcd and scheduler inside the kubelet
+# process, so the kubelet's /metrics repeats all of their series. Drop them there,
+# and drop the API server's latency histograms (~50k series nothing here uses). ----
+kubelet:
+  serviceMonitor:
+    metricRelabelings:
+      # Chart default: reduce kubelet storage-operation bucket cardinality
+      - action: drop
+        sourceLabels: [__name__, le]
+        regex: (csi_operations|storage_operation_duration)_seconds_bucket;(0.25|2.5|15|25|120|600)(\.0)?
+      # Control-plane series duplicated from the k3s process
+      - action: drop
+        sourceLabels: [__name__]
+        regex: (apiserver|etcd|scheduler|workqueue|apiextensions|aggregator|authentication|authenticated|authorization|field_validation|watch_cache|kube_apiserver|admission|flowcontrol|cardinality_enforcement|pod_security|serviceaccount|endpoint_slice|endpoint_slice_controller|endpoint_slice_mirroring_controller|replicaset_controller|garbagecollector|job_controller|cronjob_controller|node_collector|ttl_after_finished_controller|ephemeral_volume_controller|attachdetach_controller|service_controller|root_ca_cert_publisher|leader_election|node_ipam_controller|rest_client)_.+
+
+kubeApiServer:
+  serviceMonitor:
+    metricRelabelings:
+      - action: drop
+        sourceLabels: [__name__]
+        regex: (apiserver|etcd|workqueue|scheduler)_[a-z_]+_bucket
 
 # ---- Alerts show on dashboards; nothing pushes notifications, so no Alertmanager ----
 alertmanager:
@@ -84,8 +117,8 @@ grafana:
   defaultDashboardsEnabled: false
   defaultDashboardsTimezone: browser
   resources:
-    requests: {cpu: 20m, memory: 96Mi}
-    limits: {memory: 256Mi}
+    requests: {cpu: 20m, memory: 160Mi}
+    limits: {memory: 384Mi}
   sidecar:
     resources:
       requests: {cpu: 5m, memory: 48Mi}
