@@ -1,0 +1,22 @@
+# Longhorn's own NetworkPolicies only admit Longhorn components to the manager.
+# Allow Prometheus (monitoring namespace) to scrape metrics on port 9500 — nothing else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-manager
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - {port: 9500, protocol: TCP}

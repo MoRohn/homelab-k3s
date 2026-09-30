@@ -32,3 +32,8 @@ longhornGlobalManager:
   replicas: 1
 longhornUI:
   replicas: 1
+
+# Prometheus (monitoring/) picks this up automatically
+metrics:
+  serviceMonitor:
+    enabled: true

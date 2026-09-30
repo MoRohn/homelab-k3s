@@ -9,4 +9,5 @@ helm repo add longhorn https://charts.longhorn.io >/dev/null 2>&1 || true
 helm repo update longhorn >/dev/null
 helm upgrade --install longhorn longhorn/longhorn --version "$LONGHORN_VERSION" \
   -n longhorn-system --create-namespace -f longhorn/values.yaml --wait --timeout 10m
+kubectl apply -f longhorn/networkpolicy-prometheus.yaml
 kubectl -n longhorn-system get pods

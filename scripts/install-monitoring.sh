@@ -20,7 +20,7 @@ kubectl -n monitoring create secret generic grafana-admin \
 # MinIO scrape token (see scripts/setup-minio-metrics.sh)
 if [[ -f secrets/minio-prometheus.token ]]; then
   kubectl -n monitoring create secret generic minio-prometheus \
-    --from-file=token=secrets/minio-prometheus.token \
+    --from-literal=token="$(tr -d '[:space:]' < secrets/minio-prometheus.token)" \
     --dry-run=client -o yaml | kubectl apply -f -
 fi
 
