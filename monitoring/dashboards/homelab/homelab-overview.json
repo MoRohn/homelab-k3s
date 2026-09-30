@@ -1836,7 +1836,7 @@
         "displayMode": "gradient",
         "orientation": "horizontal",
         "valueMode": "color",
-        "namePlacement": "top",
+        "namePlacement": "left",
         "showUnfilled": true,
         "sizing": "manual",
         "minVizHeight": 16,

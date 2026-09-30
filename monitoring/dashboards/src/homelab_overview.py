@@ -255,7 +255,7 @@ y += 4
 panels.append(bargauge(
     "Longhorn volume usage",
     'longhorn_volume_actual_size_bytes / longhorn_volume_capacity_bytes',
-    "{{pvc_namespace}} / {{pvc}}", 0, y, w=8, h=8, unit="percentunit", max_=1, name_top=True,
+    "{{pvc_namespace}} / {{pvc}}", 0, y, w=8, h=8, unit="percentunit", max_=1,
     steps=((None, GREEN), (0.75, YELLOW), (0.9, RED)),
     description="Actual data written as a share of each volume's size"))
 panels.append(timeseries(
