@@ -86,8 +86,8 @@ def timeseries(title, targets, x, y, w=12, h=8, unit="none", stack=False, fill=1
 
 
 def bargauge(title, expr, legend, x, y, w=8, h=8, unit="none", steps=((None, BLUE),),
-             max_=None, description="", instant=True):
-    defaults = {"unit": unit, "thresholds": thresholds(*steps),
+             max_=None, description="", instant=True, name_top=False):
+    defaults = {"unit": unit, "thresholds": thresholds(*steps), "displayName": "${__series.name}",
                 "color": {"mode": "continuous-BlPu"}, "min": 0}
     if max_ is not None:
         defaults["max"] = max_
@@ -97,7 +97,8 @@ def bargauge(title, expr, legend, x, y, w=8, h=8, unit="none", steps=((None, BLU
         "targets": [target(expr, legend, instant=instant)],
         "fieldConfig": {"defaults": defaults, "overrides": []},
         "options": {"displayMode": "gradient", "orientation": "horizontal",
-                    "valueMode": "color", "namePlacement": "left", "showUnfilled": True,
+                    "valueMode": "color", "namePlacement": "top" if name_top else "left",
+                    "showUnfilled": True,
                     "sizing": "manual", "minVizHeight": 16, "maxVizHeight": 20,
                     "text": {"titleSize": 12, "valueSize": 13},
                     "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}},
@@ -135,7 +136,7 @@ y = 0
 # ---- Header ---------------------------------------------------------------------------
 panels.append(text(
     "### 🏔️ The Last Node Standing\n"
-    "`tiny-dgx` · single-node k3s · Longhorn → MinIO backups · "
+    "**tiny-dgx** · single-node k3s · Longhorn → MinIO backups · "
     "memory is shared by CPU **and** GPU, so every gigabyte counts.",
     0, y, 24, 2))
 y += 2
@@ -143,8 +144,8 @@ y += 2
 # ---- At a glance ----------------------------------------------------------------------
 panels.append(row("At a glance", y)); y += 1
 panels += [
-    stat("Node", f'up{{{NODE}}}', 0, y, mappings=UP_DOWN, spark=False, color_mode="background",
-         steps=((None, RED), (1, GREEN)), description="node-exporter scrape status"),
+    stat("Node", f'max_over_time(up{{{NODE}}}[2m])', 0, y, mappings=UP_DOWN, spark=False, color_mode="background",
+         steps=((None, RED), (1, GREEN)), description="node-exporter reachable in the last 2 minutes"),
     stat("CPU busy",
          f'100 * (1 - avg(rate(node_cpu_seconds_total{{{NODE},mode="idle"}}[$__rate_interval])))',
          3, y, unit="percent", decimals=1, steps=((None, GREEN), (70, YELLOW), (90, RED))),
@@ -254,13 +255,13 @@ y += 4
 panels.append(bargauge(
     "Longhorn volume usage",
     'longhorn_volume_actual_size_bytes / longhorn_volume_capacity_bytes',
-    "{{pvc_namespace}}/{{pvc}}", 0, y, w=8, h=8, unit="percentunit", max_=1,
+    "{{pvc_namespace}} / {{pvc}}", 0, y, w=8, h=8, unit="percentunit", max_=1, name_top=True,
     steps=((None, GREEN), (0.75, YELLOW), (0.9, RED)),
     description="Actual data written as a share of each volume's size"))
 panels.append(timeseries(
     "Longhorn throughput",
-    [target('sum by (volume) (longhorn_volume_read_throughput)', "{{volume}} read"),
-     target('-sum by (volume) (longhorn_volume_write_throughput)', "{{volume}} write", "B")],
+    [target('sum by (pvc_namespace, pvc) (longhorn_volume_read_throughput)', "{{pvc_namespace}}/{{pvc}} read"),
+     target('-sum by (pvc_namespace, pvc) (longhorn_volume_write_throughput)', "{{pvc_namespace}}/{{pvc}} write", "B")],
     8, y, w=8, h=8, unit="Bps", description="Reads above the axis, writes below."))
 panels.append(timeseries(
     "MinIO S3 traffic",
@@ -271,19 +272,36 @@ y += 8
 
 # ---- Alerts & targets -----------------------------------------------------------------
 panels.append(row("Alerts and scrape health", y)); y += 1
+SEVERITY = [{"type": "value", "options": {
+    "critical": {"text": "critical", "color": RED, "index": 0},
+    "warning": {"text": "warning", "color": ORANGE, "index": 1},
+    "info": {"text": "info", "color": BLUE, "index": 2}}}]
 panels.append({
-    "id": _id(), "type": "alertlist", "title": "Active alerts",
+    "id": _id(), "type": "table", "title": "Active alerts", "datasource": DS,
+    "description": "Firing and pending Prometheus alerts (Watchdog excluded). Empty means all clear.",
     "gridPos": {"x": 0, "y": y, "w": 12, "h": 8},
-    "options": {"viewMode": "list", "groupMode": "default", "groupBy": [], "maxItems": 20,
-                "sortOrder": 3, "dashboardAlerts": False, "alertName": "", "alertInstanceLabelFilter": "",
-                "datasource": "prometheus",
-                "stateFilter": {"firing": True, "pending": True, "noData": False, "normal": False,
-                                "error": True}},
+    "targets": [dict(target('ALERTS{alertname!~"Watchdog|InfoInhibitor"}', "", instant=True),
+                     format="table")],
+    "transformations": [{"id": "organize", "options": {
+        "excludeByName": {"Time": True, "Value": True, "__name__": True, "container": True,
+                          "endpoint": True, "instance": True, "job": True, "pod": True,
+                          "service": True, "prometheus": True},
+        "indexByName": {"severity": 0, "alertname": 1, "alertstate": 2, "namespace": 3},
+        "renameByName": {"severity": "Severity", "alertname": "Alert", "alertstate": "State",
+                         "namespace": "Namespace"}}}],
+    "fieldConfig": {"defaults": {"noValue": "All clear", "custom": {"align": "left",
+                                                                     "cellOptions": {"type": "auto"}}},
+                    "overrides": [{"matcher": {"id": "byName", "options": "Severity"},
+                                   "properties": [{"id": "mappings", "value": SEVERITY},
+                                                  {"id": "custom.cellOptions",
+                                                   "value": {"type": "color-text"}},
+                                                  {"id": "custom.width", "value": 100}]}]},
+    "options": {"showHeader": True, "cellHeight": "sm"},
 })
 panels.append({
     "id": _id(), "type": "table", "title": "Scrape targets", "datasource": DS,
     "gridPos": {"x": 12, "y": y, "w": 12, "h": 8},
-    "targets": [target('min by (job) (up)', "", instant=True)],
+    "targets": [dict(target('min by (job) (up)', "", instant=True), format="table")],
     "transformations": [{"id": "organize", "options": {
         "excludeByName": {"Time": True},
         "renameByName": {"job": "Job", "Value": "Status"}}}],

@@ -87,7 +87,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### \ud83c\udfd4\ufe0f The Last Node Standing\n`tiny-dgx` \u00b7 single-node k3s \u00b7 Longhorn \u2192 MinIO backups \u00b7 memory is shared by CPU **and** GPU, so every gigabyte counts.",
+        "content": "### \ud83c\udfd4\ufe0f The Last Node Standing\n**tiny-dgx** \u00b7 single-node k3s \u00b7 Longhorn \u2192 MinIO backups \u00b7 memory is shared by CPU **and** GPU, so every gigabyte counts.",
         "code": {
           "language": "plaintext",
           "showLineNumbers": false
@@ -111,7 +111,7 @@
       "id": 3,
       "type": "stat",
       "title": "Node",
-      "description": "node-exporter scrape status",
+      "description": "node-exporter reachable in the last 2 minutes",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -128,7 +128,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "up{job=\"node-exporter\"}",
+          "expr": "max_over_time(up{job=\"node-exporter\"}[2m])",
           "legendFormat": "",
           "refId": "A",
           "range": true,
@@ -877,6 +877,7 @@
               }
             ]
           },
+          "displayName": "${__series.name}",
           "color": {
             "mode": "continuous-BlPu"
           },
@@ -1034,6 +1035,7 @@
               }
             ]
           },
+          "displayName": "${__series.name}",
           "color": {
             "mode": "continuous-BlPu"
           },
@@ -1103,6 +1105,7 @@
               }
             ]
           },
+          "displayName": "${__series.name}",
           "color": {
             "mode": "continuous-BlPu"
           },
@@ -1794,7 +1797,7 @@
             "uid": "${datasource}"
           },
           "expr": "longhorn_volume_actual_size_bytes / longhorn_volume_capacity_bytes",
-          "legendFormat": "{{pvc_namespace}}/{{pvc}}",
+          "legendFormat": "{{pvc_namespace}} / {{pvc}}",
           "refId": "A",
           "range": false,
           "instant": true
@@ -1820,6 +1823,7 @@
               }
             ]
           },
+          "displayName": "${__series.name}",
           "color": {
             "mode": "continuous-BlPu"
           },
@@ -1832,7 +1836,7 @@
         "displayMode": "gradient",
         "orientation": "horizontal",
         "valueMode": "color",
-        "namePlacement": "left",
+        "namePlacement": "top",
         "showUnfilled": true,
         "sizing": "manual",
         "minVizHeight": 16,
@@ -1871,8 +1875,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (volume) (longhorn_volume_read_throughput)",
-          "legendFormat": "{{volume}} read",
+          "expr": "sum by (pvc_namespace, pvc) (longhorn_volume_read_throughput)",
+          "legendFormat": "{{pvc_namespace}}/{{pvc}} read",
           "refId": "A",
           "range": true,
           "instant": false
@@ -1882,8 +1886,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "-sum by (volume) (longhorn_volume_write_throughput)",
-          "legendFormat": "{{volume}} write",
+          "expr": "-sum by (pvc_namespace, pvc) (longhorn_volume_write_throughput)",
+          "legendFormat": "{{pvc_namespace}}/{{pvc}} write",
           "refId": "B",
           "range": true,
           "instant": false
@@ -2035,31 +2039,123 @@
     },
     {
       "id": 32,
-      "type": "alertlist",
+      "type": "table",
       "title": "Active alerts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Firing and pending Prometheus alerts (Watchdog excluded). Empty means all clear.",
       "gridPos": {
         "x": 0,
         "y": 49,
         "w": 12,
         "h": 8
       },
-      "options": {
-        "viewMode": "list",
-        "groupMode": "default",
-        "groupBy": [],
-        "maxItems": 20,
-        "sortOrder": 3,
-        "dashboardAlerts": false,
-        "alertName": "",
-        "alertInstanceLabelFilter": "",
-        "datasource": "prometheus",
-        "stateFilter": {
-          "firing": true,
-          "pending": true,
-          "noData": false,
-          "normal": false,
-          "error": true
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "ALERTS{alertname!~\"Watchdog|InfoInhibitor\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
         }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "container": true,
+              "endpoint": true,
+              "instance": true,
+              "job": true,
+              "pod": true,
+              "service": true,
+              "prometheus": true
+            },
+            "indexByName": {
+              "severity": 0,
+              "alertname": 1,
+              "alertstate": 2,
+              "namespace": 3
+            },
+            "renameByName": {
+              "severity": "Severity",
+              "alertname": "Alert",
+              "alertstate": "State",
+              "namespace": "Namespace"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "All clear",
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "text": "critical",
+                        "color": "#F2495C",
+                        "index": 0
+                      },
+                      "warning": {
+                        "text": "warning",
+                        "color": "#FF9830",
+                        "index": 1
+                      },
+                      "info": {
+                        "text": "info",
+                        "color": "#5794F2",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
       }
     },
     {
@@ -2086,7 +2182,8 @@
           "legendFormat": "",
           "refId": "A",
           "range": false,
-          "instant": true
+          "instant": true,
+          "format": "table"
         }
       ],
       "transformations": [
