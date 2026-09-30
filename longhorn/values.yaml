@@ -1,0 +1,34 @@
+# Longhorn Helm values — chart longhorn/longhorn 1.13.0
+# Install: scripts/install-longhorn.sh
+
+persistence:
+  # Keep k3s's local-path as the cluster default; opt in with storageClassName: longhorn
+  defaultClass: false
+  # Single-node cluster: one replica per volume
+  defaultClassReplicaCount: 1
+
+defaultSettings:
+  defaultReplicaCount: 1
+
+# Backups go to the bnn MinIO container (see docs/minio.md)
+defaultBackupStore:
+  backupTarget: "s3://longhorn-backups@us-east-1/"
+  backupTargetCredentialSecret: "minio-credentials"
+
+service:
+  ui:
+    # The Longhorn UI has no authentication — keep it off the LAN.
+    # Access: kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80
+    type: ClusterIP
+
+# Single node: one copy of each control component (defaults of 2–3 only help on
+# multi-node clusters, and memory is tight on this box)
+csi:
+  attacherReplicaCount: 1
+  provisionerReplicaCount: 1
+  resizerReplicaCount: 1
+  snapshotterReplicaCount: 1
+longhornGlobalManager:
+  replicas: 1
+longhornUI:
+  replicas: 1

@@ -1,0 +1,27 @@
+# ---- Credentials: never leave this machine ----
+secrets/*
+!secrets/README.md
+*.env
+.env*
+!*.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.kubeconfig
+kubeconfig*
+k3s.yaml
+
+# ---- Personal notes and drafts (see personal/README.md) ----
+personal/*
+!personal/README.md
+
+# ---- Backups, scratch, editor/OS clutter ----
+*.bak
+*.orig
+*.swp
+*~
+.DS_Store
+.vscode/
+.idea/
+tmp/
