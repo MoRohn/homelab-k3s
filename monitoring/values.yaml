@@ -54,9 +54,10 @@ kubelet:
 kubeApiServer:
   serviceMonitor:
     metricRelabelings:
-      - action: drop
+      # Keep only what the enabled alert rules use (~16k series -> ~2k)
+      - action: keep
         sourceLabels: [__name__]
-        regex: (apiserver|etcd|workqueue|scheduler)_[a-z_]+_bucket
+        regex: (aggregator_unavailable_apiservice(_total)?|apiserver_client_certificate_expiration_seconds_(bucket|count)|apiserver_request_terminations_total|apiserver_request_total|apiserver_current_inflight_requests|apiserver_storage_objects|kubernetes_build_info|process_(cpu_seconds_total|max_fds|open_fds|resident_memory_bytes|virtual_memory_bytes|virtual_memory_max_bytes)|rest_client_requests_total)
 
 # ---- Alerts show on dashboards; nothing pushes notifications, so no Alertmanager ----
 alertmanager:
@@ -116,12 +117,16 @@ grafana:
   # The chart's stock dashboards are replaced by the curated set in monitoring/dashboards/
   defaultDashboardsEnabled: false
   defaultDashboardsTimezone: browser
-  # Grafana 13 idles around 300Mi; GOMEMLIMIT makes the Go GC work harder before the cap
+  # Grafana 13 idles ~300Mi and peaks ~480Mi rendering the overview; GOMEMLIMIT makes the
+  # Go GC work harder before the cap
   resources:
     requests: {cpu: 20m, memory: 256Mi}
-    limits: {memory: 512Mi}
+    limits: {memory: 640Mi}
   env:
-    GOMEMLIMIT: 420MiB
+    GOMEMLIMIT: 480MiB
+  # Grafana's own metrics (~5.5k series) aren't charted anywhere
+  serviceMonitor:
+    enabled: false
 
   # No sidecars (~150Mi saved): datasource and dashboards are mounted directly.
   # Mounted ConfigMaps still update in place, and Grafana rescans them.
