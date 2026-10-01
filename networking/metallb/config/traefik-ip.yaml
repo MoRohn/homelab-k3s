@@ -10,3 +10,7 @@ spec:
     service:
       annotations:
         metallb.io/loadBalancerIPs: 192.168.68.72
+      # IPv4 only: there is no IPv6 pool, so PreferDualStack just logs allocation warnings
+      spec:
+        ipFamilyPolicy: SingleStack
+        ipFamilies: [IPv4]
