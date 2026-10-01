@@ -114,6 +114,8 @@ def test_auto_alias_uses_decision(client):
     lif = r.json()["lif"]
     assert lif["requested"] == "local/auto" and lif["route_decision"]["decision"] == "code"
     assert lif["route_decision"]["provider"] == "rules"          # private prompt → never sent to Jev
+    assert lif["fallback"] is False                              # auto choosing an alias is routing, not a fallback
+    assert r.headers.get("x-lif-fallback") in (None, "false")
 
 
 def test_embeddings_and_models(client):
@@ -207,6 +209,7 @@ def test_auto_with_image_goes_to_vision_without_route_decision(client, monkeypat
     assert r.status_code == 200, r.json()
     lif = r.json()["lif"]
     assert lif["served_by"] == "vl" and lif["alias"] == "local/vision" and lif["requested"] == "local/auto"
+    assert lif["fallback"] is False                                    # the live smoke showed true before the fix
     assert lif["route_decision"]["decision"] == "vision" and lif["route_decision"]["provider"] == "rules"
     assert "request-route" not in calls                                # never through the Jev route decision
     assert seen[-1]["host"] == "vl.test" and seen[-1]["messages"][0]["content"][0]["type"] == "image_url"
