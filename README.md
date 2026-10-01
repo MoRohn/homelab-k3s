@@ -52,6 +52,21 @@ The **Labzilla Console** is the everyday way in: ask the local AI, watch the DGX
 agent reviews and pause jobs, from a desktop browser or a phone on the home network.
 **→ [https://labzilla.local](https://labzilla.local)** (also `https://labzilla.tiny-dgx.lan`)
 
+**Fastest start, from any Linux or macOS machine:**
+
+```bash
+tools/labzilla          # checks this machine, checks Labzilla, installs its certificate (verified), opens the console
+```
+
+| Command | What it does |
+|---|---|
+| `labzilla` | Guided quick start: doctor → status → trust (if needed) → open |
+| `labzilla status` | Console up and ready, HTTPS trusted on this machine; on the host also every service and whether local AI answers |
+| `labzilla trust` | Downloads the Labzilla CA from the console, checks its SHA-256 fingerprint (against `--fingerprint`, the host's copy, or your confirmation) and installs it |
+| `labzilla open` / `doctor` | Open the console; list what this machine has and needs |
+
+`tools/setup.sh` puts `labzilla` on your PATH. Other devices (phones, Windows) use **Trust this device** in the console.
+
 It is already deployed. Each new device needs the one-time steps below; steps 2 and 3 happen once per install.
 
 | Step | Who / where | What to do |
