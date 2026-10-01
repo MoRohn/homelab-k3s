@@ -28,7 +28,34 @@ local credentials:
 | Project | What it is | Start here |
 |---|---|---|
 | **[`homelab/`](homelab/)** | The k3s platform: Longhorn storage, MinIO backups (on- and off-site), Prometheus + Grafana, MetalLB, Tailscale, all GitOps-managed by Argo CD | [homelab/README.md](homelab/README.md) |
-| **[`lif/`](lif/)** | The **Local Intelligence Fabric**: an OpenAI-compatible gateway over local models, Decision Engineering (typed Jev decisions with calibrated escalation), a persistent knowledge layer for agents, model lifecycle, batch queue, and a Control Center UI. Runs on the platform | [lif/README.md](lif/README.md) |
+| **[`lif/`](lif/)** | The **Local Intelligence Fabric**: an OpenAI-compatible gateway over local models, Decision Engineering (typed Jev decisions with calibrated escalation), a persistent knowledge layer for agents, model lifecycle, batch queue, and the **Labzilla Console** (web + phone UI). Runs on the platform | [lif/README.md](lif/README.md) |
+
+## Use Labzilla (the console)
+
+The **Labzilla Console** is the everyday way in: ask the local AI, watch the DGX, run model checks, approve
+agent reviews and pause jobs, from a desktop browser or a phone on the home network.
+**→ [https://labzilla.local](https://labzilla.local)** (also `https://labzilla.tiny-dgx.lan`)
+
+It is already deployed. Each new device needs the one-time steps below; steps 2 and 3 happen once per install.
+
+| Step | Who / where | What to do |
+|---|---|---|
+| **1. Trust the certificate** | Each device, once | Copy `secrets/labzilla-ca.crt` from the Labzilla host, for example `scp <user>@labzilla.local:labzilla/secrets/labzilla-ca.crt .`, and install it as a trusted CA. **iPhone/iPad:** open the file, install the profile, then turn it on under *Settings → General → About → Certificate Trust Settings*. **Android:** *Settings → Security → Encryption & credentials → Install a certificate → CA certificate*. **macOS:** open it in Keychain Access and set *Always Trust*. **Windows:** double-click → *Install Certificate* → *Trusted Root Certification Authorities*. **Linux:** `sudo cp labzilla-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates`. The CA is limited to `tiny-dgx.lan` and `labzilla.local` names, and it is public: never copy the `.key` |
+| **2. Open the console** | Any browser | Go to **https://labzilla.local**. Phones and Macs find `.local` names on their own. If a Windows PC can't, add `192.168.68.72 labzilla.tiny-dgx.lan` to its hosts file and use `https://labzilla.tiny-dgx.lan` |
+| **3. Create the admin (first run only)** | The host, then the browser | The console opens **Setup**. On the Labzilla host run `cat ~/labzilla/secrets/lif-console-setup.code`, enter that code, then choose your name and a passphrase of at least 10 characters. You land on *"Labzilla is ready"* → **Ask Labzilla** |
+| **4. Connect a phone** | Desktop + phone | On the desktop, open **Connect a phone** in the sidebar or press `Ctrl/⌘+K`. Scan the QR code with the phone and check that both screens show the same 6-digit code, then click **Approve**. The phone opens straight to the prompt; remove phones under *Connect → Devices*. On the phone, *Share → Add to Home Screen* installs it as an app |
+
+Everyday use: type in the command bar at the bottom (or press `/`). Plain questions go to the local model;
+"why is the GPU busy?", "pause batch jobs" or "check for better coding models" are answered or offered as an action you confirm.
+
+| If… | Then |
+|---|---|
+| The browser warns about the certificate | Step 1 isn't done on this device. Until it is, sign-in and Ask still work after you accept the warning; install, voice and notifications don't |
+| `labzilla.local` doesn't resolve | Use `https://labzilla.tiny-dgx.lan` with a hosts entry (step 2). On the host, `systemctl --user status labzilla-mdns` publishes the name ([unit](homelab/host/systemd/labzilla-mdns.service)) |
+| Setup says the setup code isn't configured | Run `lif/scripts/create-secrets.sh`, then `kubectl -n ai-system rollout restart deploy/gateway deploy/controller deploy/console` |
+| The page doesn't load at all | `kubectl -n ai-system get pods -l app=console`. Deploy and rollback steps are in [CONSOLE → Deploy & access](lif/docs/CONSOLE.md#deploy--access) |
+
+Design, security model and every screen: [lif/docs/CONSOLE.md](lif/docs/CONSOLE.md).
 
 ## Inside LIF
 
@@ -49,7 +76,8 @@ executor that can do it correctly, and the platform keeps measuring whether that
 | **Decision Engineering** | Mines agent traces for decisions hidden in LLM calls. Turns them into versioned Jev questions that are linted, tested, shadowed, calibrated per decision and promoted only by a person. Escalates by confidence | [DECISION_ENGINEERING](lif/docs/DECISION_ENGINEERING.md) |
 | **Knowledge layer** | Typed Markdown repos of decisions, evidence, incidents and methods. A graph with context assembly, and an MCP server so agents resume work with provenance | [KNOWLEDGE](lif/docs/KNOWLEDGE.md) |
 | **Model lifecycle** | Hugging Face discovery → benchmark → canary → promotion, with rollback | [MODEL_LIFECYCLE](lif/docs/MODEL_LIFECYCLE.md) |
-| **Control Center** | Overview, models, decision engineering (opportunities, calibration, cascades, traces, review queue), knowledge | [OPERATIONS](lif/docs/OPERATIONS.md) |
+| **Labzilla Console** | The everyday UI for desktop and phone: Ask with streaming and routing receipts, health in plain language, models, jobs, agents, knowledge, QR phone pairing | [CONSOLE](lif/docs/CONSOLE.md) |
+| **Control Center** | Expert view: overview, models, decision engineering (opportunities, calibration, cascades, traces, review queue), knowledge | [OPERATIONS](lif/docs/OPERATIONS.md) |
 
 Measured 2026-10-01 on 267 labelled agent decisions: Jev was right 94.4% of the time, at a median of 167 ms.
 At a 0.9 threshold, 68% of cases resolved automatically, all correctly. The rest escalated
@@ -62,7 +90,7 @@ labzilla/
 ├── homelab/            k3s platform (Argo CD app-of-apps, Helm values, host prep, backup)
 │   ├── argocd/         root.yaml → apps/   (a push to main is a deploy)
 │   ├── monitoring/     Prometheus/Grafana values, rules, dashboards
-│   ├── networking/     MetalLB, Tailscale
+│   ├── networking/     MetalLB, Tailscale, local-ca/ (LAN HTTPS certificate)
 │   ├── longhorn/  minio/  backup/  host/
 │   ├── scripts/        every setup step, repeatable
 │   └── docs/
@@ -70,6 +98,7 @@ labzilla/
 │   ├── lif/            Python package (gateway, controller, decision, knowledge, batch, cli, …)
 │   ├── decision-packages/  versioned Jev questions + labelled tests (never edited in place)
 │   ├── deploy/k8s/     manifests (kustomization.yaml at lif/)
+│   ├── apps/console/   Labzilla Console PWA (Preact + TypeScript; backend in lif/lif/console)
 │   ├── config/ evals/  apps/control-center/
 │   ├── benchmarks/     public, reproducible benchmarks
 │   ├── knowledge/      agent repos + knowledge package registry (typed Markdown; `knowledge` CLI, MCP)
@@ -94,6 +123,7 @@ tools/setup.sh            # enables the pre-commit guard, creates the private ro
 
 Then follow the project you need:
 
+- **Use Labzilla from a browser or phone:** [Use Labzilla](#use-labzilla-the-console) above
 - **Platform from scratch:** [homelab/README.md → "The setup, in seven acts"](homelab/README.md#the-setup-in-seven-acts)
 - **Deploy or operate LIF:** [lif/docs/DEPLOYMENT.md](lif/docs/DEPLOYMENT.md) and [lif/docs/OPERATIONS.md](lif/docs/OPERATIONS.md)
 - **Call the AI gateway from an app:** [lif/README.md → Quickstart](lif/README.md#quickstart-for-application-developers)

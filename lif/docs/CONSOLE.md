@@ -481,6 +481,8 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 
 ### Owner steps
 
+Steps 1–4 and the local CA (step 7) were done on 2026-10-01. To start using the console on a new device, follow the repo [README → Use Labzilla](../../README.md#use-labzilla-the-console). The steps below are for a rebuild from scratch.
+
 1. **Create the console secrets.** `~/labzilla/lif/scripts/create-secrets.sh` (idempotent, never prints values). It generates `secrets/lif-console-admin.key`, `secrets/lif-console-gateway.key` and `secrets/lif-console-setup.code` once (0600, git-ignored), adds `console:<key>` lines to `LIF_ADMIN_KEYS` and `LIF_GATEWAY_KEYS`, and adds the three `LIF_CONSOLE_*` keys to `lif-secrets`.
 2. **Roll out gateway and controller.** They read their key lists only at startup, so the console's keys are refused until they restart:
    ```bash
