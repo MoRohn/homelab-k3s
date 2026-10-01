@@ -20,7 +20,6 @@ profiles:
     anon_mib: 1665                # measured 1,409 (2026-10-01, n=1: KV 576 + runtime/compute) + 256 prompt cache
     cache_ram_mib: 256            # --cache-ram (llama.cpp default: 8 GiB)
     memory_budget_mb: 4864        # = cgroup limit: weights (page cache, charged to the pod) + anon + 15 %
-    mlock: true                   # hot fallback: weights stay resident (homelab/host/prep-memlock.sh)
     endpoint: http://tier0.ai-serving.svc:8080
     license: apache-2.0
 

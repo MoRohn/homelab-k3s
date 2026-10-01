@@ -50,11 +50,8 @@ spec:
             - "--metrics"
             # Weights are repacked (llama.cpp's default) for its ARM matrix kernels: 1.6x prompt speed at the
             # cost of anonymous memory (weights_mib counts it either way; the cgroup limit holds it).
-            # Lock the weights in RAM so host-wide reclaim can't evict them mid-answer (they would be re-read
-            # at once while tier0 serves). Needs homelab/host/prep-memlock.sh; until then llama.cpp only warns.
-            # (This build has no --mlock flag: it exits on it.)
-            - "--load-mode"
-            - "mmap+mlock"
+            # No --load-mode mmap+mlock: with repacked weights the mmap'd file is only read once at load, so
+            # locking it would pin ~2.4 GB of page cache the server never reads again (and exceed the limit).
             - "--no-webui"
             - "--ctx-size"
             - "8192"

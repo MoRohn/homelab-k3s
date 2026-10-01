@@ -57,7 +57,7 @@ The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → 
 - tier0's anon grew from the ~670–850 MiB above to **1,409 MiB** after hours of chat (KV pages are touched lazily). With weights at 2,381 MiB, the 3,584 Mi limit sat full. The kernel evicted weight pages that the next token needed, so tier0 decoded from disk *(private/lif/perf/2026-10-01-tier0-latency.md, local only)*.
 - Fix: `limit = (weights + anon) × 1.15`, rounded up to 256 MiB (`hardware_fit.memory_limit_mib`). The controller refuses a smaller limit, and `tests/test_serving_memory.py` checks every manifest.
 - After the fix, the same pod decoded 19.7 / 21.0 tok/s and processed prompts at 84 tok/s, with no cgroup limit hits or refaults (n = 2 requests).
-- tier0 also runs `--load-mode mmap+mlock` (the pinned llama.cpp exits on `--mlock`): under host-wide reclaim its weights would be evicted and re-read at once. Locking needs k3s's `LimitMEMLOCK` raised (`homelab/host/prep-memlock.sh`, sudo, restarts k3s). Until then llama.cpp logs a warning and runs unlocked.
+- Memory locking (`--load-mode mmap+mlock`) was tried and dropped the same day: once chat servers repack their weights (anonymous memory), the mmap'd file is read only at load, and locking it would pin ~2.4 GB of page cache that is never read again. Repacked weights are not evictable as page cache; under extreme pressure they can only be swapped.
 
 ### Prompt cache and speculation (2026-10-01)
 
