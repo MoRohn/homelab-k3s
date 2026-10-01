@@ -1,5 +1,6 @@
-# https://prometheus.<tailnet>.ts.net — tailnet only. Prometheus has NO login of its own:
-# anyone on your tailnet can query it (read-only).
+# https://prometheus.<tailnet>.ts.net — tailnet only. Prometheus has NO login of its own, and
+# --web.enable-lifecycle is on (needed by the config reloader), so tailnet members can also
+# POST /-/quit or /-/reload. Fine for a private tailnet; see docs/tailscale.md otherwise.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

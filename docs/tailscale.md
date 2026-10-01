@@ -47,4 +47,11 @@ the URLs.
 | URL | Login |
 |---|---|
 | `https://grafana.<tailnet>.ts.net` | Grafana's own (`secrets/grafana.env`) |
-| `https://prometheus.<tailnet>.ts.net` | none: anyone on your tailnet can query it (read-only) |
+| `https://prometheus.<tailnet>.ts.net` | **none**: see below |
+
+**About the Prometheus URL.** Prometheus has no login, and it runs with
+`--web.enable-lifecycle` (the operator's config reloader needs it). So anyone on your tailnet
+can not only query it but also `POST /-/quit` to stop it until Kubernetes restarts it. That's
+fine on a tailnet with only your own devices. If you ever share the tailnet, delete
+`networking/tailscale/ingresses/prometheus.yaml` and use Grafana → **Explore**, which runs the
+same queries behind Grafana's login.

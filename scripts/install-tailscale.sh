@@ -18,10 +18,11 @@ resp=$(curl -fsS https://api.tailscale.com/api/v2/oauth/token \
   -d "client_id=$TS_OAUTH_CLIENT_ID" -d "client_secret=$TS_OAUTH_CLIENT_SECRET" 2>&1) \
   || fail "Tailscale rejected the client ID/secret: $resp"
 scopes=$(python3 -c 'import sys,json; print(json.load(sys.stdin).get("scope",""))' <<<"$resp")
+has_scope() { [[ " $scopes " == *" $1 "* ]]; }   # exact token: devices:core:read doesn't count
 for need in devices:core auth_keys; do
-  [[ " $scopes " == *" $need"* || " $scopes " == *"$need "* || $scopes == *"$need"* ]] \
-    || fail "OAuth client is missing the '$need' write scope (has: $scopes)"
+  has_scope "$need" || fail "OAuth client needs WRITE on '$need' (it has: $scopes)"
 done
+has_scope services || printf '  ! no write "services" scope (has: %s); ingresses may fail to register\n' "$scopes"
 ok "credentials valid; scopes: $scopes"
 
 echo "2. Storing the credentials in the cluster"

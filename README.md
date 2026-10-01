@@ -156,8 +156,9 @@ To change the home dashboard: edit the generator, run it, commit both files.
 
 **MetalLB** hands out LoadBalancer addresses, replacing k3s's built-in ServiceLB.
 Traefik is pinned to the node's own address, `192.168.68.72`, so everything that already
-pointed there keeps working. A second, opt-in pool (`192.168.71.230-239`) is ready for any
-service that wants an address of its own:
+pointed there keeps working. A second, opt-in pool (`192.168.71.230-239`) is set up for
+services that want an address of their own. It's **not yet verified**: those addresses rely on
+the Wi-Fi mesh honouring MetalLB's ARP announcements, which needs a test from another device.
 
 ```yaml
 metadata:
