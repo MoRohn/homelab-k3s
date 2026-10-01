@@ -64,6 +64,24 @@ spec:
           annotations:
             summary: Volume {{ $labels.volume }} has not been backed up in over 2 days
 
+    - name: homelab.offsite
+      rules:
+        # Only evaluate once off-site sync has been set up (the metric exists)
+        - alert: OffsiteBackupStale
+          expr: time() - homelab_offsite_last_success_timestamp_seconds > 2 * 86400 and homelab_offsite_last_success_timestamp_seconds > 0
+          for: 1h
+          labels: {severity: warning}
+          annotations:
+            summary: Off-site backup copy is {{ $value | humanizeDuration }} old
+            description: The off-site target may be asleep, offline or out of space. See backup/offsite-sync.sh.
+        - alert: OffsiteBackupFailing
+          expr: homelab_offsite_last_run_failed == 1
+          for: 2h
+          labels: {severity: warning}
+          annotations:
+            summary: Off-site backup sync is failing
+            description: Run ~/homelab-k3s/backup/offsite-sync.sh --force to see the error (a REFUSING message means the shrink guard fired).
+
     - name: homelab.minio
       rules:
         - alert: MinIODown

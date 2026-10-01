@@ -293,8 +293,11 @@ panels += [
     stat("MinIO", 'max(minio_cluster_health_status)', 16, y, w=4, mappings=HEALTHY,
          spark=False, color_mode="background", steps=((None, RED), (1, GREEN)),
          description="bnn-minio (Docker, outside the cluster)"),
-    stat("Backup bucket size", 'sum(minio_bucket_usage_total_bytes{bucket="longhorn-backups"})',
-         20, y, w=4, unit="bytes", decimals=1, steps=((None, PURPLE),)),
+    stat("Off-site copy age", 'time() - max(homelab_offsite_last_success_timestamp_seconds > 0)',
+         20, y, w=4, unit="s", decimals=0, no_value="Not set up", spark=False,
+         steps=((None, GREEN), (86400 * 1.5, YELLOW), (86400 * 2, RED)),
+         description="Time since the last successful sync of longhorn-backups to the "
+                     "off-site machine (backup/offsite-sync.sh)"),
 ]
 y += 4
 panels.append(bargauge(

@@ -2430,8 +2430,8 @@
     {
       "id": 36,
       "type": "stat",
-      "title": "Backup bucket size",
-      "description": "",
+      "title": "Off-site copy age",
+      "description": "Time since the last successful sync of longhorn-backups to the off-site machine (backup/offsite-sync.sh)",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -2448,7 +2448,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(minio_bucket_usage_total_bytes{bucket=\"longhorn-backups\"})",
+          "expr": "time() - max(homelab_offsite_last_success_timestamp_seconds > 0)",
           "legendFormat": "",
           "refId": "A",
           "range": true,
@@ -2457,14 +2457,22 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
-          "noValue": "\u2014",
+          "unit": "s",
+          "noValue": "Not set up",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#B877D9",
+                "color": "#73BF69",
                 "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 129600.0
+              },
+              {
+                "color": "#F2495C",
+                "value": 172800
               }
             ]
           },
@@ -2472,7 +2480,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
-          "decimals": 1
+          "decimals": 0
         },
         "overrides": []
       },
@@ -2485,7 +2493,7 @@
           "values": false
         },
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "textMode": "value",
         "wideLayout": true,
