@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "quick",
+  "description": "The bundled Quick Ask popover: app commands (always allowed for local windows) and events. The main window shows the remote console and is deliberately in no capability.",
+  "windows": ["quick"],
+  "permissions": ["core:event:default"]
+}

@@ -19,4 +19,9 @@ if [[ "${1:-}" != "--no-venv" ]]; then
   echo "✓ lif/.venv ready (local-ai CLI: lif/.venv/bin/local-ai)"
 fi
 
+# 4. The `labzilla` command (quick start + status + trust) on PATH
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$PWD/tools/labzilla" "$HOME/.local/bin/labzilla"
+echo "✓ labzilla command installed (~/.local/bin/labzilla → tools/labzilla); run: labzilla"
+
 python3 tools/check-private.py --all

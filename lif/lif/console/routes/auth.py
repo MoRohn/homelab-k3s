@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import PlainTextResponse
 
 from lif.console import auth, db, errors, settings
 from lif.console.auth import PAIR_COOKIE, SESSION_COOKIE
@@ -245,8 +246,44 @@ async def access(request: Request) -> AccessInfo:
             "certificate so install, voice and notifications work — see Trust this device." if secure else
             "This connection isn't encrypted. Signing in still works on your network, but install, voice "
             "and notifications need trusted HTTPS — see Trust this device.")
+    ca = local_ca()
     return AccessInfo(public_url=settings.public_url(), alt_urls=settings.alt_urls(), lan_url=settings.lan_url(),
-                      secure=secure, trusted_hint=hint, mdns=settings.mdns())  # type: ignore[arg-type]
+                      secure=secure, trusted_hint=hint, mdns=settings.mdns(),  # type: ignore[arg-type]
+                      ca_available=ca is not None, ca_sha256=ca[1] if ca else None)
+
+
+# ── the Labzilla Local CA certificate (public: every HTTPS handshake already sends it) ───────────────
+
+CA_FILE = Path(os.environ.get("LIF_CONSOLE_CA_FILE", "/etc/labzilla-ca/ca.crt"))
+_PEM = re.compile(r"-----BEGIN CERTIFICATE-----([A-Za-z0-9+/=\s]+)-----END CERTIFICATE-----")
+
+
+def local_ca() -> tuple[str, str] | None:
+    """(PEM, SHA-256 fingerprint) of the CA certificate the console was given, or None. Only a certificate
+    is ever read or served: anything else in the file (a key) is refused."""
+    import base64
+    try:
+        text = CA_FILE.read_text()
+    except OSError:
+        return None
+    m = _PEM.search(text)
+    if m is None or "PRIVATE KEY" in text:
+        return None
+    der = base64.b64decode("".join(m.group(1).split()))
+    fp = hashlib.sha256(der).hexdigest().upper()
+    return m.group(0) + "\n", ":".join(fp[i:i + 2] for i in range(0, len(fp), 2))
+
+
+@router.get("/trust/ca.crt", include_in_schema=False)
+async def ca_certificate() -> Response:
+    """Download the Labzilla Local CA certificate (open: a new device needs it before it can trust the
+    console). Check its fingerprint against Trust this device on a device that already trusts it."""
+    ca = local_ca()
+    if ca is None:
+        return PlainTextResponse("This console has no CA certificate to offer.", status_code=404)
+    return Response(ca[0], media_type="application/x-x509-ca-cert",
+                    headers={"Content-Disposition": 'attachment; filename="labzilla-ca.crt"',
+                             "X-Labzilla-CA-SHA256": ca[1], "Cache-Control": "no-cache"})
 
 
 # ── pairing (§15–§17) ────────────────────────────────────────────────────────────────────────

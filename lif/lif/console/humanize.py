@@ -470,6 +470,12 @@ ACTIVITY: dict[str, _Spec] = {
     "benchmark_completed": ("model", "success", lambda r: f"Benchmark finished for {_m(r)}", _bench_detail, _href_model),
     "comparison_complete": ("model", "info", _comparison, _none, _href_candidate),
     "load_test_passed": ("model", "success", lambda r: f"{_m(r)} starts correctly", _none, _href_model),
+    # Automatic promotion (controller/autopromote.py): every step names the measured reason.
+    "auto_canary_started": ("model", "info", lambda r: f"Trying {_m(r)} on part of the traffic", _none, _href_model),
+    "auto_promoted": ("model", "success", lambda r: f"{_m(r)} promoted automatically",
+                      lambda r: "; ".join(_d(r).get("reasons") or []) or None, _href_model),
+    "auto_canary_ended": ("model", "warning", lambda r: f"{_m(r)} kept out of production",
+                          lambda r: "; ".join(_d(r).get("reasons") or []) or None, _href_model),
     "download_started": ("job", "info", lambda r: f"Downloading {_m(r)}", _none, _href_model),
     "download_complete": ("job", "success", lambda r: f"Download complete: {_m(r)}", _none, _href_model),
     "model_loaded": ("model", "info", lambda r: f"{_m(r)} started", _none, _href_model),

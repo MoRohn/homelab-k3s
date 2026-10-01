@@ -1001,6 +1001,8 @@ class AccessInfo(Contract):
     secure: bool = False
     trusted_hint: str = ""
     mdns: Literal["published", "not_published", "unknown"] = "unknown"
+    ca_available: bool = False               # GET /api/trust/ca.crt serves the Labzilla Local CA certificate
+    ca_sha256: str | None = None             # its SHA-256 fingerprint ("AB:CD:…"), to check after downloading
 
 
 class OkResponse(Contract):

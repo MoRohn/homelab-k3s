@@ -132,12 +132,53 @@ export default function Trust() {
                 ...(a.lan_url ? [{ label: 'Fallback on your network', value: a.lan_url }] : []),
                 { label: 'Local name (mDNS)', value: MDNS_LABEL[a.mdns] },
                 { label: 'Server reports', value: a.secure ? 'HTTPS' : 'Plain HTTP' },
+                ...(a.ca_sha256 ? [{ label: 'Labzilla certificate (SHA-256)', value: <code class="lz-trust-fp">{a.ca_sha256}</code> }] : []),
               ]}
             />
           )}
           {a?.trusted_hint && <p class="small muted">{a.trusted_hint}</p>}
         </div>
       </Card>
+
+      {a?.ca_available && !trusted && (
+        <Card title="Install Labzilla’s certificate" subtitle="Once per device. Then every feature works, without browser warnings.">
+          <div class="stack">
+            <div class="row">
+              <a class="lz-btn lz-btn-primary lz-btn-md" href="/api/trust/ca.crt" download="labzilla-ca.crt">
+                <Icon name="download" size={18} />
+                <span class="lz-btn-text">
+                  <span class="lz-btn-label">Download certificate</span>
+                </span>
+              </a>
+            </div>
+            <ol class="lz-trust-steps">
+              <li>
+                <strong>Windows:</strong> open the file → <em>Install Certificate</em> → <em>Local Machine</em> → <em>Trusted Root Certification
+                Authorities</em>.
+              </li>
+              <li>
+                <strong>macOS:</strong> open the file, add it to the <em>System</em> keychain, open it in Keychain Access and set{' '}
+                <em>When using this certificate</em> to <em>Always Trust</em>.
+              </li>
+              <li>
+                <strong>iPhone / iPad:</strong> install the profile in Settings, then turn it on under <em>General → About → Certificate Trust
+                Settings</em>.
+              </li>
+              <li>
+                <strong>Android:</strong> Settings → Security → <em>Install a certificate</em> → <em>CA certificate</em>.
+              </li>
+              <li>
+                <strong>Linux:</strong> <code>sudo cp labzilla-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates</code>
+              </li>
+            </ol>
+            <p class="small muted">
+              Before trusting it, check its fingerprint matches what a device that already trusts Labzilla shows here:
+              <br />
+              <code class="lz-trust-fp">SHA-256 {a.ca_sha256}</code>
+            </p>
+          </div>
+        </Card>
+      )}
 
       <Card title="What works on this device">
         <ul class="lz-trust-list" role="list">

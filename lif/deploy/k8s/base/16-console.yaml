@@ -117,7 +117,19 @@ spec:
           mountPath: /tmp
         - name: data
           mountPath: /data
+        - name: local-ca
+          mountPath: /etc/labzilla-ca
+          readOnly: true
       volumes:
+      # The Labzilla Local CA *certificate* (public; homelab/networking/local-ca/issue-certs.sh publishes it),
+      # served at /api/trust/ca.crt so a new device can trust the console. optional: absent → not offered.
+      - name: local-ca
+        configMap:
+          name: labzilla-ca
+          optional: true
+          items:
+          - key: ca.crt
+            path: ca.crt
       # Only the console's own keys, not the whole Secret (no Jev or inter-service keys here).
       # optional: the console starts before create-secrets.sh has added them and shows
       # "Not configured" instead of failing to mount.

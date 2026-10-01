@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# labzilla — quick start and everyday checks for the Labzilla Console, from any Linux or macOS machine.
+#
+#   labzilla                 guided quick start: doctor → status → trust (if needed) → open
+#   labzilla status          is the console up, is HTTPS trusted here, is local AI ready (+ pods on the host)
+#   labzilla trust           download the Labzilla CA, verify its fingerprint, install it (asks for sudo)
+#   labzilla open            open the console in the browser
+#   labzilla doctor          what this machine has and needs
+#   labzilla help
+#
+# Options (any command): --url URL (default $LABZILLA_URL or https://labzilla.local), --yes (no prompts),
+# --dry-run (trust: verify only, install nothing), --fingerprint SHA256 (trust: the value to expect).
+# LABZILLA_NO_CLUSTER=1 skips the host's cluster checks (tests, or a host without kubectl access).
+# Never prints a secret: on the host it only says where the first-run setup code is.
+set -uo pipefail
+
+VERSION="1.0.0"
+URL="${LABZILLA_URL:-https://labzilla.local}"
+YES=0
+DRY=0
+EXPECT_FP=""
+CMD=""
+ROOT="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")/.." && pwd)"
+HOST_CA="$ROOT/secrets/labzilla-ca.crt"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+if [ -t 1 ]; then G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; B=$'\e[1m'; D=$'\e[2m'; N=$'\e[0m'; else G='' Y='' R='' B='' D='' N=''; fi
+ok()   { printf '  %s✓%s %s\n' "$G" "$N" "$*"; }
+warn() { printf '  %s!%s %s\n' "$Y" "$N" "$*"; }
+bad()  { printf '  %s✗%s %s\n' "$R" "$N" "$*"; }
+info() { printf '  %s·%s %s\n' "$D" "$N" "$*"; }
+head1() { printf '\n%s%s%s\n' "$B" "$*" "$N"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+usage() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --url) URL="${2:?--url needs a value}"; shift 2 ;;
+    --url=*) URL="${1#*=}"; shift ;;
+    --yes|-y) YES=1; shift ;;
+    --dry-run) DRY=1; shift ;;
+    --fingerprint) EXPECT_FP="${2:?--fingerprint needs a value}"; shift 2 ;;
+    --version) echo "labzilla $VERSION"; exit 0 ;;
+    -h|--help|help) usage; exit 0 ;;
+    status|trust|open|doctor|start) CMD="$1"; shift ;;
+    *) echo "labzilla: unknown argument '$1' (try: labzilla help)" >&2; exit 2 ;;
+  esac
+done
+URL="${URL%/}"
+
+case "$(uname -s)" in
+  Darwin) OS=macos ;;
+  Linux) OS=linux ;;
+  *) OS=other ;;
+esac
+
+# ── helpers ────────────────────────────────────────────────────────────────────────────────
+
+# HTTP status of URL$1 (000 = no answer). $2 = extra curl flags (e.g. -k).
+code() {
+  local extra=()
+  [ -n "${2:-}" ] && extra=("$2")
+  curl -s -o /dev/null -m 6 -w '%{http_code}' "${extra[@]}" "$URL$1" 2>/dev/null || echo 000
+}
+
+# Does this machine's trust store accept the console's certificate?
+trusted() {
+  case "$URL" in http://*) return 0 ;; esac
+  curl -s -o /dev/null -m 6 "$URL/healthz" 2>/dev/null
+}
+
+# SHA-256 fingerprint of a PEM certificate, "AB:CD:…" (same format as the console's Trust page).
+fingerprint() { openssl x509 -in "$1" -noout -fingerprint -sha256 2>/dev/null | sed 's/.*=//'; }
+
+norm_fp() { tr -d ': \n' <<<"$1" | tr '[:lower:]' '[:upper:]'; }
+
+confirm() {
+  [ "$YES" = 1 ] && return 0
+  [ -t 0 ] || return 1
+  printf '  %s [y/N] ' "$1"
+  read -r a
+  [[ "$a" =~ ^[Yy] ]]
+}
+
+# ── commands ───────────────────────────────────────────────────────────────────────────────
+
+doctor() {
+  head1 "This machine"
+  local missing=0
+  for t in curl openssl; do
+    if have "$t"; then ok "$t"; else bad "$t is missing (needed)"; missing=1; fi
+  done
+  case "$OS" in
+    linux) if have update-ca-certificates || have update-ca-trust; then ok "system trust store tools"
+           else warn "no update-ca-certificates / update-ca-trust: 'labzilla trust' can't install the CA here"; fi
+           if have xdg-open; then ok "xdg-open (labzilla open)"; else info "no xdg-open: open $URL yourself"; fi ;;
+    macos) ok "macOS keychain (security)"; ;;
+    *) warn "unsupported OS: status works; install the CA by hand (see the console's Trust this device)" ;;
+  esac
+  if [[ "$URL" == *.local* ]]; then
+    local host="${URL#*://}"; host="${host%%/*}"; host="${host%%:*}"
+    if getent hosts "$host" >/dev/null 2>&1 || dscacheutil -q host -a name "$host" 2>/dev/null | grep -q ip_address; then
+      ok "$host resolves (mDNS)"
+    else
+      bad "$host doesn't resolve: install mDNS (Linux: libnss-mdns) or use --url https://labzilla.tiny-dgx.lan"
+      missing=1
+    fi
+  fi
+  if [ -d "$ROOT/lif" ] && have kubectl; then info "on the Labzilla host (repo + kubectl): status also shows the cluster"; fi
+  return $missing
+}
+
+status() {
+  head1 "Labzilla at $URL"
+  local rc=0 c
+  c=$(code /healthz -k)
+  if [ "$c" = 200 ]; then ok "console is up"; else bad "console not answering (HTTP $c)"; return 1; fi
+  if trusted; then ok "HTTPS is trusted on this machine"
+  else warn "this machine doesn't trust Labzilla's certificate yet → labzilla trust"; rc=3; fi
+  c=$(code /readyz -k)
+  if [ "$c" = 200 ]; then ok "console is ready (database and upstreams)"; else warn "console not ready yet (HTTP $c)"; fi
+  local access
+  access=$(curl -s -k -m 6 "$URL/api/access" 2>/dev/null || true)
+  if grep -q '"ca_available": *true' <<<"$access"; then
+    info "certificate fingerprint: $(sed -n 's/.*"ca_sha256": *"\([^"]*\)".*/\1/p' <<<"$access")"
+  fi
+  # Local AI readiness is a gateway fact; the console only reports it after sign-in, so ask the host.
+  if [ -z "${LABZILLA_NO_CLUSTER:-}" ] && [ -d "$ROOT/lif" ] && have kubectl && kubectl get ns ai-system >/dev/null 2>&1; then
+    head1 "Cluster (this is the host)"
+    local line notready=0
+    while read -r name ready _; do
+      [ -z "$name" ] && continue
+      if [ "${ready%/*}" = "${ready#*/}" ] && [ "${ready#*/}" != 0 ]; then line="$name $ready"; ok "$line"
+      elif [ "${ready#*/}" = 0 ]; then info "$name scaled to 0 (memory guard or idle)"
+      else bad "$name $ready"; notready=1; fi
+    done < <(kubectl get deploy -n ai-system --no-headers 2>/dev/null; kubectl get deploy -n ai-serving --no-headers 2>/dev/null)
+    local ai
+    ai=$(kubectl -n ai-system exec deploy/gateway -- python -c \
+      "import httpx;print(httpx.get('http://localhost:8080/v1/health',timeout=5).json().get('useful_local_ai'))" 2>/dev/null)
+    if [ "$ai" = True ]; then ok "local AI is answering"; elif [ -n "$ai" ]; then bad "local AI is not answering"; rc=1; fi
+    [ "$notready" = 1 ] && rc=1
+  fi
+  return $rc
+}
+
+trust() {
+  head1 "Trust Labzilla's certificate on this machine"
+  if trusted && [ "$DRY" = 0 ]; then ok "already trusted: nothing to do"; return 0; fi
+  local pem="$TMP/labzilla-ca.crt" hdr="$TMP/headers"
+  # Fetched without verification (that's the point: this machine can't verify yet). The fingerprint check
+  # below is what makes it safe.
+  local c
+  c=$(curl -s -k -m 10 -D "$hdr" -o "$pem" -w '%{http_code}' "$URL/api/trust/ca.crt" 2>/dev/null || echo 000)
+  if [ "$c" != 200 ]; then
+    bad "the console doesn't offer its certificate (HTTP $c)"
+    info "on the host: homelab/networking/local-ca/issue-certs.sh publishes it"
+    return 1
+  fi
+  if ! grep -q "BEGIN CERTIFICATE" "$pem" || grep -q "PRIVATE KEY" "$pem"; then bad "that isn't a certificate; refusing"; return 1; fi
+  local fp; fp=$(fingerprint "$pem")
+  [ -n "$fp" ] || { bad "openssl can't read the certificate"; return 1; }
+  info "downloaded: $(openssl x509 -in "$pem" -noout -subject 2>/dev/null | sed 's/^subject= *//')"
+  info "SHA-256 $fp"
+
+  # Verify against something this download didn't come with.
+  local verified=0
+  if [ -n "$EXPECT_FP" ]; then
+    if [ "$(norm_fp "$EXPECT_FP")" = "$(norm_fp "$fp")" ]; then ok "matches --fingerprint"; verified=1
+    else bad "does NOT match --fingerprint: not installing"; return 1; fi
+  elif [ -s "$HOST_CA" ]; then
+    if [ "$(norm_fp "$(fingerprint "$HOST_CA")")" = "$(norm_fp "$fp")" ]; then ok "matches secrets/labzilla-ca.crt on this host"; verified=1
+    else bad "does NOT match secrets/labzilla-ca.crt: not installing"; return 1; fi
+  else
+    warn "compare it with the fingerprint on Trust this device, on a device that already trusts Labzilla"
+    confirm "Does it match?" && verified=1
+  fi
+  [ "$verified" = 1 ] || { warn "not verified: nothing installed"; return 1; }
+  if [ "$DRY" = 1 ]; then ok "verified (dry run: nothing installed)"; return 0; fi
+
+  case "$OS" in
+    linux)
+      if have update-ca-certificates; then
+        sudo cp "$pem" /usr/local/share/ca-certificates/labzilla-ca.crt && sudo update-ca-certificates >/dev/null
+      elif have update-ca-trust; then
+        sudo cp "$pem" /etc/pki/ca-trust/source/anchors/labzilla-ca.crt && sudo update-ca-trust
+      else bad "no system trust tool; install $pem by hand"; return 1; fi ;;
+    macos)
+      sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$pem" ;;
+    *) bad "install $pem as a trusted root by hand"; return 1 ;;
+  esac || { bad "install failed"; return 1; }
+  if trusted; then ok "installed: HTTPS to $URL is now trusted"
+  else warn "installed, but this machine still rejects the connection (restart the browser, or check the URL)"; fi
+  info "Firefox keeps its own store: Settings → Privacy & Security → Certificates → Import"
+}
+
+open_ui() {
+  head1 "Opening $URL"
+  case "$OS" in
+    macos) open "$URL" ;;
+    linux) if have xdg-open; then xdg-open "$URL" >/dev/null 2>&1 & else info "open $URL in your browser"; fi ;;
+    *) info "open $URL in your browser" ;;
+  esac
+}
+
+start() {
+  printf '%sLabzilla quick start%s %s(%s)%s\n' "$B" "$N" "$D" "$URL" "$N"
+  doctor || { bad "fix the items above, then run labzilla again"; return 1; }
+  local s=0
+  status || s=$?
+  if [ "$s" = 1 ]; then return 1; fi
+  if [ "$s" = 3 ] && confirm "Install Labzilla's certificate on this machine now?"; then trust || return 1; fi
+  head1 "Next"
+  if [ -s "$ROOT/secrets/lif-console-setup.code" ]; then
+    info "first run? the console asks for the setup code: cat $ROOT/secrets/lif-console-setup.code"
+  fi
+  info "connect a phone: Connect a phone in the sidebar (or Ctrl/⌘+K)"
+  info "check later: labzilla status"
+  if [ "$YES" = 1 ] || confirm "Open the console now?"; then open_ui; fi
+}
+
+case "${CMD:-start}" in
+  start) start ;;
+  status) status ;;
+  trust) trust ;;
+  open) open_ui ;;
+  doctor) doctor ;;
+esac

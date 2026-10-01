@@ -40,3 +40,7 @@ kubectl -n kube-system create secret tls lan-default-tls --cert="$S/lan-tls.crt"
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 kubectl apply -f "$here/tlsstore-default.yaml" >/dev/null
 echo "applied kube-system/lan-default-tls and TLSStore default"
+# The CA certificate only (never the key) for the console's Trust page download (/api/trust/ca.crt).
+kubectl -n ai-system create configmap labzilla-ca --from-file=ca.crt="$S/labzilla-ca.crt" \
+  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+echo "published ai-system/labzilla-ca (certificate only) for Trust this device"

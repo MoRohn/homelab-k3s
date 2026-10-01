@@ -39,12 +39,18 @@ spec:
             - "10"
             - "--cpu-mask"
             - "7C1F"
+            # Prompt processing (and batched decode of both slots) on the X925 cores 5-9,15-19: owner decision
+            # 2026-10-01 from the CPU-affinity benchmark (n=3: pp512 51.8 → ~200 tok/s with repack). Writing
+            # a single answer stays on the A725 cores above.
+            - "--cpu-mask-batch"
+            - "F83E0"
+            - "--cpu-strict-batch"
+            - "1"
             - "--cpu-strict"
             - "1"
             - "--metrics"
-            # Keep quantized weights file-backed (reclaimable page cache). Repacking copies them
-            # into anonymous memory (+3 GB measured for the 4B model) on this memory-saturated host.
-            - "--no-repack"
+            # Weights are repacked (llama.cpp's default) for its ARM matrix kernels: 1.6x prompt speed at the
+            # cost of anonymous memory (weights_mib counts it either way; the cgroup limit holds it).
             - "--no-webui"
             - "--ctx-size"
             - "8192"

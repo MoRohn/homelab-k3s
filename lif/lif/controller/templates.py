@@ -7,7 +7,8 @@ from lif.models import hardware_fit
 
 LLAMA_IMAGE = "ghcr.io/ggml-org/llama.cpp@sha256:6d607629e3dd5e85f45c43d1494648126cb3f93f2122c9cd53f43242c94cde14"
 CURL_IMAGE = "curlimages/curl:8.10.1"
-A725_MASK = "7C1F"          # CPUs 0-4,10-14 (Cortex-A725). X925 cores stay free for the primary workload.
+A725_MASK = "7C1F"          # CPUs 0-4,10-14 (Cortex-A725): writing a single answer.
+X925_MASK = "F83E0"         # CPUs 5-9,15-19 (Cortex-X925): prompt processing bursts (owner decision 2026-10-01).
 
 
 # HF repo ids and filenames are UNTRUSTED input. Anything that becomes a filesystem path
@@ -65,7 +66,7 @@ def llama_args(p: dict) -> list[str]:
         ctx = max(ctx, VISION_MIN_CTX)
     args = ["--model", model_path(p), "--host", "0.0.0.0", "--port", "8080",
             "--threads", "10", "--threads-batch", "10", "--cpu-mask", A725_MASK, "--cpu-strict", "1",
-            "--metrics", "--no-repack", "--no-webui",
+            "--metrics", "--no-webui",
             "--ctx-size", str(ctx), "--parallel", str(p.get("concurrency", 2)),
             "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--flash-attn", "on"]
     if p.get("mmproj"):
@@ -74,12 +75,13 @@ def llama_args(p: dict) -> list[str]:
     if p.get("mlock"):         # this llama.cpp build has no --mlock flag (it exits on it)
         args += ["--load-mode", "mmap+mlock"]
     if p.get("category") in ("embedding", "reranking"):
-        args += ["--embedding", "--pooling", "rank" if p["category"] == "reranking" else "last",
+        # embeddings: file-backed weights (no repack), all on the A725 cores
+        args += ["--no-repack", "--embedding", "--pooling", "rank" if p["category"] == "reranking" else "last",
                  "--ubatch-size", "512", "--batch-size", "512", "--cache-ram", "0"]
     else:
         # --cache-ram defaults to 8 GiB; --cache-reuse keeps the prefix when the console drops the oldest turn.
         args += ["--jinja", "--cache-ram", str(p.get("cache_ram_mib", hardware_fit.PROMPT_CACHE_MIB)),
-                 "--cache-reuse", "256"]
+                 "--cache-reuse", "256", "--cpu-mask-batch", X925_MASK, "--cpu-strict-batch", "1"]
         if (spec := p.get("spec_type")):        # draft-free n-gram speculation (no extra model, no memory)
             args += ["--spec-type", str(spec)]
     return args
