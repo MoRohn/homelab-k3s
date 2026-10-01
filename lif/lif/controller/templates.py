@@ -68,6 +68,8 @@ def llama_args(p: dict) -> list[str]:
     if p.get("mmproj"):
         # explicit projector path from the pinned profile; never let llama.cpp go looking for one
         args += ["--mmproj", model_path(p, p["mmproj"]["file"]), "--no-mmproj-auto"]
+    if p.get("mlock"):
+        args += ["--mlock"]
     if p.get("category") in ("embedding", "reranking"):
         args += ["--embedding", "--pooling", "rank" if p["category"] == "reranking" else "last",
                  "--ubatch-size", "512", "--batch-size", "512"]

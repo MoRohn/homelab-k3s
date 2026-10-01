@@ -50,6 +50,14 @@ The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → 
 - Measured anon today: 4B ~670–850 MiB, 1.7B ~530–680 MiB, and embedding ~296 MiB after cutting its context to 4096 tokens over 2 slots.
 - Vision models (CPU tier, `--mmproj`) also hold the image projector in **anonymous** memory, because llama.cpp reads it into buffers and doesn't mmap it. Sizing adds the projector plus 512 MiB of image-encoder headroom to total and anon. The 512 MiB is an **estimate, not yet measured**. The text-side anon budget (1,536 MiB) is unchanged, and the projector plus headroom gets its own 2,048 MiB cap. Estimated by `hardware_fit`, not measured (Qwen3-VL-4B Q4_K_M + Q8_0 projector, 8192 ctx): ~1.7 GiB anon and ~4.0 GiB total.
 
+### The cgroup-fit lesson (2026-10-01)
+
+- The pod's cgroup is charged for the mmap'd weights it touches **and** for its anonymous memory.
+- tier0's anon grew from the ~670–850 MiB above to **1,409 MiB** after hours of chat (KV pages are touched lazily). With weights at 2,381 MiB, the 3,584 Mi limit sat full. The kernel evicted weight pages that the next token needed, so tier0 decoded from disk *(private/lif/perf/2026-10-01-tier0-latency.md, local only)*.
+- Fix: `limit = (weights + anon) × 1.15`, rounded up to 256 MiB (`hardware_fit.memory_limit_mib`). The controller refuses a smaller limit, and `tests/test_serving_memory.py` checks every manifest.
+- After the fix, the same pod decoded 19.7 / 21.0 tok/s and processed prompts at 84 tok/s, with no cgroup limit hits or refaults (n = 2 requests).
+- tier0 also runs `--mlock`: under host-wide reclaim its weights would be evicted and re-read at once. Locking needs k3s's `LimitMEMLOCK` raised (`homelab/host/prep-memlock.sh`, sudo, restarts k3s). Until then llama.cpp logs a warning and runs unlocked.
+
 ### Bandwidth yield
 
 GB10's CPU and GPU share one memory bus. With the CPU tiers saturated (8 concurrent generations), production LLM decode went from **2.98 / 3.09 tok/s idle to 2.74 tok/s, about −10 %**. That is n = 1 per arm, so it is indicative only (`benchmarks/2026-10-01-production-llm-interference.md`, private, local only).

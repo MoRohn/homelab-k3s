@@ -73,6 +73,9 @@ sudo host/prep-longhorn.sh
 This starts `iscsid`, loads `iscsi_tcp`, and tells `multipathd` to stop claiming disks that
 aren't its own. All three changes survive reboots.
 
+`sudo host/prep-memlock.sh` raises k3s's 8 MiB `LimitMEMLOCK`, so LIF's tier0 can lock its weights in RAM
+(`--mlock`). It restarts k3s; then apply `lif/deploy/k8s/serving/tier0.yaml`.
+
 **Act 3: Let MinIO hear the cluster.** MinIO runs in the primary workload's separate Docker stack, not in
 k3s. See [docs/minio.md](docs/minio.md) for the port binding and the one restart rule you
 must never forget.

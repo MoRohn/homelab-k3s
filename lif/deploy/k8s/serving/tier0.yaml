@@ -44,6 +44,9 @@ spec:
             # Keep quantized weights file-backed (reclaimable page cache). Repacking copies them
             # into anonymous memory (+3 GB measured for the 4B model) on this memory-saturated host.
             - "--no-repack"
+            # Lock the weights in RAM so host-wide reclaim can't evict them mid-answer (they would be re-read
+            # at once while tier0 serves). Needs homelab/host/prep-memlock.sh; until then llama.cpp only warns.
+            - "--mlock"
             - "--no-webui"
             - "--ctx-size"
             - "8192"

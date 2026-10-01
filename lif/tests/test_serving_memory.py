@@ -54,6 +54,7 @@ def test_manifest_limit_matches_profile_and_fits(name, dep):
     assert req == lim == p["memory_budget_mb"], f"{name}: request/limit/profile budget disagree"
     assert int(_arg(c["args"], "--ctx-size")) == p["context"]
     assert int(_arg(c["args"], "--parallel")) == p["concurrency"]
+    assert ("--mlock" in c["args"]) == bool(p.get("mlock")), f"{name}: --mlock disagrees with the profile"
     need = hardware_fit.memory_limit_mib(p["weights_mib"], p["anon_mib"])
     assert lim >= need, f"{name}: {lim} Mi < weights + anon + headroom = {need} Mi"
 
