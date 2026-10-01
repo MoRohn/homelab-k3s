@@ -69,7 +69,9 @@ spec:
           value: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090
         - name: LIF_CONSOLE_DB
           value: /data/console.db
-        - name: LIF_KNOWLEDGE_ROOT              # bundled public repos; LIF_KNOWLEDGE_URL unset = read-only mode
+        - name: LIF_KNOWLEDGE_URL               # knowledge service (deploy/k8s/knowledge); the console filters by data class
+          value: http://knowledge.ai-system.svc:8080
+        - name: LIF_KNOWLEDGE_ROOT              # bundled public repos: fallback if LIF_KNOWLEDGE_URL is unset
           value: /app/knowledge
         - name: LIF_KNOWLEDGE_INDEX             # derived index, rebuilt on start (root filesystem is read-only)
           value: /tmp/knowledge-index.db

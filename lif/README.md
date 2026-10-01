@@ -23,7 +23,8 @@ DETERMINISTIC CODE → JEV DECISION FABRIC → LOCAL FAST MODEL → LOCAL REASON
 | `qwen3-1.7b-q8-cpu` | `ai-serving/tier0-small` | Optional fallback; the memory guard sheds it when host headroom is low |
 | `qwen3-embedding-0.6b-q8-cpu` | `ai-serving/embedding` | 1024-dim embeddings |
 | Local image registry | `ai-system/registry` | Bound to `127.0.0.1:5000` only |
-| Labzilla Console *(not yet deployed)* | `ai-system/console` | Web console and mobile gateway (PWA), `https://labzilla.tiny-dgx.lan`; manifests ready, deploy is the owner's step |
+| Labzilla Console | `ai-system/console` | Web console and mobile gateway (PWA) at `https://labzilla.local`; own sign-in and device pairing |
+| Knowledge service | `ai-system/knowledge` | Knowledge read API for the console and Control Center; event sink off |
 
 **No LIF model uses the GPU yet.** The primary workload's resident models pin about 107 GB, and gpusched admits about 0.6–1.2 GiB. See [GPU_SCHEDULING.md](docs/GPU_SCHEDULING.md) for the path to GPU tiers.
 

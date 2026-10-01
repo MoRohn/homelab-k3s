@@ -7,9 +7,10 @@
 # so there is no database to back up or migrate.
 #
 # Secrets (create before applying; nothing here contains a value):
-#   lif-admin-keys      LIF_ADMIN_KEYS        (existing; operators/Control Center)
+#   lif-secrets         LIF_ADMIN_KEYS        (existing; operators, Control Center and the console)
 #   lif-knowledge-keys  LIF_KNOWLEDGE_KEYS    agent-name:key lines → scopes from workspace.yaml permissions
-#   lif-events-key      LIF_EVENTS_ADMIN_KEY  a controller admin key used only to read /v1/activity
+#   lif-events-key      LIF_EVENTS_ADMIN_KEY  a controller admin key used only to read /v1/activity.
+#                       Absent → the event sink stays off (task enable-event-sink); nothing writes to private/.
 apiVersion: v1
 kind: Service
 metadata:
@@ -57,6 +58,7 @@ spec:
             - {name: lif-knowledge, mountPath: /knowledge/lif/knowledge, readOnly: true}
             - {name: private-knowledge, mountPath: /knowledge/private/knowledge}
             - {name: index, mountPath: /index}
+            - {name: tmp, mountPath: /tmp}          # SQLite temp files (FTS5 drops); the root filesystem is read-only
             - {name: secrets, mountPath: /var/run/lif/secrets, readOnly: true}
           securityContext:
             allowPrivilegeEscalation: false
@@ -75,10 +77,12 @@ spec:
           hostPath: {path: /home/tiny/labzilla/private/knowledge, type: DirectoryOrCreate}
         - name: index
           emptyDir: {sizeLimit: 512Mi}
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}
         - name: secrets
           projected:
             sources:
-              - secret: {name: lif-admin-keys, optional: true}
+              - secret: {name: lif-secrets, optional: true, items: [{key: LIF_ADMIN_KEYS, path: LIF_ADMIN_KEYS}]}
               - secret: {name: lif-knowledge-keys, optional: true}
               - secret: {name: lif-events-key, optional: true}
 ---

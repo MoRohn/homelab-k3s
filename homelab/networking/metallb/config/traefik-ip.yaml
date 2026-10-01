@@ -12,5 +12,8 @@ spec:
         metallb.io/loadBalancerIPs: 192.168.68.72
       # IPv4 only: there is no IPv6 pool, so PreferDualStack just logs allocation warnings
       spec:
+        # Keep the client's own address (no SNAT to the node): per-IP rate limits in the Labzilla
+        # Console see each device. Safe on one node: MetalLB L2 always lands on Traefik's node.
+        externalTrafficPolicy: Local
         ipFamilyPolicy: SingleStack
         ipFamilies: [IPv4]

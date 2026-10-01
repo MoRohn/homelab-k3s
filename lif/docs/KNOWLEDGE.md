@@ -293,7 +293,7 @@ Alerts are in the manifest: `LIFKnowledgeErrors`, `LIFKnowledgeCompileSlow`.
 | Broken package dependency | K018 / K023 diagnostics name the repo and the fix | `test_H_*` |
 | Event cursor lost | Re-consume from 0: deterministic ids make it idempotent | `test_L_*` |
 | Offline (no internet, no gateway) | Search drops to lexical + graph; decisions use rules | `test_O_usable_without_internet` |
-| K3s restart / DGX reboot | Nothing to do locally. In the cluster the pod rebuilds its index from the mounted repos | Not tested on the live cluster (not deployed) |
+| K3s restart / DGX reboot | Nothing to do locally. In the cluster the pod rebuilds its index from the mounted repos | Deployed 2026-10-01; not yet tested across a restart |
 
 ## Acceptance tests
 
