@@ -71,7 +71,7 @@ for d in controller gateway decision-fabric batch console; do kubectl -n ai-syst
 | `/etc/hosts` / LAN DNS for `*.tiny-dgx.lan` | For ingress. Phones need LAN DNS (or mDNS) to reach `labzilla.tiny-dgx.lan` |
 | Labzilla Console first deploy | Not yet deployed. Run `create-secrets.sh`, roll out gateway + controller, build and apply, then create the admin with the setup code (`cat ~/labzilla/secrets/lif-console-setup.code`, owner only). See [CONSOLE.md → Deploy & access](CONSOLE.md#deploy--access) |
 | ~~Publish `labzilla.local` via mDNS~~ | Done 2026-10-01: user unit `homelab/host/systemd/labzilla-mdns.service` (no sudo) |
-| Trusted LAN HTTPS (local CA as Traefik's default cert) | Optional; unlocks console install, voice and notifications. Installing the root on each phone is a per-device step. See CONSOLE.md → TLS |
+| Trust the Labzilla Local CA on each device | The CA and cert are in place (2026-10-01, `homelab/networking/local-ca/issue-certs.sh`). Install `secrets/labzilla-ca.crt` on each phone and desktop once (iOS: profile, then *Certificate Trust Settings*; Android: *Install a certificate → CA certificate*). Rerun the script before 2027-10-03 to renew |
 
 ### Argo CD note: replicas versus the memory guard
 

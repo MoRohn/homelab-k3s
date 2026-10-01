@@ -415,7 +415,7 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 | 75 | Architecture: one console in front of internal services | Done | Section 10 | |
 | 76 | One stable endpoint | Done | `/api/*` | |
 | 77 | Gateway owns auth, sessions, CSRF, rate limits, pairing | Done | `auth.py` | |
-| 78 | Trusted HTTPS, explicit fallback | Partial | Deploy & access, Trust page | Options are documented. The self-signed fallback is explicit, never silent |
+| 78 | Trusted HTTPS, explicit fallback | Done | `homelab/networking/local-ca`, Trust page | Name-constrained local CA serves every LAN host (2026-10-01). Each device must trust the CA once; until then the fallback is explicit, never silent |
 | 79 | Technical Details drawer | Done | `TechDetails` | |
 | 80 | Logs: errors, warnings, relevant events first | Partial | System → Logs | Built from controller activity. Raw logs are not available (no RBAC for ai-system pod logs), and the page says so |
 | 81 | Errors: what failed, impact, next step | Done | `HumanError`, `HumanErrorCard`, `errors.py` | |
@@ -511,13 +511,13 @@ The QR code and Connect Mobile use `console.public_url`, which is `https://labzi
 
 ### TLS
 
-Traefik serves the k3s default self-signed certificate today. The console never falls back to plain HTTP: session cookies are `Secure`, and `LIF_CONSOLE_INSECURE_COOKIES` is for local development only.
+Option 1 is in place (2026-10-01): `homelab/networking/local-ca/issue-certs.sh` created a local CA, name-constrained to `tiny-dgx.lan` and `labzilla.local`, and issued one server certificate for all four LAN hosts. It is Traefik's default through the `default` TLSStore. **Renew** by rerunning the script before 2027-10-03; the certificate expires 2027-11-02, and the script reissues it when fewer than 30 days remain. **Each device trusts `secrets/labzilla-ca.crt` once** (the CA certificate is public; never copy the `.key`). Until a device trusts it, that device behaves as in option 3. The console never falls back to plain HTTP: session cookies are `Secure`, and `LIF_CONSOLE_INSECURE_COOKIES` is for local development only.
 
 | Option | How | Gains | Costs |
 |---|---|---|---|
-| **1. Local CA (recommended)** | Create a small local CA on the host (step-ca or an mkcert-style root; the CA key stays in `secrets/`). Issue one cert for `labzilla.tiny-dgx.lan`, `labzilla.local`, `lif.tiny-dgx.lan` and `ai.tiny-dgx.lan`, store it as a TLS Secret in `kube-system`, and make it Traefik's default with a `TLSStore` named `default` (`traefik.io/v1alpha1`, `spec.defaultCertificate.secretName`). Install the root on each device: iOS (profile, then *Certificate Trust Settings*), Android (*Install a certificate → CA certificate*), desktops (system or browser trust store) | Full PWA: install, offline shell, voice, notifications, clipboard. Works with `.local` (public CAs never issue `.local`) | Install the root on every device once; renew the leaf before it expires |
+| **1. Local CA (in place)** | `issue-certs.sh` creates a small local CA on the host (the CA key stays in `secrets/`). It issues one cert for `labzilla.tiny-dgx.lan`, `labzilla.local`, `lif.tiny-dgx.lan` and `ai.tiny-dgx.lan`, store it as a TLS Secret in `kube-system`, and make it Traefik's default with a `TLSStore` named `default` (`traefik.io/v1alpha1`, `spec.defaultCertificate.secretName`). Install the root on each device: iOS (profile, then *Certificate Trust Settings*), Android (*Install a certificate → CA certificate*), desktops (system or browser trust store) | Full PWA: install, offline shell, voice, notifications, clipboard. Works with `.local` (public CAs never issue `.local`) | Install the root on every device once; renew the leaf before it expires |
 | 2. Tailscale `ts.net` | A Tailscale Ingress for `console` (as `homelab/networking/tailscale/ingresses/grafana.yaml` does), plus the Tailscale proxy pods in the `console-ingress` NetworkPolicy (and in `console.trusted_proxies` if they sit outside the pod network), and `public_url` set to `https://labzilla.<tailnet>.ts.net` | A publicly trusted cert with no device setup; reachable from anywhere on the tailnet | Only devices signed in to the tailnet; a second access path to keep in mind |
-| 3. Self-signed (today) | Nothing to do; accept the browser warning once per device | Sign-in, Ask streaming, pairing, live updates | No install, no offline shell, and voice/notifications are unavailable or unreliable. The warning returns on some browsers |
+| 3. Untrusted (devices without the CA) | Accept the browser warning once per device | Sign-in, Ask streaming, pairing, live updates | No install, no offline shell, and voice/notifications are unavailable or unreliable. The warning returns on some browsers |
 
 What works without a trusted certificate (option 3). Features are detected in the browser and never silently disabled; the **Trust this device** page says which are off and why. A clicked-through certificate still counts as a secure context, so the browser may offer voice and notifications; when the service worker can't register there, Trust marks them "May be blocked" rather than available.
 
