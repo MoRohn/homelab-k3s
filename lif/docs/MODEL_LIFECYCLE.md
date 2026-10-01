@@ -77,7 +77,7 @@ The four categories took about 4.4 s in total. Jev screening took about 0.2–0.
 | Gate | Rule |
 |---|---|
 | Download | State CANDIDATE. Repo, file and revision pass `templates.validate_profile`. A sha256 is required. The operator, or the `automatic_download` setting, must ask |
-| Benchmark (candidate) | BLERBZ LOW/MODERATE. Not in maintenance. `MemAvailable − candidate anon ≥ 9216 MiB` (gpusched's 8 GiB + 1 GiB). Aborts when BLERBZ becomes IMMINENT (state goes back to STAGED) |
+| Benchmark (candidate) | Primary workload LOW/MODERATE. Not in maintenance. `MemAvailable − candidate anon ≥ 9216 MiB` (gpusched's 8 GiB + 1 GiB). Aborts when the primary workload becomes IMMINENT (state goes back to STAGED) |
 | Benchmark (live model) | Runs against its existing endpoint; no temporary server |
 | GPU-tier benchmark/load | Refused. It needs a gpusched command-job window (GPU_SCHEDULING.md) |
 | Approve | `evaluator.compare` against the incumbent: quality regression ≤ 0.01, TTFT regression ≤ 10 %, memory increase ≤ 20 %, structured-output ≥ min(0.98, incumbent's), errors ≤ 0. CANARY only if it is also better (quality up, or equal quality with decode +10 %); HOLD if merely safe; otherwise REJECT |
@@ -87,7 +87,7 @@ Jev's `candidate-vs-incumbent` verdict is stored in the comparison report, but i
 
 ## Evaluation (`evals/core.yaml`, `lif/models/evaluator.py`)
 
-- 15 synthetic items covering instruction following, BNN-style summaries and headlines, story classification and urgency, JSON extraction, arithmetic reasoning, code and a hallucination trap.
+- 15 synthetic items covering instruction following, news-style summaries and headlines, story classification and urgency, JSON extraction, arithmetic reasoning, code and a hallucination trap.
 - All checkers are deterministic (contains / regex / choice / number / json).
 - Latency is measured over streaming: TTFT, decode tok/s from llama.cpp timings, plus a 2–4-way load pass.
 - Embedding models get a latency check and a paraphrase-versus-unrelated sanity check instead.

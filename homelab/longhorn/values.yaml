@@ -10,7 +10,7 @@ persistence:
 defaultSettings:
   defaultReplicaCount: 1
 
-# Backups go to the bnn MinIO container (see docs/minio.md)
+# Backups go to the primary workload's MinIO container (see docs/minio.md)
 defaultBackupStore:
   backupTarget: "s3://longhorn-backups@us-east-1/"
   backupTargetCredentialSecret: "minio-credentials"

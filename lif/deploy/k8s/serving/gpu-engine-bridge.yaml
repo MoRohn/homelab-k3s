@@ -1,6 +1,6 @@
-# Bridge from the pod network to BNN's shared vLLM engine (LIF door, low priority).
+# Bridge from the pod network to the primary workload's shared vLLM engine (LIF door, low priority).
 # hostNetwork so it can reach 127.0.0.1:8102; it binds ONLY 10.42.0.1 (cni0), so the LAN
-# cannot reach it. No GPU access: the engine is BNN's resident (gpusched resident "llm").
+# cannot reach it. No GPU access: the engine is the primary workload's resident (gpusched resident "llm").
 apiVersion: apps/v1
 kind: Deployment
 metadata:

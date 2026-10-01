@@ -155,7 +155,7 @@ panels += [
     stat("GPU admissible", 'max(gpusched_capacity_admissible_mib) * 1024^2 '
          'or homelab:gpu_reserve_headroom_bytes', 9, y, unit="bytes",
          decimals=1, steps=((None, RED), (1, ORANGE), (4 * GIB, GREEN)),
-         description="Memory bnn gpusched can grant to background GPU jobs right now "
+         description="Memory gpusched can grant to background GPU jobs right now "
                      "(falls back to MemAvailable minus the 8 GiB reserve)."),
     stat("Root disk free",
          f'100 * node_filesystem_avail_bytes{{{NODE},mountpoint="/",fstype!="rootfs"}} '
@@ -198,14 +198,14 @@ panels.append(bargauge(
                 "(model servers) are not included."))
 y += 9
 
-# ---- GPU scheduler (bnn gpusched) -----------------------------------------------------
+# ---- GPU scheduler (gpusched) -----------------------------------------------------
 MODE = [{"type": "value", "options": {
     "0": {"text": "Observe", "color": BLUE, "index": 1},
     "1": {"text": "Enforce", "color": PURPLE, "index": 0}}}]
 YES_NO = [{"type": "value", "options": {
     "0": {"text": "Holding", "color": ORANGE, "index": 1},
     "1": {"text": "Admitting", "color": GREEN, "index": 0}}}]
-panels.append(row("GPU scheduler (bnn gpusched)", y)); y += 1
+panels.append(row("GPU scheduler (gpusched)", y)); y += 1
 panels += [
     stat("Scheduler", 'max(up{job="gpusched"}) * max(gpusched_up)', 0, y, w=4, mappings=UP_DOWN,
          spark=False, color_mode="background", steps=((None, RED), (1, GREEN))),

@@ -197,7 +197,7 @@ async function loadOverview(){ cache.overview = await api("GET", "/v1/overview")
 function headerState(o){
   const b = (o && o.blerbz) || {};
   setHTML(document.getElementById("hdrState"),
-    html`BLERBZ ${pill(b.state || "?", STATE_CLASS[b.state])} <span class="muted small">${b.reason || ""}</span>`);
+    html`Primary workload ${pill(b.state || "?", STATE_CLASS[b.state])} <span class="muted small">${b.reason || ""}</span>`);
 }
 
 function availRows(av7, av24){
@@ -222,7 +222,7 @@ async function pageOverview(){
       ${kv([["Gateway", (o.capabilities && !o.capabilities.error) ? pill("READY","ok") : pill("UNREACHABLE","bad")],
             ["Decision Fabric", df.error ? pill("UNREACHABLE","bad") : (df.jev_enabled && !df.jev_breaker_open ? pill("JEV READY","ok") : pill("RULES ONLY","warn"))],
             ["Controller uptime", fmt.n((o.controller_uptime_sec || 0) / 3600, 1) + " h"]])}`)}
-    ${card("BLERBZ media", html`<div class="big">${pill(b.state || "?", STATE_CLASS[b.state])}</div>
+    ${card("Primary workload", html`<div class="big">${pill(b.state || "?", STATE_CLASS[b.state])}</div>
       ${kv([["Reason", b.reason || "–"], ["P(prod. in 1h)", fmt.pct(b.p_next_hour)], ["Production leases", fmt.n(b.production_leases, 0)]])}`)}
     ${card("Unified memory", html`${kv([["MemAvailable", fmt.mib(b.mem_available_mib)], ["GPU admissible", fmt.mib(b.admissible_mib)],
             ["GPU util", fmt.n(b.gpu_util_percent) + "%"]])}`)}
@@ -368,7 +368,7 @@ async function pageInference(){
     <td>${yesno(p.endpoint_healthy, "HEALTHY", "DOWN")}</td><td>${p.category}</td><td>${p.device}</td><td class="num">${fmt.n(p.params_b)}B</td>
     <td class="num">${fmt.n(p.context, 0)}</td><td class="mono small">${p.model}</td><td class="small muted">${p.last_error || ""}</td></tr>`);
   return html`
-  <div class="grid">${card("BLERBZ yield", kv([["State", pill((c.blerbz || {}).state || "?", STATE_CLASS[(c.blerbz || {}).state])],
+  <div class="grid">${card("Primary-workload yield", kv([["State", pill((c.blerbz || {}).state || "?", STATE_CLASS[(c.blerbz || {}).state])],
      ["CPU concurrency now", fmt.n((c.yield || {}).cpu_concurrency, 0)], ["Rule", "IMMINENT → 1 slot, max_tokens ≤ 512"]]))}</div>
   <section style="margin-top:14px"><h2>Aliases</h2>${tbl(["Alias","Status","Served by","Fallback / degradation reason"], al)}</section>
   <section><h2>Physical profiles</h2>${tbl(["Profile","Health","Category","Device","Params","Context","Pinned model","Last error"], pr)}</section>`;
@@ -438,7 +438,7 @@ async function pageBatch(){
     ${card("Totals", kv(Object.entries(bt.totals || {}).map(([k, v]) => [k, fmt.n(v, 0)])))}
   </div>
   <section style="margin-top:14px"><div class="row"><button type="button" class="btn" id="bpause">${bt.paused ? "Resume batch" : "Pause batch"}</button>
-   <span class="small muted">Batch also pauses automatically while BLERBZ is IMMINENT.</span></div></section>
+   <span class="small muted">Batch also pauses automatically while the primary workload is IMMINENT.</span></div></section>
   <section><h2>Recent batches</h2>${tbl(["Batch","Status","Priority","Model","Done","Failed","Created","Waiting because"], rows, {empty: "No batches yet."})}</section>`;
 }
 
@@ -446,15 +446,15 @@ async function pageGpu(){
   const g = await api("GET", "/v1/gpu");
   const res = Object.entries(g.residents_loaded || {});
   return html`<div class="grid">
-    ${card("BLERBZ capacity state", html`<div class="big">${pill(g.state || "?", STATE_CLASS[g.state])}</div><p class="small">${g.reason || ""}</p>
+    ${card("Primary-workload capacity state", html`<div class="big">${pill(g.state || "?", STATE_CLASS[g.state])}</div><p class="small">${g.reason || ""}</p>
       <p class="small muted">LOW / MODERATE / HIGH from gpusched's validated forecast; IMMINENT while a production lease is live, a resident reloads, or gpusched is unreachable (fail-safe).</p>`)}
     ${card("Forecast", kv([["P(production within 1 h)", fmt.pct(g.p_next_hour)], ["Forecast authoritative", g.forecast_authoritative ? "yes" : "no"],
        ["Production leases", fmt.n(g.production_leases, 0)], ["Background leases", fmt.n(g.background_leases, 0)]]))}
     ${card("Memory", kv([["MemAvailable", fmt.mib(g.mem_available_mib)], ["GPU admissible (gpusched)", fmt.mib(g.admissible_mib)],
        ["Holds", fmt.n(g.holds, 0)], ["GPU util", fmt.n(g.gpu_util_percent) + "%"]]))}
-    ${card("BNN residents", kv(res.length ? res.map(([k, v]) => [k, v ? pill("LOADED","ok") : pill("NOT LOADED","warn")]) : [["–", "no data"]]))}
+    ${card("Primary-workload residents", kv(res.length ? res.map(([k, v]) => [k, v ? pill("LOADED","ok") : pill("NOT LOADED","warn")]) : [["–", "no data"]]))}
   </div>
-  <p class="small muted" style="margin-top:12px">Source: bnn.gpusched /metrics (read-only), age ${fmt.n(g.age_sec)} s. gpusched is the single GPU admission authority on this host; the fabric never allocates GPU memory without a gpusched lease.</p>`;
+  <p class="small muted" style="margin-top:12px">Source: gpusched /metrics (read-only), age ${fmt.n(g.age_sec)} s. gpusched is the single GPU admission authority on this host; the fabric never allocates GPU memory without a gpusched lease.</p>`;
 }
 
 async function pageBenchmarks(){

@@ -1,4 +1,4 @@
-# bnn gpusched (GPU admission scheduler, host systemd service) on the k3s cni0 gateway.
+# gpusched (GPU admission scheduler, host systemd service) on the k3s cni0 gateway.
 # Token: secret monitoring/gpusched-metrics (metrics-only scope), created by
 # scripts/install-monitoring.sh from ~/.config/bnn/gpusched.token.
 apiVersion: monitoring.coreos.com/v1alpha1

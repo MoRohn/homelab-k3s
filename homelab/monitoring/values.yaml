@@ -2,7 +2,7 @@
 # Deployed by Argo CD: argocd/apps/monitoring.yaml
 #
 # Profile: lean and capped. This box shares unified memory with resident model servers
-# (see bnn gpusched), so every component has a hard memory limit.
+# (see gpusched), so every component has a hard memory limit.
 
 crds:
   enabled: true

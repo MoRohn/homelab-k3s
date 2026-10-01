@@ -37,7 +37,7 @@ The batch service is `lif/batch/engine.py` and `lif/batch/app.py`, running as `a
 
 ## Tests
 
-`tests/test_batch.py`, 15 tests, cover submit, idempotency, ordering, BLERBZ pause and resume, retry, permanent failure, cancel, restart recovery and deadlines.
+`tests/test_batch.py`, 15 tests, cover submit, idempotency, ordering, primary-workload pause and resume, retry, permanent failure, cancel, restart recovery and deadlines.
 
 **Validated live (2026-10-01):**
 - A 40-item topic-tagging batch (P5) went through the deployed gateway: 40/40 succeeded, accuracy 0.88 against AG News labels, served by `qwen3-4b-instruct-2507-q4km-cpu`.

@@ -3,7 +3,7 @@
 > Part of [labzilla](../README.md). Runs on the [`homelab/`](../homelab/) k3s platform. Keys are in the repo-root
 > [`secrets/`](../secrets/README.md); sensitive docs are in the git-ignored `../private/lif/`.
 
-The Local Intelligence Fabric is a small private AI platform on `tiny-dgx`, a DGX Spark (GB10, arm64, 128 GB unified memory). It runs on K3s next to the BNN/BLERBZ production stack, which runs in Docker on the host and keeps GPU priority.
+The Local Intelligence Fabric is a small private AI platform on `tiny-dgx`, a DGX Spark (GB10, arm64, 128 GB unified memory). It runs on K3s next to the host's primary workload, which runs in Docker and keeps GPU priority.
 
 Applications see a single OpenAI-compatible endpoint and ask for **logical models** such as `local/default`, never for physical Hugging Face IDs.
 
@@ -15,16 +15,16 @@ DETERMINISTIC CODE → JEV DECISION FABRIC → LOCAL FAST MODEL → LOCAL LARGER
 
 | Component | Where | Notes |
 |---|---|---|
-| Gateway (2 replicas) | `ai-system/gateway` | OpenAI-compatible, API keys, BLERBZ yield, fallback metadata |
+| Gateway (2 replicas) | `ai-system/gateway` | OpenAI-compatible, API keys, primary-workload yield, fallback metadata |
 | Controller + Control Center | `ai-system/controller` | Registry, lifecycle, discovery, availability probes, memory guard, UI |
 | Decision Fabric | `ai-system/decision-fabric` | Hosted TypeSafe Jev (`jev-1.13.0`) plus rule fallbacks |
-| Batch engine | `ai-system/batch` | Durable SQLite queue that yields to BLERBZ |
+| Batch engine | `ai-system/batch` | Durable SQLite queue that yields to the primary workload |
 | Tier 0 `qwen3-4b-instruct-2507-q4km-cpu` | `ai-serving/tier0` | CPU llama.cpp on the A725 cores, ~21 tok/s |
 | `qwen3-1.7b-q8-cpu` | `ai-serving/tier0-small` | Optional fallback; the memory guard sheds it when host headroom is low |
 | `qwen3-embedding-0.6b-q8-cpu` | `ai-serving/embedding` | 1024-dim embeddings |
 | Local image registry | `ai-system/registry` | Bound to `127.0.0.1:5000` only |
 
-**No LIF model uses the GPU yet.** BNN's resident models pin about 107 GB, and gpusched admits about 0.6–1.2 GiB. See [GPU_SCHEDULING.md](docs/GPU_SCHEDULING.md) for the path to GPU tiers.
+**No LIF model uses the GPU yet.** The primary workload's resident models pin about 107 GB, and gpusched admits about 0.6–1.2 GiB. See [GPU_SCHEDULING.md](docs/GPU_SCHEDULING.md) for the path to GPU tiers.
 
 ## Quickstart for application developers
 
@@ -32,7 +32,7 @@ DETERMINISTIC CODE → JEV DECISION FABRIC → LOCAL FAST MODEL → LOCAL LARGER
 KEY=$(cat ~/labzilla/secrets/lif-bnn.key)          # or another gateway key
 curl -sk https://ai.tiny-dgx.lan/v1/chat/completions \
   -H "Authorization: Bearer $KEY" \
-  -H "X-LIF-Data-Class: CONFIDENTIAL" -H "X-LIF-Workload: bnn-stories" \
+  -H "X-LIF-Data-Class: CONFIDENTIAL" -H "X-LIF-Workload: my-app" \
   -H "Content-Type: application/json" \
   -d '{"model":"local/default","messages":[{"role":"user","content":"Headline for: ..."}],"max_tokens":64}'
 ```
@@ -72,8 +72,8 @@ Streaming responses carry `X-LIF-Served-By`, `X-LIF-Fallback`, `X-LIF-Degraded`,
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | Build, push, apply, secrets, Argo CD |
 | [MODEL_LIFECYCLE](docs/MODEL_LIFECYCLE.md) | Discovery → candidate → benchmark → canary → production → rollback |
 | [JEV_DECISION_FABRIC](docs/JEV_DECISION_FABRIC.md) | Jev contract, privacy gate, thresholds, DAGs |
-| [GPU_SCHEDULING](docs/GPU_SCHEDULING.md) | gpusched, BLERBZ states, CAN_RUN, memory guard |
-| BLERBZ_INTEGRATION *(private, local only)* | How BNN uses LIF; what LIF never touches |
+| [GPU_SCHEDULING](docs/GPU_SCHEDULING.md) | gpusched, primary-workload states, CAN_RUN, memory guard |
+| PRIMARY_WORKLOAD_INTEGRATION *(private, local only)* | How the primary workload uses LIF; what LIF never touches |
 | [MODEL_ROUTING](docs/MODEL_ROUTING.md) | Aliases, fallback, canary, `local/auto` |
 | [BATCH_PROCESSING](docs/BATCH_PROCESSING.md) | `/v1/batch` |
 | SECURITY *(private, local only)* | Keys, network policy, privacy |

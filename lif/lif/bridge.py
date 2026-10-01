@@ -1,6 +1,6 @@
 """Pod-network bridge to the shared GPU engine's LIF door.
 
-BNN publishes its LLM container only on 127.0.0.1 (never the LAN). Pods cannot reach the
+The primary workload publishes its LLM container only on 127.0.0.1 (never the LAN). Pods cannot reach the
 host's loopback, so this tiny TCP relay runs as a hostNetwork pod and listens on the K3s
 cni0 gateway address only (10.42.0.1 — reachable from pods, not from the LAN):
 

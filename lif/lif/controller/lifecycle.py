@@ -6,9 +6,9 @@
 
 Gates that are code, not AI:
   * nothing downloads without a pinned commit sha + file sha256
-  * candidate benchmarks start only when BLERBZ is LOW/MODERATE AND the host keeps
+  * candidate benchmarks start only when the primary workload is LOW/MODERATE AND the host keeps
     gpusched's 8 GiB headroom after the candidate's anonymous memory; they abort the
-    moment BLERBZ becomes IMMINENT
+    moment the primary workload becomes IMMINENT
   * promotion needs a benchmark that passed every threshold in models.promotion
   * production / rollback-critical / pinned artifacts are never deleted
 """
@@ -155,8 +155,8 @@ class Lifecycle:
             raise OpError("GPU-tier benchmarks need a gpusched command-job window (see GPU_SCHEDULING.md)")
         snap = self.gpu.current()
         live = m["state"] in ("PRODUCTION", "CANARY", "STANDBY", "APPROVED") and m["profile"].get("endpoint")
-        if snap.state >= BlerbzState.HIGH:      # evaluation is P6: never while BLERBZ is HIGH/IMMINENT
-            raise OpError(f"BLERBZ {snap.state.name} ({snap.reason}); benchmarks deferred")
+        if snap.state >= BlerbzState.HIGH:      # evaluation is P6: never while the primary workload is HIGH/IMMINENT
+            raise OpError(f"Primary workload {snap.state.name} ({snap.reason}); benchmarks deferred")
         if not live:
             if self.reg.setting("maintenance", False):
                 raise OpError("maintenance mode")
@@ -188,7 +188,7 @@ class Lifecycle:
                     if (d.get("status") or {}).get("readyReplicas"):
                         break
                     if self.gpu.current().state == BlerbzState.IMMINENT:
-                        raise OpError("BLERBZ became IMMINENT during load; candidate stopped")
+                        raise OpError("Primary workload became IMMINENT during load; candidate stopped")
                     await asyncio.sleep(5)
                 else:
                     raise OpError("load timeout (600 s)")
@@ -202,7 +202,7 @@ class Lifecycle:
                 results, summary = await evaluator.run_suite(url, model=mid, concurrency=2, extra=extra,
                                                              should_stop=stop)
             if summary.get("aborted"):
-                self.reg.transition(mid, "STAGED", "benchmark aborted: BLERBZ reclaimed capacity", actor)
+                self.reg.transition(mid, "STAGED", "benchmark aborted: the primary workload reclaimed capacity", actor)
                 return summary
             self.reg.add_benchmark(mid, "core" if "quality" in summary else "embedding", results, summary)
             if live:
@@ -442,7 +442,7 @@ class Lifecycle:
                     self.reg.db.x("INSERT OR REPLACE INTO settings(key,value) VALUES('memory_guard_shed', ?)",
                                   (json.dumps(self.guard_shed),))
                     self.reg.event("memory_guard_shed", dep, "gpu-resource-manager", mem_available_mib=avail,
-                                   threshold_mib=g[lo], reason="protect gpusched headroom for BLERBZ")
+                                   threshold_mib=g[lo], reason="protect gpusched headroom for the primary workload")
                 elif shed and avail < float(g[lo]):
                     # reconcile: something (an apply, an operator) brought it back while still short
                     d = await self.k8s.deployment("ai-serving", dep) or {}
@@ -460,7 +460,7 @@ class Lifecycle:
     def guard_status(self) -> dict:
         return {"shed": [d for d, v in self.guard_shed.items() if v], "pending": dict(self.guard_since)}
 
-    # ── BLERBZ protection (state transitions → visible actions) ──────────────
+    # ── Primary-workload protection (state transitions → visible actions) ──────
 
     async def protect(self) -> None:
         if self.fabric is not None:

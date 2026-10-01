@@ -1,4 +1,4 @@
-"""BLERBZ capacity state and CAN_RUN admission, derived from bnn.gpusched (read-only).
+"""Primary-workload capacity state and CAN_RUN admission, derived from gpusched (read-only).
 
 gpusched is the GPU admission authority on this host. The LIF never allocates GPU
 memory on its own; it reads gpusched's /metrics (metrics token = GET /metrics only) to
@@ -199,7 +199,7 @@ def _read_token(path: str | None) -> str:
 
 @dataclass
 class Job:
-    priority: int                 # 0..8 (P0 BLERBZ media … P8 experiments)
+    priority: int                 # 0..8 (P0 primary workload … P8 experiments)
     device: str = "cpu"           # cpu | gpu
     mem_mb: int = 0               # new GPU memory (gpu jobs only)
     preemptible: bool = True
@@ -210,7 +210,7 @@ def can_run(job: Job, snap: Snapshot) -> tuple[str, str]:
     """Deterministic admission. Returns (verdict, reason). No AI involved."""
     st = snap.state
     if job.priority <= 1:
-        return Verdict.RUN, "BLERBZ production is never blocked"
+        return Verdict.RUN, "primary-workload production is never blocked"
     if job.device == "gpu":
         if job.mem_mb > snap.admissible_mib:
             if job.can_wait:
@@ -218,15 +218,15 @@ def can_run(job: Job, snap: Snapshot) -> tuple[str, str]:
                                        "— submit as a gpusched job and wait")
             return Verdict.REJECT, "insufficient GPU memory and the job cannot wait"
         if st >= BlerbzState.HIGH and job.priority >= 4:
-            return Verdict.QUEUE, f"BLERBZ {st.name}: background GPU work deferred"
+            return Verdict.QUEUE, f"primary workload {st.name}: background GPU work deferred"
         return Verdict.QUEUE, "GPU work always goes through a gpusched lease"
     # CPU tiers: bandwidth yield (GB10 CPU and GPU share LPDDR bandwidth)
     if st == BlerbzState.IMMINENT:
         if job.priority >= 5:
-            return Verdict.PAUSE_BACKGROUND, f"BLERBZ IMMINENT ({snap.reason}): batch/eval paused"
+            return Verdict.PAUSE_BACKGROUND, f"primary workload IMMINENT ({snap.reason}): batch/eval paused"
         if job.priority == 4:
-            return (Verdict.QUEUE if job.can_wait else Verdict.RUN_DEGRADED), "BLERBZ IMMINENT: async work yields"
-        return Verdict.RUN_DEGRADED, "BLERBZ IMMINENT: interactive runs at reduced concurrency"
+            return (Verdict.QUEUE if job.can_wait else Verdict.RUN_DEGRADED), "primary workload IMMINENT: async work yields"
+        return Verdict.RUN_DEGRADED, "primary workload IMMINENT: interactive runs at reduced concurrency"
     if st == BlerbzState.HIGH and job.priority >= 6:
-        return Verdict.QUEUE, "BLERBZ HIGH: evaluation/experiments deferred"
-    return Verdict.RUN, f"BLERBZ {st.name}"
+        return Verdict.QUEUE, "primary workload HIGH: evaluation/experiments deferred"
+    return Verdict.RUN, f"primary workload {st.name}"

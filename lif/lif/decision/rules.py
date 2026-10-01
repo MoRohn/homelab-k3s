@@ -121,7 +121,7 @@ def batch_model_size(s: dict) -> tuple[str, float] | None:
 
 @rules.register("gpu-admission")
 def gpu_admission(s: dict) -> tuple[str, float] | None:
-    # Hard safety first: no headroom or BLERBZ imminent → the fast model, always.
+    # Hard safety first: no headroom or primary workload IMMINENT → the fast model, always.
     if s.get("blerbz_state") in ("HIGH", "IMMINENT") or float(s.get("admissible_mib", 0)) < float(
             s.get("required_mib", 1e12)):
         return "use_fast", 0.99

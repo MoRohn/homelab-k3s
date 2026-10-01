@@ -24,7 +24,7 @@ if [[ -f ../secrets/minio-prometheus.token ]]; then
     --dry-run=client -o yaml | kubectl apply -f -
 fi
 
-# bnn gpusched scrape token (metrics-only scope), owned by the bnn stack
+# gpusched scrape token (metrics-only scope), owned by the primary workload
 GPUSCHED_TOKENS=~/.config/bnn/gpusched.token
 if [[ -f $GPUSCHED_TOKENS ]]; then
   kubectl -n monitoring create secret generic gpusched-metrics \

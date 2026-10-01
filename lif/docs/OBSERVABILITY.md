@@ -4,7 +4,7 @@ LIF reuses the existing Argo-managed **kube-prometheus-stack** in `monitoring`. 
 
 | Not deployed | Why |
 |---|---|
-| Loki | Every GiB comes from the same pool as BNN's models, and Grafana was already OOM-killed on 2026-09-30. Services log JSON to stdout (`kubectl logs`) |
+| Loki | Every GiB comes from the same pool as the primary workload's models, and Grafana was already OOM-killed on 2026-09-30. Services log JSON to stdout (`kubectl logs`) |
 | DCGM exporter | GB10 reports memory as N/A. gpusched's metrics (already scraped by `monitoring/extras/gpusched-scrape.yaml`) are the memory source of truth |
 
 ## Scrape targets (`deploy/k8s/base/14-monitoring.yaml`)
@@ -25,7 +25,7 @@ LIF reuses the existing Argo-managed **kube-prometheus-stack** in `monitoring`. 
 | `lif_decode_tokens_per_second` | profile | per-request decode rate (llama.cpp timings) |
 | `lif_fallbacks_total` | alias, served_by, reason | non-primary serving |
 | `lif_inflight_requests` | profile | |
-| `lif_throttled_total` | reason (`queued`, `max_tokens_clamped`) | BLERBZ yield actions |
+| `lif_throttled_total` | reason (`queued`, `max_tokens_clamped`) | primary-workload yield actions |
 | `lif_available` / `lif_probe_seconds` | capability | **inference-verified** availability (see below) |
 | `lif_blerbz_state` | — | 0 LOW, 1 MODERATE, 2 HIGH, 3 IMMINENT |
 | `lif_gpu_admissible_mib` | — | gpusched admissible |

@@ -23,7 +23,7 @@ export LIF_ADMIN_KEY=$(cat ~/labzilla/secrets/lif-admin.key) LIF_API_KEY=$(cat ~
 |---|---|
 | Overall status | `local-ai status` |
 | Health check (exit 1 on FAIL) | `local-ai doctor` |
-| GPU/BLERBZ state | `local-ai gpu` |
+| GPU/primary-workload state | `local-ai gpu` |
 | Models | `local-ai models list` · `local-ai models candidates` |
 | Check for better models | `local-ai models refresh [--categories fast coding] [--wait]` (or the UI button) |
 | Download / benchmark | `local-ai models download ID` · `local-ai models benchmark ID` |
@@ -70,7 +70,7 @@ All mutating actions go through the controller and appear in the activity timeli
 | `download_started/complete` | downloads |
 | `load_test_passed`, `benchmark_completed`, `comparison_complete` | benchmarks |
 | `alias_changed`, `alias_rollback` | aliases |
-| `blerbz_state`, `blerbz_takeover`, `blerbz_release` | the BLERBZ protection loop |
+| `blerbz_state`, `blerbz_takeover`, `blerbz_release` | the primary-workload protection loop |
 | `memory_guard_shed/restore` | the host memory guard |
 | `setting_changed` | operator settings |
 | `retention_gc` | daily artifact cleanup |

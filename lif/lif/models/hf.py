@@ -1,6 +1,6 @@
 """Hugging Face Hub metadata client (official REST API, no scraping, no downloads).
 
-Unauthenticated by default: discovery needs only public metadata, and BNN's HF_TOKEN is
+Unauthenticated by default: discovery needs only public metadata, and the primary workload's HF_TOKEN is
 not borrowed. Gated models are recorded but never auto-downloaded.
 """
 from __future__ import annotations

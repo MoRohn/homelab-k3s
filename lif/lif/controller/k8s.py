@@ -2,7 +2,7 @@
 
 The controller only ever touches LIF objects in its own namespaces: scaling model
 Deployments, creating download/GC Jobs and short-lived candidate servers. It has no
-rights over BNN, gpusched or anything outside ai-serving/ai-batch.
+rights over the primary workload, gpusched or anything outside ai-serving/ai-batch.
 """
 from __future__ import annotations
 

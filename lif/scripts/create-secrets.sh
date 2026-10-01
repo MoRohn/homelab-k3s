@@ -16,7 +16,7 @@ MTOK=$(awk -F: '$1=="metrics"{print $2}' ~/.config/bnn/gpusched.token)
 [ -n "$MTOK" ] || { echo "no metrics token in gpusched.token" >&2; exit 1; }
 
 K_PROBE=$(gen probe); K_BATCH=$(gen batch); K_DEC=$(gen decision); K_BNN=$(gen bnn); K_OPS=$(gen operator)
-K_ADMIN=$(gen admin); K_INTERNAL=$(gen internal); K_ENGINE=$(gen engine)   # engine = BNN vLLM LIF door
+K_ADMIN=$(gen admin); K_INTERNAL=$(gen internal); K_ENGINE=$(gen engine)   # engine = primary-workload vLLM LIF door
 
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT; umask 077
 printf '%s' "$JEV" > "$tmp/TYPE_SAFE_JEV_API_KEY"
@@ -38,4 +38,4 @@ kubectl -n ai-system create secret generic lif-secrets --from-file="$tmp/TYPE_SA
 kubectl -n ai-system create secret generic lif-gpusched --from-file="$tmp/token" \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 echo "secrets applied: ai-system/lif-secrets, ai-system/lif-gpusched"
-echo "keys on disk: $SECRETS/lif-{probe,batch,decision,bnn,operator,admin}.key (BNN uses lif-bnn.key; the UI/CLI use lif-admin.key)"
+echo "keys on disk: $SECRETS/lif-{probe,batch,decision,bnn,operator,admin}.key (the primary workload uses lif-bnn.key; the UI/CLI use lif-admin.key)"

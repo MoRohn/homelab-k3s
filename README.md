@@ -28,9 +28,6 @@ local credentials:
 | **[`homelab/`](homelab/)** | The k3s platform: Longhorn storage, MinIO backups (on- and off-site), Prometheus + Grafana, MetalLB, Tailscale, all GitOps-managed by Argo CD | [homelab/README.md](homelab/README.md) |
 | **[`lif/`](lif/)** | The **Local Intelligence Fabric**: an OpenAI-compatible gateway over local models, a Decision Fabric, model lifecycle, batch queue, and a Control Center UI. Runs on the platform | [lif/README.md](lif/README.md) |
 
-They run next to the BNN/BLERBZ production stack, which lives in Docker on the same host and
-always gets the GPU first.
-
 ## Repository map
 
 ```text
@@ -89,7 +86,7 @@ This repository is **public**. Three git-ignored roots keep everything else on t
 | Root | For | Examples |
 |---|---|---|
 | [`secrets/`](secrets/README.md) | Credentials | MinIO, Grafana, Tailscale, off-site env files; LIF API keys |
-| [`private/`](private/README.md) | Real project material that must not be published | LIF host/network audit, security posture, BLERBZ integration, production readiness, benchmarks captured from production |
+| [`private/`](private/README.md) | Real project material that must not be published | LIF host/network audit, security posture, primary-workload integration, production readiness, benchmarks captured from production |
 | [`personal/`](personal/README.md) | Your own notes | Notes, drafts, diagnostics, saved AI-assistant memory or reasoning |
 
 Three layers back this up:
@@ -107,7 +104,7 @@ Claude Code's own memory and transcripts live in `~/.claude/`, outside the repo.
 - **Pin everything:** Helm chart versions, image tags, Python dependencies.
 - **Scripts** are idempotent, run from their project folder, and find `secrets/` at the repo root.
 - **Memory is shared:** the GPU and every pod draw from one 128 GB pool. Give every workload limits.
-  Talk to the bnn GPU scheduler (`gpusched`) before using the GPU.
+  Talk to the host GPU scheduler (`gpusched`) before using the GPU.
 - **AI assistants:** see [CLAUDE.md](CLAUDE.md) for the rules agents follow in this repo.
 
 ---

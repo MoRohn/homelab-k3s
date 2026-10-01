@@ -1,4 +1,4 @@
-# MinIO runs outside the cluster (bnn Docker stack, see docs/minio.md).
+# MinIO runs outside the cluster (the primary workload's Docker stack, see docs/minio.md).
 # Token: secret monitoring/minio-prometheus, created by scripts/install-monitoring.sh
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig

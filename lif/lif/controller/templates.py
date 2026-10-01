@@ -5,7 +5,7 @@ import re
 
 LLAMA_IMAGE = "ghcr.io/ggml-org/llama.cpp@sha256:6d607629e3dd5e85f45c43d1494648126cb3f93f2122c9cd53f43242c94cde14"
 CURL_IMAGE = "curlimages/curl:8.10.1"
-A725_MASK = "7C1F"          # CPUs 0-4,10-14 (Cortex-A725). X925 cores stay free for BNN/ffmpeg.
+A725_MASK = "7C1F"          # CPUs 0-4,10-14 (Cortex-A725). X925 cores stay free for the primary workload.
 
 
 # HF repo ids and filenames are UNTRUSTED input. Anything that becomes a filesystem path

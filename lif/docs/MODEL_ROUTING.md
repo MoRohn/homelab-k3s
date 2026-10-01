@@ -39,7 +39,7 @@ The response's `lif.route_decision` shows `{decision, confidence, provider, acti
 | Control | Effect |
 |---|---|
 | `temperature: 0`, non-streaming | Deterministic cache (2,000 entries, 1 h). A hit is counted as the `deterministic` tier |
-| BLERBZ IMMINENT | Concurrency 1 per CPU profile **cluster-wide** (each gateway replica checks the model server's `requests_processing` before dispatch); `max_tokens` capped at 512 |
+| Primary workload IMMINENT | Concurrency 1 per CPU profile **cluster-wide** (each gateway replica checks the model server's `requests_processing` before dispatch); `max_tokens` capped at 512 |
 | `"lif": {"budget": {"max_latency_ms": N}}` during IMMINENT | Prefers `local/instant` |
 | Per-profile concurrency | `min(profile.concurrency, yield.cpu_concurrency_normal=4)`. Extra requests queue for up to 120 s, then 429 |
 

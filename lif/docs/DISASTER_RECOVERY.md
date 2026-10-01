@@ -23,7 +23,7 @@
 
 "Container started" is not "usable": readiness and the availability probes check real inference.
 
-**Status: a host reboot has not been exercised.** It is pending owner approval, because it reboots BNN production too.
+**Status: a host reboot has not been exercised.** It is pending owner approval, because it reboots primary-workload production too.
 
 ## Failure scenarios
 
@@ -60,4 +60,4 @@ Cached files are re-verified rather than re-downloaded.
 
 1. Delete `secrets/lif-*.key` and run `scripts/create-secrets.sh`.
 2. `kubectl -n ai-system rollout restart deploy`.
-3. Hand out the new keys (BNN: `lif-bnn.key`).
+3. Hand out the new keys (the primary workload: `lif-bnn.key`).

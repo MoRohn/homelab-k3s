@@ -22,6 +22,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
-    # Manual sync to start: LIF's workloads compete with BNN for unified memory
+    # Manual sync to start: LIF's workloads compete with the primary workload for unified memory
     syncOptions:
       - ServerSideApply=true

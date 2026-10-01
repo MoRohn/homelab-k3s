@@ -1,7 +1,7 @@
 """Model router: logical alias → a healthy physical profile, with explicit fallback.
 
 Inputs: the routing table (controller registry, else config/models.yaml), per-profile
-health (active probes + passive failures), BLERBZ state, and — for `local/auto` — a
+health (active probes + passive failures), primary-workload state, and — for `local/auto` — a
 `request-route` decision from the Decision Fabric (rules for private prompts, Jev only
 when the caller declared the prompt PUBLIC).
 """
@@ -37,7 +37,7 @@ class Profile:
     chat_template_kwargs: dict = field(default_factory=dict)
     embedding_dim: int | None = None
     auth_secret: str | None = None        # secret name sent as Bearer to this upstream
-    yield_on_blerbz: bool = False         # shared BNN engine: skipped while BLERBZ is IMMINENT
+    yield_on_blerbz: bool = False         # shared primary-workload engine: skipped while it is IMMINENT
 
     @classmethod
     def from_cfg(cls, name: str, c: dict) -> "Profile":
@@ -197,13 +197,13 @@ class Router:
             p = self.profiles[name]
             reason = ""
             if i > 0:
-                why = ["GPU engine reserved for BLERBZ production" if t in yielded
+                why = ["GPU engine reserved for primary-workload production" if t in yielded
                        else (self.health[t].last_error or "unhealthy") for t in chain[:i]]
                 reason = f"primary unavailable: {'; '.join(why)[:200]}"
             degraded = p.params_b < self.min_params.get(alias, 0)
             if degraded and not reason:
                 reason = (f"{alias} expects >= {self.min_params[alias]:g}B; largest resident model is "
-                          f"{p.params_b:g}B (GPU reserved for BLERBZ)")
+                          f"{p.params_b:g}B (GPU reserved for the primary workload)")
             return Route(alias=alias, requested=requested, profile=p, fallback=i > 0 or requested != alias,
                          reason=reason, degraded=degraded, candidates_tried=tried, route_decision=route_decision)
         raise NoRoute(alias, f"all models for {alias} are unavailable: " +

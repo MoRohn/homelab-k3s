@@ -1,19 +1,19 @@
 # Local Intelligence Fabric — platform policy.
 # Every service loads this file (mounted from the lif-config ConfigMap). Values here are
-# admission and routing INPUTS; the GPU itself is arbitrated by the host's bnn.gpusched.
+# admission and routing INPUTS; the GPU itself is arbitrated by the host's gpusched.
 
 availability_target: 0.95
 
-# ── Host GPU scheduler (bnn.gpusched) ─────────────────────────────────────────
+# ── Host GPU scheduler (gpusched) ─────────────────────────────────────────
 # The single GPU admission authority on this box. The LIF only READS it (metrics
-# token) for the BLERBZ capacity signal. GPU tiers lease through its K8s gate.
+# token) for the primary-workload capacity signal. GPU tiers lease through its K8s gate.
 gpusched:
   url: http://10.42.0.1:8770
   token_file: /var/run/lif/gpusched/token
   poll_sec: 5
-  stale_after_sec: 30           # older than this → treat BLERBZ state as IMMINENT (fail-safe)
+  stale_after_sec: 30           # older than this → treat primary-workload state as IMMINENT (fail-safe)
 
-# BLERBZ predictive capacity state, from gpusched's validated forecast.
+# Primary-workload predictive capacity state, from gpusched's validated forecast.
 blerbz:
   state_thresholds:             # P(production arrival within the next hour)
     moderate: 0.20
@@ -22,7 +22,7 @@ blerbz:
 
 # ── Tier 0 bandwidth yield ────────────────────────────────────────────────────
 # GB10 decode is memory-bandwidth bound (~273 GB/s shared by CPU and GPU). Production
-# LLM decode already uses ~235 GB/s, so CPU inference slows BLERBZ. While BLERBZ is
+# LLM decode already uses ~235 GB/s, so CPU inference slows the primary workload. While the primary workload is
 # IMMINENT (production running) the CPU tiers throttle to this many concurrent requests.
 yield:
   cpu_concurrency_normal: 4
@@ -30,9 +30,9 @@ yield:
   max_tokens_blerbz: 512        # clamp long generations while production runs
 
 # ── Host memory guard ─────────────────────────────────────────────────────────
-# The LIF's CPU tiers share the 128 GB pool with BNN's resident models. gpusched keeps an
+# The LIF's CPU tiers share the 128 GB pool with the primary workload's resident models. gpusched keeps an
 # 8 GiB MemAvailable headroom for its own admissions; the LIF gives memory back BEFORE
-# that line is crossed, whatever the cause (BNN, desktop apps, the LIF itself).
+# that line is crossed, whatever the cause (the primary workload, desktop apps, the LIF itself).
 memory_guard:
   sustain_sec: 60
   optional: [tier0-small]                  # shed first (redundancy tiers)

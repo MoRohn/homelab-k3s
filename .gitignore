@@ -20,11 +20,9 @@ k3s.yaml
 /personal/*
 !/personal/README.md
 
-# ---- Sensitive project docs and production data (audit, security, BLERBZ, live observations) ----
+# ---- Sensitive project docs and production data (audit, security, integrations, live observations) ----
 /private/*
 !/private/README.md
-# Compatibility links into private/ (e.g. for a long-running observer that writes there)
-/lif/benchmarks/blerbz-takeover
 
 # ---- AI assistant local state (CLAUDE.md is public and tracked; these are not) ----
 CLAUDE.local.md

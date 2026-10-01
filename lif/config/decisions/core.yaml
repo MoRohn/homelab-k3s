@@ -115,7 +115,7 @@
     latency target and the model load time, choose how to serve it.
   choices:
     use_fast: serve now from the resident fast model (report fallback)
-    load_default: load the larger model now; the latency target and BLERBZ forecast allow it
+    load_default: load the larger model now; the latency target and primary-workload forecast allow it
     queue: wait for capacity; the request can tolerate the delay
   thresholds: {auto: 0.90, validate: 0.75, escalate: 0.60}
   default: use_fast
@@ -136,7 +136,7 @@
   default: "no"
   fallback: []
 
-# ── BNN-style content triage (public news text → PUBLIC) ───────────────────────
+# ── News-style content triage (public news text → PUBLIC) ──────────────────────
 - name: story-topic
   version: v1
   type: choice

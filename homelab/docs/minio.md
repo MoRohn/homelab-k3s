@@ -1,6 +1,6 @@
 # MinIO (external dependency)
 
-MinIO is **not** in this cluster. It is the `bnn-minio` container from the bnn stack:
+MinIO is **not** in this cluster. It is the `bnn-minio` container from the primary workload's stack:
 `~/bnn/docker-compose.foundation.yml`, data in `~/bnn/data/object_store`.
 
 ## Port binding for k3s
@@ -9,7 +9,7 @@ The S3 API is bound to the LAN IP in addition to localhost so Longhorn pods can 
 
 ```yaml
     ports:
-      - "127.0.0.1:9000:9000"       # S3 API (bnn scripts use this)
+      - "127.0.0.1:9000:9000"       # S3 API (primary-workload scripts use this)
       - "192.168.68.72:9000:9000"   # S3 API for k3s (Longhorn backups)
       - "127.0.0.1:9001:9001"       # web console, local only
 ```

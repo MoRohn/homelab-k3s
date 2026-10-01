@@ -5,10 +5,10 @@
 The host baseline is in `audit/GPU_BASELINE.md` *(private, local only)*.
 
 - One GB10 GPU with **unified memory**. NVML reports memory as N/A, and CUDA allocations are not charged to cgroups.
-- BNN residents in Docker (Qwen2.5-32B bf16, FLUX image, embedding) pin about **107 GB**.
+- The primary workload's residents in Docker (Qwen2.5-32B bf16, FLUX image, embedding) pin about **107 GB**.
 - Host MemAvailable is about 8–10 GiB.
 - gpusched keeps 8 GiB of headroom, so **admissible GPU memory is about 0.6–1.2 GiB**.
-- `bnn.gpusched` (a host systemd user unit) is the **single GPU admission authority**. LIF only reads it.
+- `gpusched` (a host systemd user unit) is the **single GPU admission authority**. LIF only reads it.
 - CPU and GPU share one LPDDR5X bus. Production LLM decode (~3 tok/s on 67 GB of weights) is bandwidth-bound.
 
 As a result, every LIF model runs on the **CPU** today: llama.cpp on the 10 Cortex-A725 cores (CPUs 0–4 and 10–14), with weights mmap'd.
@@ -22,7 +22,7 @@ As a result, every LIF model runs on the **CPU** today: llama.cpp on the 10 Cort
                               ▼                                     ▼
  DATA PLANE   ┌──────────── gateway ×2 ─────────────┐        CONTROL PLANE
               │ auth · rate limit · privacy · route │        ┌──────── controller ──────────┐
-              │ BLERBZ yield · fallback · cache     │◄──────│ registry (SQLite, Longhorn)   │
+              │ primary yield · fallback · cache    │◄──────│ registry (SQLite, Longhorn)   │
               └───┬────────────┬───────────┬────────┘ /v1/  │ lifecycle · discovery (HF)    │
                   │            │           │       routing  │ availability probes · guard   │
                   ▼            ▼           ▼                │ Control Center UI             │
@@ -32,7 +32,7 @@ As a result, every LIF model runs on the **CPU** today: llama.cpp on the 10 Cort
                   │ /v1/* (batch key)        decision-fabric ◄── batch engine
           batch engine (SQLite) ─────────────► Jev (api.typesafe.ai) / rules / local LLM
                                    │
-                         gpusched /metrics (read-only token) → BLERBZ state
+                         gpusched /metrics (read-only token) → primary-workload state
 ```
 
 | Service | Module | Storage | Depends on | If it fails |
@@ -51,7 +51,7 @@ All four Python services run from **one image** (`127.0.0.1:5000/lif/fabric:<tag
 2. Route.
    - Alias → first healthy profile in the chain, or the canary at its configured percentage.
    - `local/auto` → the `request-route` decision (rules unless the caller declared PUBLIC).
-3. BLERBZ yield.
+3. Primary-workload yield.
    - While IMMINENT, CPU concurrency is 1 and `max_tokens` is capped at 512.
    - With a latency budget, `local/instant` is preferred.
 4. Deterministic cache: non-streaming requests with explicit `temperature: 0`.
@@ -66,7 +66,7 @@ All four Python services run from **one image** (`127.0.0.1:5000/lif/fabric:<tag
 | `lif/common/` | config loader (`/etc/lif` overrides the bundled `config/`), JSON logs, SQLite helper, metric catalogue |
 | `lif/policy/engine.py` | data classes, content detectors, `may_send`, confidence gate, request budgets |
 | `lif/decision/` | decision primitive, providers (Jev, rules, local LLM), fabric, DAG runtime, rules, service |
-| `lif/gpu/state.py` | gpusched metrics → BLERBZ state, `can_run()` |
+| `lif/gpu/state.py` | gpusched metrics → primary-workload state, `can_run()` |
 | `lif/routing/router.py` | alias resolution, health, fallback, canary |
 | `lif/models/` | HF client, hardware fit, registry, discovery, evaluator |
 | `lif/controller/` | k8s client, manifest templates, lifecycle, API |
@@ -79,6 +79,6 @@ All four Python services run from **one image** (`127.0.0.1:5000/lif/fabric:<tag
 ## Namespaces and priorities
 
 - `ai-system` holds the services and the registry. `ai-serving` holds the model servers and Jobs. `ai-batch` is reserved.
-- BNN is **not** migrated.
+- The primary workload is **not** migrated.
 - PriorityClasses: `blerbz-critical` (reserved), `ai-critical`, `ai-interactive`, `ai-batch`, `ai-maintenance`, `ai-experimental`.
 - These govern only CPU and RAM inside K3s. The GPU is gpusched's.

@@ -83,4 +83,4 @@ Model server Deployments the controller creates (`lif-*`, `cand-*`) are not in g
 kubectl kustomize . | sed "s/IMAGE_TAG/x/g" | kubectl delete -f -
 ```
 
-This deletes the PVCs (`registry.db`, `batch.db`, `decisions.db`, `model-store`), so back up first. BNN and gpusched are unaffected. Remove the `lif:` line from `gpusched.token` by hand.
+This deletes the PVCs (`registry.db`, `batch.db`, `decisions.db`, `model-store`), so back up first. The primary workload and gpusched are unaffected. Remove the `lif:` line from `gpusched.token` by hand.

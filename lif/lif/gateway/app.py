@@ -72,10 +72,10 @@ class RateLimiter:
         return True
 
 
-# ── BLERBZ bandwidth yield ────────────────────────────────────────────────────
+# ── Primary-workload bandwidth yield ──────────────────────────────────────────
 
 class YieldLimiter:
-    """Per-profile concurrency that shrinks while BLERBZ production runs.
+    """Per-profile concurrency that shrinks while primary-workload production runs.
     GB10 CPU and GPU share one LPDDR5X bus; production LLM decode is bandwidth bound."""
 
     def __init__(self):
@@ -90,14 +90,14 @@ class YieldLimiter:
 
     @asynccontextmanager
     async def slot(self, profile: str, limit_fn, timeout: float, upstream_busy=None):
-        """`upstream_busy` (async → int) is consulted only while BLERBZ is IMMINENT: the
+        """`upstream_busy` (async → int) is consulted only while the primary workload is IMMINENT: the
         model server's own in-flight count is shared truth across gateway replicas, so the
         production-time cap holds cluster-wide, not per replica."""
         deadline = time.monotonic() + timeout
         if upstream_busy is not None:
             while (busy := await upstream_busy()) >= limit_fn():
                 if time.monotonic() >= deadline:
-                    raise TimeoutError("queue timeout waiting for a model slot (BLERBZ yield)")
+                    raise TimeoutError("queue timeout waiting for a model slot (primary-workload yield)")
                 metrics.throttled.labels("cluster_yield_wait").inc()
                 await asyncio.sleep(0.25)
         async with self.cond:
@@ -386,7 +386,7 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
         # production is running and the caller is latency-sensitive: prefer the smaller model
         try:
             alt = S.router.resolve("local/instant", requested=route.requested, blerbz_imminent=True)
-            alt.reason = "latency budget during BLERBZ production"
+            alt.reason = "latency budget during primary-workload production"
             route = alt
         except NoRoute:
             pass

@@ -344,7 +344,7 @@
       "id": 6,
       "type": "stat",
       "title": "GPU admissible",
-      "description": "Memory bnn gpusched can grant to background GPU jobs right now (falls back to MemAvailable minus the 8 GiB reserve).",
+      "description": "Memory gpusched can grant to background GPU jobs right now (falls back to MemAvailable minus the 8 GiB reserve).",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -914,7 +914,7 @@
     {
       "id": 14,
       "type": "row",
-      "title": "GPU scheduler (bnn gpusched)",
+      "title": "GPU scheduler (gpusched)",
       "collapsed": false,
       "gridPos": {
         "x": 0,

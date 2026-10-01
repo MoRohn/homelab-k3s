@@ -73,7 +73,7 @@ sudo host/prep-longhorn.sh
 This starts `iscsid`, loads `iscsi_tcp`, and tells `multipathd` to stop claiming disks that
 aren't its own. All three changes survive reboots.
 
-**Act 3: Let MinIO hear the cluster.** MinIO runs in the separate bnn Docker stack, not in
+**Act 3: Let MinIO hear the cluster.** MinIO runs in the primary workload's separate Docker stack, not in
 k3s. See [docs/minio.md](docs/minio.md) for the port binding and the one restart rule you
 must never forget.
 
@@ -143,7 +143,7 @@ curated folders sit behind the **Dashboards** menu:
 | Node | Node Exporter Full |
 | Storage | Longhorn Monitoring & Backups |
 
-What's watched: the node, Kubernetes, Longhorn, MinIO (outside the cluster), and the bnn GPU
+What's watched: the node, Kubernetes, Longhorn, MinIO (outside the cluster), and the host GPU
 scheduler. Alert rules live in `monitoring/extras/homelab-rules.yaml` and show up on the
 overview. Nothing pages you at 3 a.m., by design.
 
@@ -206,7 +206,7 @@ kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80
 # then open http://localhost:8080
 ```
 
-GPU workloads on this cluster should go through the bnn GPU scheduler's gate
+GPU workloads on this cluster should go through the host GPU scheduler's gate
 (`~/bnn/deploy/k8s/gpusched`). The GPU is popular, and it keeps a strict guest list.
 
 ---

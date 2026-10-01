@@ -22,7 +22,7 @@
 
 ## What is NOT counted
 
-- **Electricity and the hardware's amortized cost.** The machine runs 24/7 for BNN anyway; the CPU-tier power delta has not been measured.
+- **Electricity and the hardware's amortized cost.** The machine runs 24/7 for the primary workload anyway; the CPU-tier power delta has not been measured.
 - **Cache hits** (`tier=deterministic`). They avoid local compute, but no dollar value is attributed.
 - **Embeddings** are counted at the same per-token rate as chat input. That is an overestimate for embedding APIs.
 - **Quality differences.** A local 4B answer is not equivalent to a frontier model's, so "avoided spend" assumes the cheap hosted tier, not a frontier tier.

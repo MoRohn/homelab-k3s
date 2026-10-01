@@ -1,7 +1,7 @@
 """Jev vs LLM-first on a real public workload (spec §50, acceptance Q).
 
 Workload: AG News topic classification (fancyzhx/ag_news, test split, first 200 rows) —
-the same shape as BNN story triage. Public data, so the privacy policy allows Jev.
+the same shape as news story triage. Public data, so the privacy policy allows Jev.
 
   A  LLM-first:   every story → local/fast (Qwen3-4B, CPU) via the LIF gateway
   B  Fabric:      every story → Jev `story-topic` decision (parallel); only stories whose

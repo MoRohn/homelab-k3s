@@ -97,7 +97,7 @@ async def _one(client: httpx.AsyncClient, url: str, model: str, prompt: str, max
 async def run_suite(url: str, *, model: str = "eval", suite: str = "core", max_tokens: int = 256,
                     concurrency: int = 4, extra: dict | None = None, headers: dict | None = None,
                     timeout: float = 180, should_stop=lambda: False) -> tuple[dict, dict]:
-    """Returns (per-item results, summary). `should_stop` lets the caller abort when BLERBZ needs capacity."""
+    """Returns (per-item results, summary). `should_stop` lets the caller abort when the primary workload needs capacity."""
     s = load_suite(suite)
     items = s["items"]
     extra = extra or {}

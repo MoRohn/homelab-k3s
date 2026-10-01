@@ -2,15 +2,15 @@
 
 ## Authority
 
-`bnn.gpusched`, a host systemd user unit on `127.0.0.1:8770` and `10.42.0.1:8770` running in enforce mode, is the **only** GPU admission authority on this host. LIF is a read-only client.
+`gpusched`, a host systemd user unit on `127.0.0.1:8770` and `10.42.0.1:8770` running in enforce mode, is the **only** GPU admission authority on this host. LIF is a read-only client.
 
 - LIF reads `GET /metrics` with the gpusched **`metrics`** token (Secret `lif-gpusched`). That token can do nothing else.
-- LIF pods never set `runtimeClassName: nvidia` or `NVIDIA_VISIBLE_DEVICES`. Any CUDA context of 256 MiB or more without a lease would raise gpusched's `unmanaged` hold, blocking BLERBZ's own admissions.
+- LIF pods never set `runtimeClassName: nvidia` or `NVIDIA_VISIBLE_DEVICES`. Any CUDA context of 256 MiB or more without a lease would raise gpusched's `unmanaged` hold, blocking the primary workload's own admissions.
 - A `lif:` token line exists in `~/.config/bnn/gpusched.token`, but it is **dormant** until gpusched restarts, because it reads tokens only at startup.
 
 Kubernetes PriorityClasses order CPU and RAM inside K3s only. The kubelet can't see unified GPU memory.
 
-## BLERBZ capacity state (`lif/gpu/state.py`)
+## Primary-workload capacity state (`lif/gpu/state.py`)
 
 The state is polled every 5 s and treated as stale after 30 s.
 
@@ -27,7 +27,7 @@ The forecast is gpusched's own: validated, recency-weighted, with a backtest Bri
 
 | Job | LOW/MODERATE | HIGH | IMMINENT |
 |---|---|---|---|
-| P0–P1 (BLERBZ) | RUN | RUN | RUN |
+| P0–P1 (primary workload) | RUN | RUN | RUN |
 | P2–P3 CPU (interactive) | RUN | RUN | RUN_DEGRADED |
 | P4 CPU (async) | RUN | RUN | QUEUE (or RUN_DEGRADED if it can't wait) |
 | P5 CPU (batch) | RUN | RUN | PAUSE_BACKGROUND |
@@ -53,7 +53,7 @@ The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → 
 
 GB10's CPU and GPU share one memory bus. With the CPU tiers saturated (8 concurrent generations), production LLM decode went from **2.98 / 3.09 tok/s idle to 2.74 tok/s, about −10 %**. That is n = 1 per arm, so it is indicative only (`benchmarks/2026-10-01-production-llm-interference.md`, private, local only).
 
-While BLERBZ is IMMINENT, the gateway therefore:
+While the primary workload is IMMINENT, the gateway therefore:
 - drops CPU concurrency to `yield.cpu_concurrency_blerbz` (1);
 - caps `max_tokens` at 512.
 
@@ -88,7 +88,7 @@ LIF hands memory back **before** gpusched's 8 GiB headroom is crossed, whatever 
 2. **Proposal (owner decision): requantize the production LLM.**
    - Serving Qwen2.5-32B as FP8 instead of bf16 frees about 30 GB.
    - It would likely also improve the ~3 tok/s decode behind Stream It's 39 % pre-fix failure rate.
-   - It must keep the `:8100` contract (including the `adapter` field) and pass a BNN-workload quality evaluation before cutover.
+   - It must keep the `:8100` contract (including the `adapter` field) and pass a primary-workload quality evaluation before cutover.
 3. Any vLLM start needs an explicit memory size and a lease `mem_mb` that covers the load peak. Never use the default `gpu_memory_utilization`.
 
-**Status: not implemented or validated.** A live BLERBZ GPU takeover of a LIF GPU model has not been tested, because no LIF GPU model exists.
+**Status: not implemented or validated.** A live primary-workload GPU takeover of a LIF GPU model has not been tested, because no LIF GPU model exists.

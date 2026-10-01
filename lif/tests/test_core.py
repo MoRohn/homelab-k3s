@@ -1,4 +1,4 @@
-"""Core unit tests: policy, Decision Fabric, DAG, BLERBZ state, hardware fit, registry, router."""
+"""Core unit tests: policy, Decision Fabric, DAG, primary-workload state, hardware fit, registry, router."""
 from __future__ import annotations
 
 import asyncio
@@ -155,7 +155,7 @@ async def test_candidate_workflow_groups_jev_calls():
     assert run.results["recommendation"]["action"] in ("shortlist", "review", "reject", "hold")
 
 
-# ── BLERBZ state / CAN_RUN ───────────────────────────────────────────────────
+# ── Primary-workload state / CAN_RUN ─────────────────────────────────────────
 
 METRICS = """
 gpusched_up 1
@@ -424,5 +424,5 @@ def test_shared_gpu_engine_yields_to_blerbz():
         rt.health[n].ok = True
     assert rt.resolve("local/default").profile.name == "gpu32"
     r = rt.resolve("local/default", blerbz_imminent=True)
-    assert r.profile.name == "cpu4" and r.fallback and "BLERBZ production" in r.reason
+    assert r.profile.name == "cpu4" and r.fallback and "primary-workload production" in r.reason
     assert rt.alias_status(blerbz_imminent=True)["local/default"]["served_by"] == "cpu4"

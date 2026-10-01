@@ -1,4 +1,4 @@
-# Core evaluation suite. Synthetic content only — shaped like BLERBZ/BNN workloads
+# Core evaluation suite. Synthetic content only — shaped like primary-workload content
 # (headline summaries, story triage, structured extraction) without real data.
 # checker: contains (all of `expect`, case-insensitive) | regex | json (parse + required keys
 # + optional enum/type checks) | choice (answer must equal one label) | number (within tol)
@@ -12,7 +12,7 @@ items:
      prompt: "Write one short sentence about mountains entirely in UPPERCASE letters."}
   - {id: if-03, cat: instruction, checker: contains, expect: ["1.", "2.", "3."],
      prompt: "List three benefits of exercise as a numbered list (1., 2., 3.). Nothing else."}
-  # ── summarization (BNN-style) ──
+  # ── summarization (news-style) ──
   - {id: sum-01, cat: summarization, checker: contains, expect: ["bridge"],
      prompt: "Summarize in one sentence: The city council voted 7-2 on Tuesday to fund repairs to the Elm Street bridge, closed since March after inspectors found corroded supports. Work starts in June and should take five months."}
   - {id: sum-02, cat: summarization, checker: regex, expect: '^(?:\S+\s+){0,11}\S+[.!]?$',

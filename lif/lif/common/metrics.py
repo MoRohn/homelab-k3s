@@ -29,14 +29,14 @@ decode_tps = Histogram("lif_decode_tokens_per_second", "Decode throughput per re
 fallbacks = Counter("lif_fallbacks_total", "Alias served by a non-primary profile",
                     ["alias", "served_by", "reason"])
 inflight = Gauge("lif_inflight_requests", "Requests in flight", ["profile"])
-throttled = Counter("lif_throttled_total", "Requests delayed or clamped by the BLERBZ yield", ["reason"])
+throttled = Counter("lif_throttled_total", "Requests delayed or clamped by the primary-workload yield", ["reason"])
 
 # ── availability probes (controller, every 15 s; 1 = usable, verified by real inference) ──
 available = Gauge("lif_available", "Capability usable right now (inference-verified)", ["capability"])
 probe_latency = Gauge("lif_probe_seconds", "Last synthetic probe latency", ["capability"])
 
-# ── BLERBZ / GPU ──
-blerbz_state = Gauge("lif_blerbz_state", "BLERBZ capacity state (0 LOW,1 MODERATE,2 HIGH,3 IMMINENT)")
+# ── Primary workload / GPU ──
+blerbz_state = Gauge("lif_blerbz_state", "Primary-workload capacity state (0 LOW,1 MODERATE,2 HIGH,3 IMMINENT)")
 admissible = Gauge("lif_gpu_admissible_mib", "gpusched admissible GPU memory (MiB)")
 
 # ── Decision Fabric / Jev ──

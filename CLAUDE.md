@@ -9,7 +9,7 @@ credentials, or private findings. Personal, machine-specific instructions go in
 - **Never commit anything from `secrets/`, `private/` or `personal/`**, or `.env.local`.
   Never use `git add -f` on them, and never commit with `--no-verify`.
 - New sensitive material goes in `private/<project>/…`. That covers host, network or
-  service inventories; security posture or incidents; BLERBZ/BNN integration internals;
+  service inventories; security posture or incidents; primary-workload integration internals;
   and anything measured on production traffic. When unsure, use `private/` and mention it.
 - Run `python3 tools/check-private.py --all` before any push or history rewrite.
 - Never print secret values. To read `.env.local`, source it in a subshell; don't grep or cut it.
@@ -29,7 +29,7 @@ credentials, or private findings. Personal, machine-specific instructions go in
   paths those apps reference. Pushing is the owner's call.
 - `homelab/argocd/root.yaml` is applied by hand and is not self-managed. If it changes,
   re-apply it with `kubectl apply -f homelab/argocd/root.yaml`.
-- The BNN/BLERBZ stack (Docker, `~/bnn`) has GPU priority. Don't restart docker, k3s or
+- The primary workload (Docker, `~/bnn`) has GPU priority. Don't restart docker, k3s or
   gpusched without the owner's go-ahead. LIF must lease the GPU through gpusched.
 - LIF's memory guard owns the replicas of `ai-serving/tier0-small` and `embedding`. Their
   manifests deliberately have no `replicas:` field.

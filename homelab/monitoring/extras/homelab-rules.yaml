@@ -8,7 +8,7 @@ spec:
   groups:
     - name: homelab.memory
       rules:
-        # bnn gpusched keeps 8 GiB of unified memory free before admitting background GPU jobs
+        # gpusched keeps 8 GiB of unified memory free before admitting background GPU jobs
         - record: homelab:gpu_reserve_headroom_bytes
           expr: node_memory_MemAvailable_bytes{job="node-exporter"} - 8 * 1024^3
         - alert: HomelabMemoryCritical
@@ -27,7 +27,7 @@ spec:
           annotations:
             summary: Available memory is below the 8 GiB GPU scheduler reserve
             description: >-
-              bnn gpusched will not admit background GPU jobs until
+              gpusched will not admit background GPU jobs until
               {{ $value | humanize1024 }}B more memory is free.
 
     - name: homelab.storage
@@ -105,11 +105,11 @@ spec:
           for: 5m
           labels: {severity: warning}
           annotations:
-            summary: bnn gpusched is not reporting
+            summary: gpusched is not reporting
             description: GPU admission control is unavailable; background GPU jobs fail closed.
         - alert: GpuSchedulerHolding
           expr: gpusched_holds > 0
           for: 15m
           labels: {severity: info}
           annotations:
-            summary: bnn gpusched has held new GPU admissions for 15 minutes
+            summary: gpusched has held new GPU admissions for 15 minutes

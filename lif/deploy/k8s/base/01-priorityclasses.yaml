@@ -1,13 +1,13 @@
 # Pod priorities for CPU/RAM contention inside K3s. They do NOT arbitrate the GPU:
-# GB10 unified memory is not visible to the kubelet, so bnn.gpusched remains the GPU
-# authority (BLERBZ production = gpusched class "production", never blocked).
-# blerbz-critical is reserved for any BLERBZ workload that later moves into K3s.
+# GB10 unified memory is not visible to the kubelet, so gpusched remains the GPU
+# authority (primary-workload production = gpusched class "production", never blocked).
+# blerbz-critical is reserved for any primary-workload service that later moves into K3s.
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata: {name: blerbz-critical}
 value: 900000
 preemptionPolicy: PreemptLowerPriority
-description: BLERBZ production media workloads (P0/P1).
+description: Primary-workload production jobs (P0/P1).
 ---
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass

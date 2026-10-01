@@ -5,7 +5,7 @@ checkpoint: an item that was `running` when the process died goes back to `pendi
 on start, so a restart re-runs at most the items that were in flight.
 
 Scheduling is deterministic (no AI): per job, `can_run(Job(priority, device="cpu"))`
-against the BLERBZ snapshot from gpusched decides whether it may dispatch now.
+against the primary-workload snapshot from gpusched decides whether it may dispatch now.
   RUN               global concurrency 2 (CPU tiers are bandwidth-bound; 4-way measured slower)
   RUN_DEGRADED      concurrency 1
   QUEUE / PAUSE_*   not dispatched; the reason is recorded on the job
@@ -425,5 +425,5 @@ class BatchEngine:
             except Exception:
                 LOG.exception("batch tick failed")
                 n = 0
-            # Items in a retry backoff or jobs waiting on BLERBZ: poll slowly.
+            # Items in a retry backoff or jobs waiting on the primary workload: poll slowly.
             await asyncio.sleep(0.05 if n else idle_sec)

@@ -1,5 +1,5 @@
 # The controller may manage LIF model servers and Jobs in ai-serving — nothing else.
-# No rights in kube-system, monitoring, argocd, or any BNN resource; no Secrets access.
+# No rights in kube-system, monitoring, argocd, or any primary-workload resource; no Secrets access.
 apiVersion: v1
 kind: ServiceAccount
 metadata: {name: lif-controller, namespace: ai-system}

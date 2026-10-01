@@ -53,7 +53,7 @@ def test_status_renders(capsys, monkeypatch):
     api = make_api({("GET", "/v1/overview"): (200, OVERVIEW)}, seen)
     assert main(["status"], api) == 0
     o = capsys.readouterr().out
-    assert "BLERBZ state        LOW" in o and "local/fast" in o and "100.0%" in o
+    assert "Workload state      LOW" in o and "local/fast" in o and "100.0%" in o
     assert seen[0][3] == "Bearer k"
 
 

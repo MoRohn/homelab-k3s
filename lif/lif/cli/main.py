@@ -94,7 +94,7 @@ def render_status(o: dict) -> str:
     b = o.get("blerbz") or {}
     caps = (o.get("capabilities") or {}).get("aliases") or {}
     lines = ["LOCAL INTELLIGENCE FABRIC", "",
-             f"BLERBZ state        {b.get('state', '?')}  ({b.get('reason', '')})",
+             f"Workload state      {b.get('state', '?')}  ({b.get('reason', '')})",
              f"GPU admissible      {b.get('admissible_mib', 0):.0f} MiB   MemAvailable {b.get('mem_available_mib', 0):.0f} MiB",
              ""]
     rows = [[a, "READY" if v.get("available") else "UNAVAILABLE", v.get("served_by", ""),
@@ -145,7 +145,7 @@ def cmd_doctor(api: Api, args) -> int:
             checks.append((lvl, f"alias {a}", v.get("reason", "unavailable")))
     b = o.get("blerbz") or {}
     if b:
-        checks.append(("PASS" if b.get("reachable") else "WARN", "blerbz/gpusched",
+        checks.append(("PASS" if b.get("reachable") else "WARN", "gpusched",
                        f"{b.get('state')} — {b.get('reason')}"))
     df = o.get("decision_fabric") or {}
     if "error" in df or not df:
@@ -170,7 +170,7 @@ def cmd_gpu(api: Api, args) -> int:
     def r(g):
         res = g.get("residents_loaded") or {}
         return "\n".join([
-            f"BLERBZ state      {g.get('state')}  ({g.get('reason')})",
+            f"workload state    {g.get('state')}  ({g.get('reason')})",
             f"production live   {g.get('production_live')}  leases={g.get('production_leases')}",
             f"forecast P(1h)    {fmt_pct(g.get('p_next_hour'))}  authoritative={g.get('forecast_authoritative')}",
             f"admissible        {g.get('admissible_mib', 0):.0f} MiB",

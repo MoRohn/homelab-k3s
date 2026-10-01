@@ -102,7 +102,7 @@ Decisions are persisted to `decisions.db` for 30 days.
 
 ## Measured: Jev vs LLM-first (spec §50)
 
-Workload: AG News test split, first 200 stories, 4-way topic classification (the shape of BNN story
+Workload: AG News test split, first 200 stories, 4-way topic classification (the shape of news story
 triage; public data, so Jev is allowed). Reproduce with `benchmarks/jev-vs-llm/run.py`; raw results in
 `benchmarks/jev-vs-llm/results-*.json`.
 

@@ -1,5 +1,5 @@
 # LAN-only HTTPS via Traefik (k3s default self-signed cert). Nothing here is published to
-# the internet: BNN's ngrok tunnel forwards only :8766 and is untouched.
+# the internet: the primary workload's ngrok tunnel forwards only :8766 and is untouched.
 #   https://ai.tiny-dgx.lan   → gateway  (OpenAI-compatible; API key required)
 #   https://lif.tiny-dgx.lan  → controller + Control Center (admin key required)
 apiVersion: networking.k8s.io/v1
