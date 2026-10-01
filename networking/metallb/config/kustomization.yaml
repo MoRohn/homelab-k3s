@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - ipaddresspool.yaml
   - l2advertisement.yaml
+  - traefik-ip.yaml

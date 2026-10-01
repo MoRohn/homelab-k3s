@@ -1,0 +1,24 @@
+# node-ip: the node's own address. Traefik stays on 192.168.68.72 so existing clients
+# (e.g. LIF at ai.tiny-dgx.lan) keep working. No L2Advertisement: the node already answers
+# ARP for its own IP, so nothing depends on how the Wi-Fi mesh treats extra addresses.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: node-ip
+  namespace: metallb-system
+spec:
+  addresses: ["192.168.68.72/32"]
+  autoAssign: false
+---
+# lan: dedicated LAN addresses for services that ask for one, e.g.
+#   metadata.annotations: {metallb.io/address-pool: lan}
+# Free on the 2026-10-01 scan (Deco nodes sit at 192.168.71.249-250). Opt-in only until
+# confirmed outside the router's DHCP pool.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lan
+  namespace: metallb-system
+spec:
+  addresses: ["192.168.71.230-192.168.71.239"]
+  autoAssign: false

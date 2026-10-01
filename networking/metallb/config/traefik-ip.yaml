@@ -1,0 +1,12 @@
+# k3s deploys Traefik from a HelmChart; HelmChartConfig layers values on top.
+# Pin its LoadBalancer IP to the node address (pool node-ip).
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      annotations:
+        metallb.io/loadBalancerIPs: 192.168.68.72
