@@ -4,9 +4,9 @@
 
 | Data | Location | Backed up | Loss impact |
 |---|---|---|---|
-| Model registry, aliases, activity, availability (`registry.db`) | PVC `ai-system/lif-registry` (Longhorn) | **not yet**: no Longhorn recurring backup job exists (checked 2026-10-01). Add one for `lif-registry` (MinIO target) | High: alias versions and evidence. The seed rebuilds a minimal registry from `config/models.yaml` |
-| Decision log (`decisions.db`) | `lif-decisions` (Longhorn) | not yet | Low (30-day history) |
-| Batch queue (`batch.db`) | `lif-batch` (Longhorn) | not yet | Medium: pending jobs |
+| Model registry, aliases, activity, availability (`registry.db`) | PVC `ai-system/lif-registry` (Longhorn) | **yes**: Longhorn `backup-daily` RecurringJob, 03:15, 14 kept (first backup and restore drill 2026-10-01) | High: alias versions and evidence. The seed rebuilds a minimal registry from `config/models.yaml` |
+| Decision log (`decisions.db`) and Decision Engineering (`decision-eng.db`, `calibration/`) | `lif-decisions` (**local-path**, so Longhorn can't back it up) | **yes**: CronJob `lif-sqlite-backup`, 03:45, consistent SQLite copies to `s3://longhorn-backups/lif-sqlite/<date>/`, 14 days (first run and restore check 2026-10-01) | Decision log: low (30-day history). `decision-eng.db`: high (releases, provenance, shadow and outcome data) |
+| Batch queue (`batch.db`) | `lif-batch` (Longhorn) | **yes**: Longhorn `backup-daily` | Medium: pending jobs |
 | Model weights | `ai-serving/model-store` (local-path, a host dir) | **no**, re-downloadable | Re-download by sha-pinned Job |
 | Images | `ai-system/registry` (local-path) | no | Rebuild with `docker build` |
 | Config | git (`config/`, manifests) | git | none |
@@ -50,11 +50,26 @@ kubectl apply -f deploy/k8s/bootstrap/download-tier0.yaml
 
 Cached files are re-verified rather than re-downloaded.
 
-**Restore `registry.db`** (once a recurring backup exists):
+**Restore `registry.db` or `batch.db`** (Longhorn backup):
 
 1. Restore the Longhorn backup of `lif-registry` from MinIO (Longhorn UI → Backup → restore to a new volume).
 2. Scale the controller to 0 and swap the PVC.
 3. Scale the controller back to 1.
+
+**Restore `decisions.db` / `decision-eng.db`** (SQLite backup):
+
+1. Check the latest set first (download, sha256, `integrity_check`). Credentials come from `secrets/lif-backup-minio.env`:
+
+   ```bash
+   (set -a; . ../secrets/lif-backup-minio.env; set +a
+    S3_ENDPOINT=$LIF_BACKUP_MINIO_ENDPOINT S3_ACCESS_KEY=$LIF_BACKUP_MINIO_USER S3_SECRET_KEY=$LIF_BACKUP_MINIO_PASSWORD \
+    .venv/bin/python scripts/sqlite_backup.py verify-latest)
+   ```
+2. `kubectl -n ai-system scale deploy/decision-fabric --replicas=0`.
+3. Download `lif-sqlite/<date>/<name>.db.gz` (for example with `mc` in the `bnn-minio` container), gunzip it, and copy it into the `lif-decisions` volume with a short-lived pod that mounts the PVC. Delete any `<name>.db-wal` and `<name>.db-shm` left beside it.
+4. Scale decision-fabric back to 1. Run `local-ai decision registry` to confirm the releases are back.
+
+The `lif-backup` MinIO user can only read and write `lif-sqlite/`, not Longhorn's backups (403, checked 2026-10-01). The off-site sync mirrors the whole bucket, so these copies leave the host once off-site is set up.
 
 **Lost secrets:**
 

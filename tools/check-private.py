@@ -27,7 +27,8 @@ TOKEN_PATTERNS = [
     ("Tailscale key", re.compile(r"tskey-[a-z]+-[A-Za-z0-9]{10,}")),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}")),
     ("Hugging Face token", re.compile(r"\bhf_[A-Za-z0-9]{30,}")),
-    ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    # AKIAIOSFODNN7EXAMPLE is the key in AWS's own docs (SigV4 test vectors), never a real one
+    ("AWS access key", re.compile(r"\bAKIA(?!IOSFODNN7EXAMPLE\b)[0-9A-Z]{16}\b")),
     ("Slack token", re.compile(r"\bxox[abpr]-[A-Za-z0-9-]{20,}")),
 ]
 SECRET_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|KEY|PASS$", re.I)

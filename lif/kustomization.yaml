@@ -10,11 +10,16 @@ resources:
   - deploy/k8s/base/12-networkpolicy.yaml
   - deploy/k8s/base/13-ingress.yaml
   - deploy/k8s/base/14-monitoring.yaml
+  - deploy/k8s/base/15-backup.yaml
   - deploy/k8s/serving/tier0.yaml
   - deploy/k8s/serving/tier0-small.yaml
   - deploy/k8s/serving/embedding.yaml
   - deploy/k8s/serving/gpu-engine-bridge.yaml
 configMapGenerator:
+  - name: lif-backup-script
+    namespace: ai-system
+    files:
+      - sqlite_backup.py=scripts/sqlite_backup.py
   - name: lif-config
     namespace: ai-system
     files:

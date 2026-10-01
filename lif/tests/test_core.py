@@ -426,3 +426,54 @@ def test_shared_gpu_engine_yields_to_blerbz():
     r = rt.resolve("local/default", blerbz_imminent=True)
     assert r.profile.name == "cpu4" and r.fallback and "primary-workload production" in r.reason
     assert rt.alias_status(blerbz_imminent=True)["local/default"]["served_by"] == "cpu4"
+
+
+# ── SQLite backup script (scripts/sqlite_backup.py) ────────────────────────────
+
+def _backup_mod():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("sqlite_backup", Path(__file__).parents[1] / "scripts" / "sqlite_backup.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_sqlite_backup_sigv4_matches_aws_example():
+    import datetime as dt
+    b = _backup_mod()
+    h = b.sigv4_headers("GET", "https://examplebucket.s3.amazonaws.com/test.txt", "AKIAIOSFODNN7EXAMPLE",
+                        "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "us-east-1", b.EMPTY_SHA,
+                        now=dt.datetime(2013, 5, 24, tzinfo=dt.timezone.utc), extra={"Range": "bytes=0-9"})
+    assert h["authorization"].endswith("f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41")
+
+
+def test_sqlite_backup_round_trip_with_wal(tmp_path):
+    """Backup while a WAL writer has uncommitted-to-main-file data; restore verifies sha + integrity."""
+    import sqlite3
+    b = _backup_mod()
+    src = tmp_path / "data"
+    src.mkdir()
+    con = sqlite3.connect(src / "decisions.db")
+    con.execute("PRAGMA journal_mode=WAL")
+    con.execute("CREATE TABLE t(x)")
+    con.executemany("INSERT INTO t VALUES(?)", [(i,) for i in range(500)])
+    con.commit()                                       # rows live in the -wal file, connection still open
+
+    class FakeS3:
+        def __init__(self):
+            self.objs = {"lif-sqlite/2000-01-01/old.db.gz": b"x"}
+        def put(self, k, v): self.objs[k] = v
+        def get(self, k): return self.objs[k]
+        def delete(self, k): self.objs.pop(k)
+        def list(self, prefix): return [k for k in self.objs if k.startswith(prefix)]
+    s3 = FakeS3()
+    m = b.backup(s3, src, "lif-sqlite", retain_days=14)
+    assert "decisions.db" in m["files"] and "lif-sqlite/2000-01-01/old.db.gz" not in s3.objs   # pruned
+    out = b.verify_latest(s3, "lif-sqlite")
+    assert out["files"]["decisions.db"]["integrity"] == "ok"
+    import gzip
+    restored = tmp_path / "r.db"
+    restored.write_bytes(gzip.decompress(s3.objs[m["files"]["decisions.db"]["key"]]))
+    assert sqlite3.connect(restored).execute("SELECT count(*) FROM t").fetchone()[0] == 500
+    con.close()

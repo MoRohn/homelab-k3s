@@ -81,3 +81,19 @@ spec:
             and on(decision) sum by (decision) (increase(lif_decision_outcomes_total{route="auto"}[24h])) >= 20
           labels: {severity: warning}
           annotations: {summary: "{{ $labels.decision }}: over 10% of automatic decisions with known outcomes were wrong in 24 h; consider `local-ai decision rollback`."}
+    # ── SQLite backups of the local-path lif-decisions PVC (15-backup.yaml) ──
+    - name: lif-backup
+      rules:
+        - alert: LIFSQLiteBackupStale
+          expr: >-
+            (time() - max(kube_cronjob_status_last_successful_time{namespace="ai-system",cronjob="lif-sqlite-backup"}) > 2 * 86400)
+            or (absent(kube_cronjob_status_last_successful_time{namespace="ai-system",cronjob="lif-sqlite-backup"})
+                and on() max(kube_cronjob_info{namespace="ai-system",cronjob="lif-sqlite-backup"}) == 1)
+          for: 30h
+          labels: {severity: warning}
+          annotations: {summary: "No successful lif-sqlite-backup run in 2 days: decisions.db / decision-eng.db are not backed up."}
+        - alert: LIFSQLiteBackupFailed
+          expr: max(kube_job_status_failed{namespace="ai-system",job_name=~"lif-sqlite-backup-.*"}) > 0
+          for: 15m
+          labels: {severity: warning}
+          annotations: {summary: "A lif-sqlite-backup Job failed: `kubectl -n ai-system logs job/<name>`."}

@@ -1,0 +1,63 @@
+# Nightly SQLite backup of the local-path `lif-decisions` PVC (Longhorn can't back up local-path).
+# decisions.db + decision-eng.db + calibration/ → s3://longhorn-backups/lif-sqlite/<date>/, 14 days.
+# Credentials: homelab/scripts/setup-minio-lif-backup.sh (user scoped to lif-sqlite/ only).
+# Script: lif/scripts/sqlite_backup.py (ConfigMap lif-backup-script). Restore: docs/DISASTER_RECOVERY.md.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: lif-sqlite-backup
+  namespace: ai-system
+  labels: {app: lif-sqlite-backup, app.kubernetes.io/part-of: lif}
+spec:
+  schedule: "45 3 * * *"                  # after Longhorn's backup-daily (03:15)
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels: {app: lif-sqlite-backup, app.kubernetes.io/part-of: lif}
+        spec:
+          restartPolicy: Never
+          priorityClassName: ai-maintenance
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+          - name: backup
+            image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+            command: [python, /opt/backup/sqlite_backup.py, backup]
+            envFrom:
+            - secretRef: {name: lif-backup-minio}
+            env:
+            - {name: SRC, value: /data}
+            - {name: BUCKET, value: longhorn-backups}
+            - {name: PREFIX, value: lif-sqlite}
+            - {name: RETAIN_DAYS, value: "14"}
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: [ALL]}
+            resources:
+              requests: {cpu: 10m, memory: 32Mi}
+              limits: {cpu: 500m, memory: 256Mi}
+            volumeMounts:
+            - {name: data, mountPath: /data}            # read-write: SQLite needs the -shm file to read a WAL db
+            - {name: script, mountPath: /opt/backup, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+          volumes:
+          - name: data
+            persistentVolumeClaim: {claimName: lif-decisions}
+          - name: script
+            configMap: {name: lif-backup-script}
+          - name: tmp
+            emptyDir: {sizeLimit: 1Gi}
