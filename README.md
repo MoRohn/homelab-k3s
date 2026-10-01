@@ -30,6 +30,8 @@ Every great saga has trials. This one had:
 | VI | Three copies of everything on a cluster of one | Reduced to one copy each, reclaiming ~160 MiB of memory |
 | VII | 134,000 time series, most of them duplicates | k3s runs the whole control plane in one process, so its metrics arrive twice. Trimmed to ~19,000 |
 | VIII | Grafana, OOM-killed while admiring its own dashboard | Evicted its two sidecars and gave it room to breathe |
+| IX | node-exporter, vanishing one scrape in five | Bisected 49 collectors to one: `cpufreq`, stuck in firmware calls on the GB10. Disabled |
+| X | A backup job that would faithfully copy an empty bucket over the only spare | Taught it to refuse, and to keep everything it replaces for 30 days |
 
 The node remains standing. Details below, for those who prefer facts to folklore.
 
@@ -44,6 +46,8 @@ The node remains standing. Details below, for those who prefer facts to folklore
 | `minio/` | MinIO policies: the backup user and the metrics-only scraper |
 | `argocd/` | Argo CD app-of-apps. Push to `main` and the cluster follows |
 | `monitoring/` | Prometheus + Grafana values, scrape configs, alert rules, dashboards |
+| `networking/` | MetalLB address pools and the Tailscale operator |
+| `backup/` | Off-site copy of Longhorn backups (rclone over SFTP, hourly timer) |
 | `scripts/` | Every setup step, repeatable on demand |
 | `docs/` | Reference docs, plus the poster above |
 | `secrets/` | Local credentials. Git-ignored. Never leaves the machine |
@@ -148,6 +152,38 @@ To change the home dashboard: edit the generator, run it, commit both files.
 
 ---
 
+## The roads in (networking)
+
+**MetalLB** hands out LoadBalancer addresses, replacing k3s's built-in ServiceLB.
+Traefik is pinned to the node's own address, `192.168.68.72`, so everything that already
+pointed there keeps working. A second, opt-in pool (`192.168.71.230-239`) is ready for any
+service that wants an address of its own:
+
+```yaml
+metadata:
+  annotations:
+    metallb.io/address-pool: lan
+```
+
+**Tailscale** puts Grafana and Prometheus on your private tailnet with real HTTPS, reachable
+from your phone anywhere and from nowhere else. Setup: [docs/tailscale.md](docs/tailscale.md).
+
+## The spare key (off-site backups)
+
+Longhorn backs up to MinIO on this machine, and `backup/offsite-sync.sh` copies those backups
+to another machine every day, using a read-only MinIO account. It is deliberately cautious:
+
+- anything it would overwrite or delete off-site is kept in `versions/` for 30 days
+- if the source suddenly shrinks to under half the off-site copy, it refuses to sync
+- it checks hourly and syncs once a day, so a laptop that sleeps at night catches up later
+- the overview dashboard shows the off-site copy's age, and alerts if it goes stale
+
+Setup is one command (asks for the target's password once):
+
+```bash
+scripts/setup-offsite.sh <user>@<host>
+```
+
 ## Using Longhorn
 
 `local-path` remains the default StorageClass, so existing workloads carry on undisturbed.
@@ -175,8 +211,8 @@ GPU workloads on this cluster should go through the bnn GPU scheduler's gate
 
 Every saga has a few. This one's are documented:
 
-- **The backups live on the same machine they're backing up.** They protect against mistakes,
-  not against the machine itself having a very bad day. An off-machine copy is on the roadmap.
+- **The backups live on the same machine they're backing up**, until `scripts/setup-offsite.sh`
+  is pointed at a second machine. After that, the spare key lives elsewhere.
 - **The node's IP comes from DHCP, over Wi-Fi.** Reserve `192.168.68.72` in the router, or one
   day the node and its backup endpoint will wake up somewhere unfamiliar.
 - **One replica means no redundancy inside the cluster.** That's the price of being the last
