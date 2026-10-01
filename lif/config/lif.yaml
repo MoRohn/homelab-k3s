@@ -110,7 +110,10 @@ decision_engineering:
   # Real agents in shadow (POST /de/observe). The agent's own answer always serves.
   observe:
     discovery: true             # lif/models/discovery.py → model-advance
-    review_agreement_pct: 20    # share of AGREEMENTS also sent to human review (all disagreements are)
+    # auto: every observed case is labelled by lif/decision/autolabel.py (the decision's criteria in code,
+    # scored against its designed tests); no human review queue. human: the old queue (below).
+    review: auto
+    review_agreement_pct: 20    # review: human only — share of AGREEMENTS also sent to review (all disagreements are)
 
 # ── Privacy ───────────────────────────────────────────────────────────────────
 privacy:

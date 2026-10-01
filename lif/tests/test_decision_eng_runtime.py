@@ -379,11 +379,15 @@ ADV = {"name": "model-advance", "version": "v1", "primitive": "noul", "stage": "
        "state_schema": {"model.id": "str", "category.name": "str"}}
 
 
-def test_observe_shadows_a_real_agent_and_routes_disagreement_to_human(tmp_path, monkeypatch):
+def _observe_client(tmp_path, monkeypatch, review: str | None = None):
     from fastapi import FastAPI
-    from lif.decision import de_api, shadow as sh
+    from lif.decision import de_api
     monkeypatch.setenv("LIF_TRACE_DIR", str(tmp_path / "traces"))
     monkeypatch.setenv("LIF_INTERNAL_KEY", "ik")
+    if review is not None:
+        real = de_api.config.get
+        monkeypatch.setattr(de_api.config, "get", lambda k, d=None: {"review": review, "review_agreement_pct": 20}
+                            if k == "decision_engineering.observe" else real(k, d))
     defs = index_definitions([DecisionDef.from_raw(ADV)])
     h, calls = jev_answers({"model_advance": {"noul": 0.92}})
     rt = Runtime.build(store=Store(str(tmp_path / "de.db")), rules=RulesProvider(), jev_key="", definitions=defs)
@@ -391,22 +395,43 @@ def test_observe_shadows_a_real_agent_and_routes_disagreement_to_human(tmp_path,
     de_api.RT = rt
     app = FastAPI()
     app.include_router(de_api.router)
-    c = TestClient(app)
-    body = {"decision": "model-advance", "agent": "model-discovery", "data_class": "PUBLIC",
+    return TestClient(app), rt, calls
+
+
+OBSERVED = {"decision": "model-advance", "agent": "model-discovery", "data_class": "PUBLIC",
             "state": {"model": {"id": "org/Coder-7B"}, "category": {"name": "coding"}, "extra": "dropped"},
             "baseline": {"answer": "no", "executor": "discovery-policy:jev", "confidence": 0.55}}
-    r = c.post("/de/observe", json=body).json()
-    assert r["served"] == "no" and r["shadow"][0]["answer"] == "yes" and r["disagreement"] and r["review_ticket"]
+
+
+def test_observe_labels_every_case_automatically_without_a_review_queue(tmp_path, monkeypatch):
+    """Default (observe.review: auto): the decision's criteria, checked in code, label the case; nobody is asked."""
+    from lif.decision import shadow as sh
+    c, rt, calls = _observe_client(tmp_path, monkeypatch)
+    r = c.post("/de/observe", json=OBSERVED).json()
+    assert r["served"] == "no" and r["shadow"][0]["answer"] == "yes" and r["disagreement"]
+    assert r["review_ticket"] is None and rt.store.q("SELECT COUNT(*) AS n FROM human_queue")[0]["n"] == 0
+    # no pipeline tag → not shown to be built for coding → "no", recorded as the outcome with its source
+    assert r["auto_label"]["answer"] == "no" and r["auto_label"]["labeller"] == "model-advance-rules-v1"
     assert "extra" not in json.dumps(calls[0]["state"])                # state compiled to the schema
-    prov = rt.store.q("SELECT route, executor FROM provenance WHERE id=?", (r["provenance_id"],))[0]
-    assert prov["route"] == "baseline" and prov["executor"] == "discovery-policy:jev"
-    # the human labels the case in the Review Queue → outcome on provenance and shadow rows
+    prov = rt.store.q("SELECT route, executor, outcome FROM provenance WHERE id=?", (r["provenance_id"],))[0]
+    assert prov["route"] == "baseline" and prov["executor"] == "discovery-policy:jev" and prov["outcome"] == "no"
+    assert rt.store.q("SELECT outcome_source FROM shadow")[0]["outcome_source"] == "auto:model-advance-rules-v1"
+    s = sh.samples(rt.store, "model-advance/v1")                       # the shadow's "yes" is scored wrong
+    assert len(s) == 1 and s[0].correct is False and s[0].expected == "no" and s[0].agree is False
+    assert list((tmp_path / "traces" / "model-discovery").glob("*.jsonl"))   # mineable trace
+    assert c.post("/de/observe", json={**OBSERVED, "baseline": {"answer": "maybe"}}).status_code == 400
+
+
+def test_observe_human_review_mode_still_queues_disagreements(tmp_path, monkeypatch):
+    """observe.review: human restores the old queue: disagreements (plus a sample) wait for a person."""
+    from lif.decision import shadow as sh
+    c, rt, _ = _observe_client(tmp_path, monkeypatch, review="human")
+    r = c.post("/de/observe", json=OBSERVED).json()
+    assert r["disagreement"] and r["review_ticket"]
     assert c.post(f"/de/human/{r['review_ticket']}", json={"answer": "yes"}, headers={"X-LIF-Internal": "ik"}
                   ).status_code == 200
     s = sh.samples(rt.store, "model-advance/v1")
     assert len(s) == 1 and s[0].correct is True and s[0].agree is False
-    assert list((tmp_path / "traces" / "model-discovery").glob("*.jsonl"))   # mineable trace
-    assert c.post("/de/observe", json={**body, "baseline": {"answer": "maybe"}}).status_code == 400
 
 
 async def test_discovery_reports_each_advance_decision(tmp_path):

@@ -116,7 +116,7 @@ The policy is set per decision (`policy:` in the spec, overridden by the release
 | local-reasoning | gateway `local/reasoning` | live. Served by the 4B CPU model, so every answer carries `degraded: true` | ~15 s per escalation measured (n=1) |
 | kimi-k3 | `https://api.moonshot.ai/v1`, model `kimi-k3` | **not configured**: no `MOONSHOT_API_KEY`, and `privacy.external_llm_allowed: []` | Thinking is always on. Sampling parameters are not sent. Context window 1,048,576 tokens. 429s carry `X-RateLimit-Reset`. No swarm API |
 | frontier | any OpenAI-compatible endpoint | disabled placeholder | |
-| human-review | SQLite queue → Control Center **Review Queue** | live | Answers become outcomes |
+| human-review | SQLite queue → Control Center **Review Queue** | critical/irreversible only (`observe.review: human` re-enables shadow review) | Answers become outcomes |
 
 **Enabling Kimi:**
 
@@ -243,7 +243,8 @@ The executive dashboard (Control Center → Decision Engineering → Overview) i
 
 - That answer is what serves (`route=baseline`).
 - Every version in `shadow` evaluates the same compiled state.
-- Every disagreement, plus 20% of agreements, goes to the **Review Queue**. Your answers become calibration outcomes.
+- Every observed case gets an **automatic outcome label** (`lif/decision/autolabel.py`, `observe.review: auto`): the decision's criteria checked in code, recorded with `source=auto:<labeller>`. Nothing goes to a person. A decision without a labeller gets no label.
+- `observe.review: human` restores the old Review Queue (every disagreement plus 20% of agreements).
 - The discovery agent (`lif/models/discovery.py`) reports each screened model (fire-and-forget, 20 s timeout).
 
 Its hidden decision was "advance this model?", encoded as a 4-way Jev distribution plus hand-tuned P(advance) thresholds. It is now `model-operations/model-advance/v1`:
@@ -255,6 +256,17 @@ Its hidden decision was "advance this model?", encoded as a 4-way Jev distributi
 | designed → tested → shadow | via `/v1/de/transition` by `operator`, with evidence; activity-logged |
 | First real run (refresh, 1,558 listed → 32 screened) | 32/32 observed. Agreement 17/32. The agent said yes 14 times, the candidate 29 times. Jev p50 191 ms |
 | Review Queue | 20 tickets: 15 disagreements and 5 sampled agreements |
+
+### Automatic labels replace the Review Queue (2026-10-01)
+
+The 52 reviews answered by hand were all model-advance shadow cases. Nothing waited on them, and as labels they were unusable: 50 of 52 were "no", the same case was answered both ways twice, and official releases (e.g. Qwen3-VL-8B-Instruct) were rejected.
+
+| Labeller `model-advance-rules-v1` | Result (2026-10-01) |
+|---|---|
+| Designed tests (`tests.jsonl`, n=26) | **26/26** (`tests/test_autolabel.py`) |
+| Past hand answers (n=52) | 20/52: it says "yes" to 31 official releases or direct quantizations answered "no" |
+
+It checks, in code: built for the category (pipeline tag, name), not a distill/merge/roleplay/uncensored/fine-tune/test (name patterns), not the production model, and newer or larger than it (or none). Critical or irreversible decisions are unchanged: the cascade still routes them to a human, never automatically.
 
 **Finding (pending labels).** v1 looks too permissive. It advances community distills of closed models, a non-existent "Qwen3.8" release and a vision-language reranker for text reranking. "Official release or direct quantization" isn't observable from a repo id. If the labels confirm this, v2 should take `model.publisher_is_first_party` (computed in code from the agent's first-party list) instead of asking Jev to infer it. This is the move-to-code direction from §68.
 
