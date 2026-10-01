@@ -1,0 +1,9 @@
+# Content-addressed model store: /models/<hf_repo>/<revision>/<file>.
+# local-path = a host directory; RWO still allows every pod on this single node.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: model-store, namespace: ai-serving}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources: {requests: {storage: 500Gi}}

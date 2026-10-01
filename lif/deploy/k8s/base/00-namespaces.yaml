@@ -1,0 +1,12 @@
+# LIF namespaces. BLERBZ stays in Docker on the host and is NOT migrated.
+apiVersion: v1
+kind: Namespace
+metadata: {name: ai-system, labels: {app.kubernetes.io/part-of: lif}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: ai-serving, labels: {app.kubernetes.io/part-of: lif}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: ai-batch, labels: {app.kubernetes.io/part-of: lif}}

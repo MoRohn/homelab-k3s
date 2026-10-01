@@ -1,0 +1,51 @@
+{
+  "workload": "ag_news test[0:200] topic classification",
+  "ts": 1790854293.1566763,
+  "model": "local/fast \u2192 qwen3-4b-instruct-2507-q4km-cpu",
+  "llm_concurrency": 2,
+  "results": [
+    {
+      "arm": "A: LLM-first",
+      "n": 200,
+      "accuracy": 0.85,
+      "wall_sec": 367.8,
+      "throughput_items_per_sec": 0.54,
+      "latency_p50_ms": 3548,
+      "latency_p95_ms": 6010,
+      "llm_calls": 200,
+      "llm_prompt_tokens": 18740,
+      "llm_generated_tokens": 456,
+      "external_llm_calls": 0,
+      "jev_calls": 0,
+      "jev_cost_usd": 0.0
+    },
+    {
+      "arm": "B: code+Jev+selective LLM",
+      "n": 200,
+      "accuracy": 0.88,
+      "wall_sec": 2.6,
+      "throughput_items_per_sec": 75.56,
+      "latency_p50_ms": 170,
+      "latency_p95_ms": 583,
+      "llm_calls": 18,
+      "llm_prompt_tokens": 1707,
+      "llm_generated_tokens": 52,
+      "external_llm_calls": 0,
+      "jev_calls": 200,
+      "jev_resolved": 182,
+      "escalated_to_llm": 18,
+      "jev_resolved_accuracy": 0.8846,
+      "escalated_accuracy": 0.8333,
+      "jev_only_accuracy_all_items": 0.875,
+      "decision_phase_sec": 2.64,
+      "jev_input_tokens": 89114,
+      "jev_cost_usd": 0.037428,
+      "providers": {
+        "jev": 200
+      }
+    }
+  ],
+  "llm_avoidance_rate": 0.91,
+  "generated_tokens_avoided": 404,
+  "prompt_tokens_avoided": 17033
+}

@@ -1,0 +1,33 @@
+# Bridge from the pod network to BNN's shared vLLM engine (LIF door, low priority).
+# hostNetwork so it can reach 127.0.0.1:8102; it binds ONLY 10.42.0.1 (cni0), so the LAN
+# cannot reach it. No GPU access: the engine is BNN's resident (gpusched resident "llm").
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-engine-bridge
+  namespace: ai-serving
+  labels: {app: gpu-engine-bridge, app.kubernetes.io/part-of: lif}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}           # hostNetwork port: never two at once
+  selector: {matchLabels: {app: gpu-engine-bridge}}
+  template:
+    metadata:
+      labels: {app: gpu-engine-bridge}
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      priorityClassName: ai-critical
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: bridge
+          image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+          command: ["python", "-m", "lif.bridge"]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 10m, memory: 24Mi}
+            limits: {cpu: "1", memory: 64Mi}
+          readinessProbe: {tcpSocket: {host: 10.42.0.1, port: 18102}, periodSeconds: 10}
+          livenessProbe: {tcpSocket: {host: 10.42.0.1, port: 18102}, periodSeconds: 30, failureThreshold: 6}

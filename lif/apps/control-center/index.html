@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIF Control Center</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#ffffff;--panel2:#f0f2f5;--text:#16191d;--muted:#5b6470;--border:#dde1e6;
+  --accent:#2f5bd3;--accent-ink:#ffffff;--ok:#1f7a3f;--ok-bg:#e3f4e8;--warn:#8a5a00;--warn-bg:#fdf1d8;
+  --bad:#b3261e;--bad-bg:#fbe4e2;--info:#1d5c8f;--info-bg:#e1eef9;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;--radius:8px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1216;--panel:#171b21;--panel2:#1e232b;--text:#e6e9ee;--muted:#9aa4b2;--border:#2a313b;
+    --accent:#7c9cff;--accent-ink:#0b1020;--ok:#6fd38f;--ok-bg:#17301f;--warn:#f1c25b;--warn-bg:#352a12;
+    --bad:#ff8a80;--bad-bg:#3a1a18;--info:#8cc4f2;--info-bg:#15283a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1216;--panel:#171b21;--panel2:#1e232b;--text:#e6e9ee;--muted:#9aa4b2;--border:#2a313b;
+  --accent:#7c9cff;--accent-ink:#0b1020;--ok:#6fd38f;--ok-bg:#17301f;--warn:#f1c25b;--warn-bg:#352a12;
+  --bad:#ff8a80;--bad-bg:#3a1a18;--info:#8cc4f2;--info-bg:#15283a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans)}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+nav{background:var(--panel);border-right:1px solid var(--border);padding:14px 10px;position:sticky;top:0;height:100vh;overflow:auto}
+nav .brand{font-weight:700;letter-spacing:.04em;font-size:12px;color:var(--muted);padding:4px 8px 12px}
+nav .brand b{display:block;color:var(--text);font-size:15px;letter-spacing:0}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--text);padding:7px 10px;border-radius:6px;font:inherit;cursor:pointer}
+nav button:hover{background:var(--panel2)}
+nav button.active{background:var(--accent);color:var(--accent-ink)}
+nav .foot{margin-top:16px;padding:8px;font-size:12px;color:var(--muted)}
+main{padding:18px 22px;min-width:0}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+header.top h1{font-size:18px;margin:0;flex:1}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;min-width:0}
+.card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.big{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.ok{background:var(--ok-bg);color:var(--ok)}.warn{background:var(--warn-bg);color:var(--warn)}
+.bad{background:var(--bad-bg);color:var(--bad)}.info{background:var(--info-bg);color:var(--info)}
+.neutral{background:var(--panel2);color:var(--muted)}
+section{margin-bottom:18px}
+section>h2{font-size:14px;margin:0 0 8px}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--panel2);position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--panel2)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+code,.mono{font-family:var(--mono);font-size:12px}
+.btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;font:inherit;font-size:12px;cursor:pointer;margin:1px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:650}
+.btn.danger{color:var(--bad)}
+.btn.hero{font-size:15px;padding:10px 18px;letter-spacing:.03em}
+.bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.funnel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.funnel span.step{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-variant-numeric:tabular-nums}
+.funnel span.arrow{color:var(--muted)}
+.toast{position:fixed;right:16px;bottom:16px;max-width:460px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:9}
+.inspector{position:fixed;top:0;right:0;width:min(520px,100%);height:100vh;overflow:auto;background:var(--panel);border-left:1px solid var(--border);padding:16px;z-index:8;box-shadow:-8px 0 30px rgba(0,0,0,.2)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toggle{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:12px}
+.toggle:last-child{border-bottom:0}
+input[type=number],select,input[type=text]{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font:inherit}
+.empty{padding:18px;text-align:center;color:var(--muted)}
+.timeline li{list-style:none;padding:6px 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:120px 170px 1fr;gap:10px}
+.timeline{padding:0;margin:0}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  nav{position:static;height:auto;display:flex;overflow-x:auto;gap:4px;padding:8px;border-right:0;border-bottom:1px solid var(--border)}
+  nav .brand,nav .foot{display:none}
+  nav button{width:auto;white-space:nowrap}
+  main{padding:12px 16px}
+  .timeline li{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav id="nav" aria-label="Sections">
+    <div class="brand">LOCAL INTELLIGENCE<b>Fabric Control Center</b></div>
+    <div id="navbtns"></div>
+    <div class="foot">
+      <button class="btn" id="themeBtn" type="button">Theme</button>
+      <button class="btn" id="signout" type="button">Sign out</button>
+      <div id="lastRefresh" style="margin-top:8px"></div>
+    </div>
+  </nav>
+  <main>
+    <header class="top"><h1 id="title">Overview</h1><span id="hdrState"></span></header>
+    <div id="view"><div class="empty">Loading…</div></div>
+  </main>
+</div>
+<div id="overlay"></div>
+<script>
+"use strict";
+// ── safe HTML: every interpolation is escaped unless wrapped in raw() ─────────
+const ESC = {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};
+function esc(v){ return String(v === null || v === undefined ? "" : v).replace(/[&<>"']/g, c => ESC[c]); }
+class Raw { constructor(s){ this.s = s; } toString(){ return this.s; } }
+function raw(s){ return new Raw(String(s)); }
+function html(strings, ...vals){
+  let out = strings[0];
+  vals.forEach((v, i) => {
+    if (v instanceof Raw) out += v.s;
+    else if (Array.isArray(v)) out += v.map(x => x instanceof Raw ? x.s : esc(x)).join("");
+    else out += esc(v);
+    out += strings[i + 1];
+  });
+  return raw(out);
+}
+function setHTML(el, r){ el.innerHTML = (r instanceof Raw) ? r.s : esc(r); }   // the ONLY innerHTML sink
+
+// ── storage / auth ───────────────────────────────────────────────────────────
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k, v){ try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e){} }
+let KEY = lsGet("lif.adminKey");
+function askKey(){
+  const k = window.prompt("LIF admin key (Secret lif-admin-keys):", "");
+  if (k){ KEY = k.trim(); lsSet("lif.adminKey", KEY); }
+  return !!k;
+}
+async function api(method, path, body){
+  if (!KEY && !askKey()) throw new Error("admin key required");
+  const r = await fetch(path, {method, headers: {"Authorization": "Bearer " + KEY, "Content-Type": "application/json"},
+                               body: body === undefined ? undefined : JSON.stringify(body)});
+  let data = {};
+  try { data = await r.json(); } catch(e){}
+  if (r.status === 401){ KEY = null; lsSet("lif.adminKey", null); if (askKey()) return api(method, path, body); }
+  if (!r.ok){ const m = (data && (data.error && (data.error.message || data.error))) || r.statusText; throw new Error(typeof m === "string" ? m : JSON.stringify(m)); }
+  return data;
+}
+function toast(msg, cls){
+  const d = document.createElement("div");
+  d.className = "toast " + (cls || "");
+  d.textContent = msg;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 6000);
+}
+
+// ── formatting ───────────────────────────────────────────────────────────────
+const fmt = {
+  n(v, d){ if (v === null || v === undefined || v === "" || isNaN(v)) return "–"; return Number(v).toLocaleString(undefined, {maximumFractionDigits: d === undefined ? 1 : d}); },
+  pct(v){ return (v === null || v === undefined || isNaN(v)) ? "–" : (Number(v) * 100).toFixed(1) + "%"; },
+  mib(v){ return (v === null || v === undefined) ? "–" : (Number(v) >= 1024 ? (Number(v) / 1024).toFixed(1) + " GiB" : Number(v).toFixed(0) + " MiB"); },
+  bytes(v){ if (!v) return "0"; const g = v / 2**30; return g >= 1 ? g.toFixed(1) + " GiB" : (v / 2**20).toFixed(0) + " MiB"; },
+  ts(t){ if (!t) return "–"; const d = new Date(Number(t) * 1000); return d.toLocaleString(undefined, {month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit"}); },
+  ago(t){ if (!t) return "–"; const s = Date.now()/1000 - Number(t); if (s < 90) return Math.round(s) + "s ago"; if (s < 5400) return Math.round(s/60) + "m ago"; if (s < 129600) return Math.round(s/3600) + "h ago"; return Math.round(s/86400) + "d ago"; },
+};
+const STATE_CLASS = {LOW:"ok", MODERATE:"info", HIGH:"warn", IMMINENT:"bad"};
+const MODEL_STATE_CLASS = {PRODUCTION:"ok", CANARY:"info", APPROVED:"info", STANDBY:"neutral", CANDIDATE:"warn",
+  STAGED:"neutral", DOWNLOADING:"info", VALIDATING:"info", BENCHMARKING:"info", DISCOVERED:"neutral",
+  DEPRECATED:"neutral", QUARANTINED:"bad", REJECTED:"bad", FAILED:"bad"};
+function pill(text, cls){ return html`<span class="pill ${raw(esc(cls || "neutral"))}">${text}</span>`; }
+function yesno(b, yes, no){ return b ? pill(yes || "READY", "ok") : pill(no || "UNAVAILABLE", "bad"); }
+function kv(pairs){ return html`<dl class="kv">${pairs.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>`; }
+function card(title, body){ return html`<div class="card"><h3>${title}</h3>${body}</div>`; }
+function tbl(headers, rows, opts){
+  opts = opts || {};
+  if (!rows.length) return html`<div class="tablewrap"><div class="empty">${opts.empty || "Nothing to show."}</div></div>`;
+  return html`<div class="tablewrap"><table><thead><tr>${headers.map(h => html`<th>${h}</th>`)}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── pages ────────────────────────────────────────────────────────────────────
+const PAGES = ["Overview","Models","Discovery","Deployments","Inference","Decision Fabric","Batch Jobs","GPU",
+               "Benchmarks","Registry","Savings","Settings"];
+let current = lsGet("lif.page") || "Overview";
+if (!PAGES.includes(current)) current = "Overview";
+let cache = {};
+let inspectorRec = null;
+
+function navRender(){
+  setHTML(document.getElementById("navbtns"),
+    html`${PAGES.map(p => html`<button type="button" data-page="${p}" class="${raw(p === current ? "active" : "")}">${p}</button>`)}`);
+}
+document.getElementById("navbtns").addEventListener("click", e => {
+  const b = e.target.closest("button[data-page]");
+  if (!b) return;
+  current = b.dataset.page; lsSet("lif.page", current); navRender(); refresh();
+});
+
+async function loadOverview(){ cache.overview = await api("GET", "/v1/overview"); return cache.overview; }
+
+function headerState(o){
+  const b = (o && o.blerbz) || {};
+  setHTML(document.getElementById("hdrState"),
+    html`BLERBZ ${pill(b.state || "?", STATE_CLASS[b.state])} <span class="muted small">${b.reason || ""}</span>`);
+}
+
+function availRows(av7, av24){
+  const caps = ["gateway","fast_model","default_model","embedding","decision_fabric","useful_local_ai"];
+  return caps.map(c => {
+    const a = (av24 || {})[c], b = (av7 || {})[c];
+    return html`<tr><td>${c}</td><td class="num">${a ? fmt.pct(a.availability) : "–"}</td><td class="num">${a ? fmt.n(a.samples, 0) : "0"}</td>
+      <td class="num">${b ? fmt.pct(b.availability) : "–"}</td><td class="num">${b ? fmt.n(b.samples, 0) : "0"}</td>
+      <td class="num">${a && a.mean_latency_ms ? fmt.n(a.mean_latency_ms, 0) + " ms" : "–"}</td></tr>`;
+  });
+}
+
+async function pageOverview(){
+  const o = await loadOverview();
+  const caps = (o.capabilities && o.capabilities.aliases) || {};
+  const b = o.blerbz || {}; const df = o.decision_fabric || {}; const bt = o.batch || {};
+  const useful = (caps["local/fast"] || {}).available || (caps["local/default"] || {}).available;
+  const mainAliases = ["local/fast","local/default","local/reasoning","local/code","local/embedding","local/vision","local/rerank"];
+  return html`
+  <div class="grid">
+    ${card("System", html`<div class="big">${useful ? pill("HEALTHY","ok") : pill("DEGRADED","bad")}</div>
+      ${kv([["Gateway", (o.capabilities && !o.capabilities.error) ? pill("READY","ok") : pill("UNREACHABLE","bad")],
+            ["Decision Fabric", df.error ? pill("UNREACHABLE","bad") : (df.jev_enabled && !df.jev_breaker_open ? pill("JEV READY","ok") : pill("RULES ONLY","warn"))],
+            ["Controller uptime", fmt.n((o.controller_uptime_sec || 0) / 3600, 1) + " h"]])}`)}
+    ${card("BLERBZ media", html`<div class="big">${pill(b.state || "?", STATE_CLASS[b.state])}</div>
+      ${kv([["Reason", b.reason || "–"], ["P(prod. in 1h)", fmt.pct(b.p_next_hour)], ["Production leases", fmt.n(b.production_leases, 0)]])}`)}
+    ${card("Unified memory", html`${kv([["MemAvailable", fmt.mib(b.mem_available_mib)], ["GPU admissible", fmt.mib(b.admissible_mib)],
+            ["GPU util", fmt.n(b.gpu_util_percent) + "%"]])}`)}
+    ${card("Batch", html`${kv([["Paused", bt.error ? "–" : (bt.paused ? pill("PAUSED","warn") : pill("RUNNING","ok"))],
+            ["Queued", fmt.n(bt.queued !== undefined ? bt.queued : bt.queue_depth, 0)], ["Running", fmt.n(bt.running, 0)]])}`)}
+    ${card("Decision Fabric", html`${kv([["Decisions", fmt.n(df.decisions_total, 0)], ["Median latency", df.latency_ms_p50 !== undefined ? fmt.n(df.latency_ms_p50, 0) + " ms" : "–"],
+            ["Cache hit", fmt.pct(df.cache_hit_rate)], ["Jev model", df.jev_model || "–"]])}`)}
+    ${card("Model registry", html`${kv(Object.entries(o.models || {}).map(([k, v]) => [k, fmt.n(v, 0)]))}`)}
+  </div>
+  <section style="margin-top:16px"><h2>Logical models</h2>
+  ${tbl(["Alias","Status","Served by","Notes"], mainAliases.map(a => { const v = caps[a] || {};
+      return html`<tr><td class="mono">${a}</td><td>${yesno(v.available, v.degraded ? "DEGRADED" : (v.fallback ? "FALLBACK" : "READY"))}</td>
+      <td class="mono">${v.served_by || "–"}</td><td class="small muted">${v.reason || ""}</td></tr>`; }))}
+  </section>
+  <section><h2>Availability <span class="muted small">— measured by synthetic inference probes every 30 s; no SLO is claimed without samples</span></h2>
+  ${tbl(["Capability","24 h","samples","7 d","samples","mean probe latency"], availRows(o.availability_7d, o.availability_24h))}
+  </section>`;
+}
+
+async function pageModels(){
+  const d = await api("GET", "/v1/models");
+  const rows = (d.models || []).map(m => {
+    const p = m.profile || {}; const s = (m.last_benchmark && m.last_benchmark.summary) || {};
+    return html`<tr>
+      <td><div class="mono">${m.id}</div><div class="small muted">${m.model_id}@${String(m.revision || "").slice(0, 10)}</div></td>
+      <td>${pill(m.state, MODEL_STATE_CLASS[m.state])} ${m.pinned ? pill("pinned","info") : ""} ${m.blocked ? pill("blocked","bad") : ""}</td>
+      <td>${m.category}</td><td>${p.runtime || "–"} / ${p.device || "–"}</td><td>${p.precision || "–"}</td>
+      <td class="num">${fmt.n(p.params_b)}B</td><td class="num">${fmt.mib(p.memory_budget_mb)}</td>
+      <td class="num">${p.size ? fmt.bytes(p.size) : "–"}</td><td class="num">${fmt.n(p.context, 0)}</td>
+      <td class="num">${s.ttft_ms_p50 !== undefined ? fmt.n(s.ttft_ms_p50, 0) + " ms" : "–"}</td>
+      <td class="num">${fmt.n(s.decode_tps_p50)}</td><td class="num">${s.quality !== undefined ? fmt.pct(s.quality) : "–"}</td>
+      <td class="small">${(m.aliases || []).join(", ")}</td>
+      <td class="small">${m.last_benchmark ? fmt.ago(m.last_benchmark.ts) : "never"}<br><span class="muted">upd ${fmt.ago(m.updated)}</span></td>
+      <td class="row" style="min-width:230px">${actionButtons(m)}</td></tr>`;
+  });
+  return html`<section><h2>Model inventory</h2>${tbl(["Model","State","Category","Runtime","Quant","Params","Mem budget","Disk","Context","TTFT p50","tok/s","Quality","Aliases","Benchmark","Actions"], rows, {empty: "Registry is empty."})}</section>`;
+}
+function actionButtons(m){
+  const b = (act, label, cls) => html`<button type="button" class="btn ${raw(cls || "")}" data-act="${act}" data-id="${m.id}">${label}</button>`;
+  const out = [];
+  if (m.state === "CANDIDATE") out.push(b("download", "Download"));
+  if (["STAGED","APPROVED","STANDBY","PRODUCTION","CANARY"].includes(m.state)) out.push(b("benchmark", "Benchmark"));
+  if (["PRODUCTION","STANDBY","APPROVED","CANARY"].includes(m.state)) { out.push(b("load", "Load")); out.push(b("unload", "Unload", "danger")); }
+  if (["APPROVED","STANDBY"].includes(m.state)) out.push(b("canary", "Canary"));
+  if (["CANARY","APPROVED","STANDBY"].includes(m.state)) out.push(b("promote", "Promote", "primary"));
+  out.push(b(m.pinned ? "unpin" : "pin", m.pinned ? "Unpin" : "Pin"));
+  out.push(b(m.blocked ? "unblock" : "block", m.blocked ? "Unblock" : "Block", m.blocked ? "" : "danger"));
+  if (!["PRODUCTION","CANARY"].includes(m.state)) out.push(b("delete", "Delete", "danger"));
+  return out;
+}
+const CONFIRM = {unload: "Unload this model? Aliases it serves will fall back.", promote: "Promote to production for its alias?",
+  delete: "Delete this registry entry? (evidence is lost)", block: "Block this model from serving and download?",
+  canary: "Start a canary for this model?", download: "Download the pinned artifact (sha256-verified)?"};
+document.getElementById("view").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  if (CONFIRM[act] && !window.confirm(CONFIRM[act] + "\n\n" + id)) return;
+  b.disabled = true;
+  try {
+    let res;
+    if (act === "delete") res = await api("DELETE", "/v1/models/" + encodeURIComponent(id));
+    else if (act === "rollback") res = await api("POST", "/v1/aliases/rollback", {alias: id});
+    else if (act === "refresh") res = await api("POST", "/v1/models/refresh", {});
+    else if (act === "inspect") { inspectorRec = (cache.recent || [])[Number(id)]; renderInspector(); b.disabled = false; return; }
+    else {
+      const body = {};
+      if ((act === "load" || act === "unload") && e.shiftKey) body.force = true;
+      res = await api("POST", "/v1/models/" + encodeURIComponent(id) + "/" + act, body);
+    }
+    toast(act + ": " + ((res && (res.status || res.deployment || res.note)) || "ok"), "ok");
+  } catch(err){ toast(act + " failed: " + err.message, "bad"); }
+  b.disabled = false;
+  refresh();
+});
+
+function funnelHtml(cat, f){
+  const steps = [["listed", f.listed], ["listing filter", f.after_listing_filter], ["details", f.detail_fetched],
+                 ["deterministic", f.after_deterministic], ["Jev screened", f.after_screening], ["shortlisted", (f.shortlisted || []).length]];
+  return html`<div class="card" style="margin-bottom:10px"><h3>${cat}</h3>
+    <div class="funnel">${steps.map(([k, v], i) => html`${i ? html`<span class="arrow">→</span>` : ""}<span class="step"><b>${fmt.n(v, 0)}</b> <span class="muted small">${k}</span></span>`)}</div>
+    <div class="small muted">Jev calls ${fmt.n(f.jev_calls, 0)} · screening ${fmt.n(f.screen_ms, 0)} ms · providers ${JSON.stringify(f.providers || {})}${f.screen_errors ? " · errors " + f.screen_errors : ""}</div>
+    ${Object.keys(f.rejected || {}).length ? html`<div class="small" style="margin-top:6px">Rejected: ${Object.entries(f.rejected).map(([k, v]) => html`<span class="pill neutral" style="margin:2px">${k}: ${v}</span>`)}</div>` : ""}
+    ${(f.shortlisted || []).length ? html`<div class="small" style="margin-top:6px">Shortlisted: ${(f.shortlisted).map(s => html`<span class="pill info" style="margin:2px">${s}</span>`)}</div>` : ""}
+  </div>`;
+}
+function probs(p){
+  if (!p) return "–";
+  return html`${Object.entries(p).sort((a, b) => b[1] - a[1]).map(([k, v]) => html`<span class="small mono">${k} ${fmt.n(v * 100, 0)}%</span> `)}`;
+}
+
+async function pageDiscovery(){
+  const [runs, cands] = await Promise.all([api("GET", "/v1/discovery/runs"),
+    api("GET", "/v1/models?state=CANDIDATE,STAGED,APPROVED,CANARY,REJECTED")]);
+  const last = (runs.runs || [])[0];
+  const cats = last && last.funnel && last.funnel.categories ? Object.entries(last.funnel.categories) : [];
+  const rows = (cands.models || []).map(m => {
+    const sc = m.screening || {}; const fit = m.fit || {}; const cmp = sc.comparison;
+    const s = sc.suitability || {}, r = sc.operational_risk || {}, im = sc.improvement || {};
+    return html`<tr>
+      <td><div class="mono">${m.model_id}</div><div class="small muted">${m.category} · ${pill(m.state, MODEL_STATE_CLASS[m.state])}</div></td>
+      <td class="num">${fmt.n(sc.priority, 3)}</td>
+      <td class="small">${(sc.recommendation || {}).why || "–"}</td>
+      <td>${probs(s.probabilities)}<div class="small muted">${s.provider || ""} conf ${fmt.n(s.confidence, 2)}</div></td>
+      <td>${r.decision || "–"}<div class="small muted">${im.decision ? "improve: " + im.decision : ""}</div></td>
+      <td>${fit.verdict || "–"}<div class="small muted">${fit.est_cpu_decode_tps ? "~" + fit.est_cpu_decode_tps + " tok/s est." : ""} ${fit.anon_mib ? fmt.mib(fit.anon_mib) + " anon" : ""}</div></td>
+      <td class="small">${cmp ? html`${pill(cmp.recommendation, cmp.recommendation === "CANARY" ? "ok" : (cmp.recommendation === "REJECT" ? "bad" : "warn"))}
+         ${cmp.delta ? html`<div class="muted">Δquality ${fmt.n(cmp.delta.quality * 100, 1)}pp · TTFT ${fmt.n(cmp.delta.ttft_pct)}% · tok/s ${fmt.n(cmp.delta.decode_tps_pct)}% · mem ${fmt.n(cmp.delta.memory_pct)}%</div>` : ""}
+         ${cmp.jev ? html`<div class="muted">Jev: ${cmp.jev.improves || cmp.jev.error || ""} ${cmp.jev.p_improves !== undefined ? "(p " + fmt.n(cmp.jev.p_improves, 2) + ")" : ""}</div>` : ""}
+         ${(cmp.failed_checks || []).length ? html`<div class="muted">failed: ${cmp.failed_checks.join(", ")}</div>` : ""}` : html`<span class="muted">not benchmarked</span>`}</td>
+      <td class="row">${actionButtons(m)}</td></tr>`;
+  });
+  return html`
+  <section class="card" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+    <button type="button" class="btn primary hero" data-act="refresh" data-id="">CHECK FOR BETTER MODELS</button>
+    <div class="small muted">Searches Hugging Face metadata only. Deterministic filters → hardware fit on this DGX → parallel Jev screening → shortlist. Nothing is downloaded or promoted without an explicit action.
+      ${runs.running ? html`<br>${pill("RUNNING", "info")} run ${runs.running}` : ""}
+      ${last ? html`<br>Last run ${last.id}: ${pill(last.status, last.status === "succeeded" ? "ok" : (last.status === "running" ? "info" : "bad"))} ${fmt.ago(last.ts)} · ${fmt.n((last.funnel || {}).total_ms, 0)} ms ${last.error ? "· " + last.error : ""}` : ""}</div>
+  </section>
+  <section><h2>Funnel (last run)</h2>${cats.length ? html`${cats.map(([c, f]) => funnelHtml(c, f))}` : html`<div class="card empty">No discovery run yet.</div>`}</section>
+  <section><h2>Candidates and evidence</h2>${tbl(["Model","Priority","Recommendation","Suitability (Jev probabilities)","Risk / improvement","Hardware fit","Local comparison","Actions"], rows, {empty: "No candidates."})}</section>`;
+}
+
+async function pageDeployments(){
+  const al = await api("GET", "/v1/aliases");
+  const rows = Object.entries(al || {}).sort().map(([a, v]) => v ? html`<tr>
+    <td class="mono">${a}</td><td class="num">v${v.version}</td>
+    <td class="mono small">${(v.chain || []).map((p, i) => html`${i ? " → " : ""}${p}`)}</td>
+    <td>${v.canary ? html`${pill(fmt.n(v.canary.percent, 0) + "%", "info")} <span class="mono small">${v.canary.profile}</span>` : html`<span class="muted">–</span>`}</td>
+    <td class="small">${fmt.ts(v.ts)}<div class="muted">${v.actor} ${v.note ? "· " + v.note : ""}</div></td>
+    <td><button type="button" class="btn danger" data-act="rollback" data-id="${a}">Rollback</button></td></tr>` : "");
+  return html`<section><h2>Alias deployments <span class="muted small">— versioned; rollback restores the previous chain, runtime and launch config</span></h2>
+    ${tbl(["Alias","Version","Fallback chain","Canary","Changed","Rollback"], rows, {empty: "No aliases."})}</section>`;
+}
+
+async function pageInference(){
+  const o = await loadOverview();
+  const c = o.capabilities || {};
+  if (c.error) return html`<div class="card bad">Gateway unreachable: ${c.error}</div>`;
+  const al = Object.entries(c.aliases || {}).sort().map(([a, v]) => html`<tr><td class="mono">${a}</td>
+    <td>${yesno(v.available, v.degraded ? "DEGRADED" : (v.fallback ? "FALLBACK" : "READY"))}</td><td class="mono">${v.served_by || "–"}</td><td class="small muted">${v.reason || ""}</td></tr>`);
+  const pr = Object.entries(c.profiles || {}).map(([n, p]) => html`<tr><td class="mono">${n}</td>
+    <td>${yesno(p.endpoint_healthy, "HEALTHY", "DOWN")}</td><td>${p.category}</td><td>${p.device}</td><td class="num">${fmt.n(p.params_b)}B</td>
+    <td class="num">${fmt.n(p.context, 0)}</td><td class="mono small">${p.model}</td><td class="small muted">${p.last_error || ""}</td></tr>`);
+  return html`
+  <div class="grid">${card("BLERBZ yield", kv([["State", pill((c.blerbz || {}).state || "?", STATE_CLASS[(c.blerbz || {}).state])],
+     ["CPU concurrency now", fmt.n((c.yield || {}).cpu_concurrency, 0)], ["Rule", "IMMINENT → 1 slot, max_tokens ≤ 512"]]))}</div>
+  <section style="margin-top:14px"><h2>Aliases</h2>${tbl(["Alias","Status","Served by","Fallback / degradation reason"], al)}</section>
+  <section><h2>Physical profiles</h2>${tbl(["Profile","Health","Category","Device","Params","Context","Pinned model","Last error"], pr)}</section>`;
+}
+
+async function pageDecision(){
+  const o = await loadOverview();
+  const df = o.decision_fabric || {};
+  if (df.error) return html`<div class="card">Decision Fabric unreachable: ${df.error}. Gateway routing falls back to in-process rules.</div>`;
+  const recent = (df.recent || []).slice().reverse();
+  cache.recent = recent;
+  const byP = df.by_provider || {}, byA = df.by_action || {};
+  const total = Object.values(byA).reduce((a, b) => a + b, 0) || 0;
+  const rows = recent.slice(0, 200).map((r, i) => html`<tr class="click"><td class="small">${fmt.ts(r.ts)}</td><td class="mono">${r.decision_ref}</td>
+    <td><b>${r.decision}</b></td><td class="num">${fmt.n(r.confidence, 3)}</td><td>${pill(r.provider, r.provider === "jev" ? "info" : (r.provider === "default" ? "bad" : "neutral"))}${r.cached ? " " : ""}${r.cached ? pill("cache","ok") : ""}</td>
+    <td>${pill(r.action, r.action === "auto" ? "ok" : (r.action === "escalate" ? "bad" : "warn"))}</td><td class="num">${fmt.n(r.latency_ms, 0)} ms</td>
+    <td><button type="button" class="btn" data-act="inspect" data-id="${i}">Inspect</button></td></tr>`);
+  return html`
+  <div class="grid">
+    ${card("Status", kv([["Jev", df.jev_enabled ? (df.jev_breaker_open ? pill("BREAKER OPEN","bad") : pill("ENABLED","ok")) : pill("DISABLED","warn")],
+       ["Model", df.jev_model || "–"], ["Definitions", fmt.n((df.definitions || []).length, 0)], ["Cache entries", fmt.n(df.cache_entries, 0)]]))}
+    ${card("Volume", kv([["Decisions", fmt.n(df.decisions_total, 0)], ["Median latency", df.latency_ms_p50 !== undefined ? fmt.n(df.latency_ms_p50, 0) + " ms" : "–"],
+       ["Cache hit rate", fmt.pct(df.cache_hit_rate)]]))}
+    ${card("By provider", kv(Object.entries(byP).map(([k, v]) => [k, fmt.n(v, 0)])))}
+    ${card("Policy outcome", kv(Object.entries(byA).map(([k, v]) => [k, fmt.n(v, 0) + (total ? " (" + fmt.pct(v / total) + ")" : "")])))}
+  </div>
+  <section style="margin-top:14px"><h2>Definitions</h2><div class="card small mono">${(df.definitions || []).join(" · ") || "–"}</div></section>
+  <section><h2>Recent decisions</h2>${tbl(["Time","Decision","Output","Confidence","Provider","Policy action","Latency",""], rows, {empty: "No decisions recorded yet."})}</section>`;
+}
+function renderInspector(){
+  const r = inspectorRec;
+  const el = document.getElementById("overlay");
+  if (!r){ setHTML(el, ""); return; }
+  setHTML(el, html`<aside class="inspector" role="dialog" aria-label="Decision inspector">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:16px">Decision inspector</h2>
+    <button type="button" class="btn" id="closeInspector">Close</button></div>
+    <p class="small muted">Shows the typed decision record. Providers return calibrated typed answers; no reasoning text is stored or shown.</p>
+    ${kv([["Schema", html`<span class="mono">${r.decision_ref}</span>`], ["Input digest", html`<span class="mono">${r.state_digest || "–"}</span>`],
+          ["Selected output", html`<b>${r.decision}</b>`], ["Score", r.score === null || r.score === undefined ? "–" : fmt.n(r.score, 3)],
+          ["Confidence", fmt.n(r.confidence, 4)], ["Policy action", r.action], ["Provider", r.provider + (r.provider_version ? " · " + r.provider_version : "")],
+          ["Cached", r.cached ? "yes" : "no"], ["Latency", fmt.n(r.latency_ms, 1) + " ms"], ["Cost", r.cost_usd ? "$" + Number(r.cost_usd).toFixed(7) + " (est.)" : "$0"],
+          ["Input tokens", fmt.n(r.input_tokens, 0)], ["Timestamp", fmt.ts(r.ts)]])}
+    <h3 class="small muted" style="margin-top:14px">PROBABILITIES</h3>
+    ${Object.entries(r.probabilities || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => html`<div class="row small" style="margin:3px 0"><span class="mono" style="width:120px">${k}</span><div class="bar" style="flex:1"><i style="width:${raw(String(Math.max(0, Math.min(100, v * 100))))}%"></i></div><span style="width:52px;text-align:right">${fmt.n(v * 100, 1)}%</span></div>`)}
+    <h3 class="small muted" style="margin-top:14px">THRESHOLDS</h3>${kv(Object.entries(r.threshold || {}).map(([k, v]) => [k, fmt.n(v, 2)]))}
+    <h3 class="small muted" style="margin-top:14px">ESCALATION PATH</h3>
+    ${(r.escalated_from || []).length ? html`<ol class="small">${r.escalated_from.map(x => html`<li>${x}</li>`)}</ol>` : html`<div class="small muted">none — answered by the first eligible provider</div>`}
+    ${r.note ? html`<p class="small">${r.note}</p>` : ""}
+  </aside>`);
+  document.getElementById("closeInspector").onclick = () => { inspectorRec = null; renderInspector(); };
+}
+
+async function pageBatch(){
+  const o = await loadOverview();
+  const bt = o.batch || {};
+  if (bt.error) return html`<div class="card">Batch engine unreachable: ${bt.error}</div>`;
+  const qp = bt.queue_by_priority || bt.queued_by_priority || {};
+  const batches = bt.recent || bt.batches || [];
+  const rows = batches.map(b => html`<tr><td class="mono">${b.id}</td><td>${pill(b.status, b.status === "completed" ? "ok" : (b.status === "failed" ? "bad" : "info"))}</td>
+    <td>${b.priority}</td><td class="mono">${b.model}</td><td class="num">${fmt.n(b.completed, 0)} / ${fmt.n(b.total, 0)}</td>
+    <td class="num">${fmt.n(b.failed, 0)}</td><td class="small">${fmt.ts(b.created)}</td><td class="small muted">${b.reason || b.wait_reason || ""}</td></tr>`);
+  return html`
+  <div class="grid">
+    ${card("Engine", kv([["State", bt.paused ? pill("PAUSED","warn") : pill("RUNNING","ok")], ["Pause reason", bt.pause_reason || bt.reason || "–"],
+       ["Running items", fmt.n(bt.running, 0)], ["Queued items", fmt.n(bt.queued !== undefined ? bt.queued : bt.queue_depth, 0)]]))}
+    ${card("Queue by priority", kv(Object.entries(qp).map(([k, v]) => [k, fmt.n(v, 0)])))}
+    ${card("Totals", kv(Object.entries(bt.totals || {}).map(([k, v]) => [k, fmt.n(v, 0)])))}
+  </div>
+  <section style="margin-top:14px"><div class="row"><button type="button" class="btn" id="bpause">${bt.paused ? "Resume batch" : "Pause batch"}</button>
+   <span class="small muted">Batch also pauses automatically while BLERBZ is IMMINENT.</span></div></section>
+  <section><h2>Recent batches</h2>${tbl(["Batch","Status","Priority","Model","Done","Failed","Created","Waiting because"], rows, {empty: "No batches yet."})}</section>`;
+}
+
+async function pageGpu(){
+  const g = await api("GET", "/v1/gpu");
+  const res = Object.entries(g.residents_loaded || {});
+  return html`<div class="grid">
+    ${card("BLERBZ capacity state", html`<div class="big">${pill(g.state || "?", STATE_CLASS[g.state])}</div><p class="small">${g.reason || ""}</p>
+      <p class="small muted">LOW / MODERATE / HIGH from gpusched's validated forecast; IMMINENT while a production lease is live, a resident reloads, or gpusched is unreachable (fail-safe).</p>`)}
+    ${card("Forecast", kv([["P(production within 1 h)", fmt.pct(g.p_next_hour)], ["Forecast authoritative", g.forecast_authoritative ? "yes" : "no"],
+       ["Production leases", fmt.n(g.production_leases, 0)], ["Background leases", fmt.n(g.background_leases, 0)]]))}
+    ${card("Memory", kv([["MemAvailable", fmt.mib(g.mem_available_mib)], ["GPU admissible (gpusched)", fmt.mib(g.admissible_mib)],
+       ["Holds", fmt.n(g.holds, 0)], ["GPU util", fmt.n(g.gpu_util_percent) + "%"]]))}
+    ${card("BNN residents", kv(res.length ? res.map(([k, v]) => [k, v ? pill("LOADED","ok") : pill("NOT LOADED","warn")]) : [["–", "no data"]]))}
+  </div>
+  <p class="small muted" style="margin-top:12px">Source: bnn.gpusched /metrics (read-only), age ${fmt.n(g.age_sec)} s. gpusched is the single GPU admission authority on this host; the fabric never allocates GPU memory without a gpusched lease.</p>`;
+}
+
+async function pageBenchmarks(){
+  const d = await api("GET", "/v1/benchmarks");
+  const rows = (d.benchmarks || []).map(b => { const s = b.summary || {};
+    return html`<tr><td class="small">${fmt.ts(b.ts)}</td><td class="mono">${b.model}</td><td>${b.suite}</td>
+    <td class="num">${s.quality !== undefined ? fmt.pct(s.quality) : (s.sanity_pass !== undefined ? (s.sanity_pass ? "sanity ✓" : "sanity ✗") : "–")}</td>
+    <td class="num">${fmt.pct(s.structured_ok)}</td><td class="num">${s.ttft_ms_p50 !== undefined ? fmt.n(s.ttft_ms_p50, 0) + " ms" : "–"}</td>
+    <td class="num">${s.latency_ms_p95 !== undefined ? fmt.n(s.latency_ms_p95, 0) + " ms" : (s.latency_ms_p50 !== undefined ? fmt.n(s.latency_ms_p50, 0) + " ms p50" : "–")}</td>
+    <td class="num">${fmt.n(s.decode_tps_p50)}</td><td class="num">${s.throughput_tps !== undefined ? fmt.n(s.throughput_tps) + " @" + s.concurrency : (s.embeddings_per_sec !== undefined ? fmt.n(s.embeddings_per_sec) + " emb/s" : "–")}</td>
+    <td class="num">${fmt.n(s.errors, 0)}</td>
+    <td class="small">${Object.entries(s.by_category || {}).map(([k, v]) => html`<span class="pill neutral" style="margin:1px">${k} ${fmt.pct(v)}</span>`)}</td></tr>`; });
+  return html`<section><h2>Local benchmark history <span class="muted small">— measured on this DGX</span></h2>
+    ${tbl(["Time","Model","Suite","Quality","Structured","TTFT p50","Latency","Decode tok/s","Throughput","Errors","By category"], rows, {empty: "No benchmarks yet."})}</section>`;
+}
+
+const EVENT_CLASS = {blerbz_takeover:"bad", blerbz_release:"ok", state_changed:"info", alias_changed:"info", alias_rollback:"warn",
+  discovery_failed:"bad", discovery_finished:"ok", benchmark_completed:"ok", download_complete:"ok", model_deleted:"warn", setting_changed:"neutral"};
+async function pageRegistry(){
+  const [act, st] = await Promise.all([api("GET", "/v1/activity?limit=300"), api("GET", "/v1/storage")]);
+  const items = (act.activity || []).map(e => {
+    const d = e.detail || {};
+    const summary = d.reason || d.note || (d.frm && d.to ? d.frm + " → " + d.to : "") || (d.chain ? "chain: " + d.chain.join(" → ") : "") || JSON.stringify(d).slice(0, 180);
+    return html`<li><span class="small muted">${fmt.ts(e.ts)}</span><span>${pill(e.kind, EVENT_CLASS[e.kind] || "neutral")}</span>
+      <span><span class="mono small">${e.subject}</span> <span class="small">${summary}</span> <span class="small muted">· ${e.actor}</span></span></li>`; });
+  const srows = Object.entries(st || {}).map(([g, v]) => html`<tr><td>${g}</td><td class="num">${fmt.n(v.count, 0)}</td><td class="num">${fmt.bytes(v.bytes)}</td><td class="small mono">${(v.models || []).slice(0, 8).join(", ")}${(v.models || []).length > 8 ? " …" : ""}</td></tr>`);
+  return html`<section><h2>Storage <span class="muted small">— production never auto-deleted; rollback keeps last 2; candidates 7 days; failed: artifact removed, evidence kept</span></h2>
+    ${tbl(["Group","Models","Artifacts","Members"], srows)}</section>
+    <section><h2>Activity timeline</h2><div class="card"><ul class="timeline">${items.length ? items : html`<li class="empty">No activity yet.</li>`}</ul></div></section>`;
+}
+
+async function pageSavings(){
+  const o = await loadOverview();
+  const df = o.decision_fabric || {};
+  const byP = df.by_provider || {};
+  const totalDec = Object.values(byP).reduce((a, b) => a + b, 0);
+  return html`
+  <div class="card warn" style="margin-bottom:12px"><b>ESTIMATES.</b> Cost figures are estimates derived from token counts × the configured
+    hosted-API equivalent price (config <span class="mono">cost.external_equivalent_usd_per_mtok</span>) and an electricity estimate.
+    Authoritative counters: Prometheus <span class="mono">lif_tasks_total</span>, <span class="mono">lif_tokens_total</span>,
+    <span class="mono">lif_external_cost_avoided_usd_total</span>, <span class="mono">lif_jev_cost_usd_total</span> (Grafana "LIF value" panel).</div>
+  <div class="grid">
+    ${card("Decision Fabric", kv([["Decisions recorded", fmt.n(df.decisions_total, 0)], ["Answered by Jev", fmt.n(byP.jev || 0, 0)],
+       ["Answered by rules", fmt.n(byP.rules || 0, 0)], ["Answered by local LLM", fmt.n(byP.local_llm || 0, 0)],
+       ["Share without any LLM", totalDec ? fmt.pct(((byP.jev || 0) + (byP.rules || 0)) / totalDec) : "not enough data yet"]]))}
+    ${card("Heavy model avoidance", html`<p class="small">Tasks resolved without a ≥14B model ÷ AI-eligible tasks. Today every local model is CPU-tier (&lt; 14B), so all locally-served work counts as avoided by construction — the meaningful figure is per-tier share in Grafana.</p>`)}
+    ${card("Cloud calls", kv([["External LLM provider", "none configured"], ["Cloud calls made", "0 (no external LLM fallback exists)"],
+       ["Jev spend (est.)", df.jev_cost_usd !== undefined ? "$" + Number(df.jev_cost_usd).toFixed(4) : "see lif_jev_cost_usd_total"]]))}
+  </div>`;
+}
+
+const SETTING_HELP = {
+  discovery_disabled: "Disable Check for Better Models entirely.",
+  automatic_discovery: "Run discovery weekly without an operator.",
+  automatic_download: "Let the controller download shortlisted candidates on its own.",
+  automatic_promotion: "Allow promotion without an operator (still requires passing benchmarks).",
+  jev_disabled: "Kill-switch: all decisions use deterministic rules / local model.",
+  maintenance: "Maintenance mode: batch paused, candidate benchmarks refused.",
+  batch_paused: "Pause the batch engine.",
+  reserve_gpu_mib: "Extra GPU memory to keep free (MiB), on top of gpusched's reserve.",
+};
+async function pageSettings(){
+  const s = await api("GET", "/v1/settings");
+  const rows = Object.keys(SETTING_HELP).map(k => {
+    const v = s[k];
+    const ctl = k === "reserve_gpu_mib"
+      ? html`<span class="row"><input type="number" min="0" step="512" id="set_${raw(k)}" value="${v || 0}" style="width:110px"><button type="button" class="btn" data-set="${k}">Save</button></span>`
+      : html`<button type="button" class="btn ${raw(v ? "primary" : "")}" data-set="${k}" data-val="${v ? "0" : "1"}" aria-pressed="${v ? "true" : "false"}">${v ? "ON" : "OFF"}</button>`;
+    return html`<div class="toggle"><div><div class="mono">${k}</div><div class="small muted">${SETTING_HELP[k]}</div></div>${ctl}</div>`;
+  });
+  return html`<section><h2>Operator controls <span class="muted small">— every change is audited in the activity timeline</span></h2><div class="card">${rows}</div></section>
+  <section><h2>Command line</h2><div class="card small mono">local-ai status · local-ai doctor · local-ai gpu · local-ai models refresh --wait · local-ai models rollback local/default · local-ai maintenance on</div></section>`;
+}
+document.getElementById("view").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-set]");
+  if (b){
+    const k = b.dataset.set;
+    const val = k === "reserve_gpu_mib" ? Number(document.getElementById("set_" + k).value || 0) : b.dataset.val === "1";
+    try { await api("POST", "/v1/settings", {[k]: val}); toast(k + " = " + val, "ok"); } catch(err){ toast(err.message, "bad"); }
+    refresh(); return;
+  }
+  if (e.target.id === "bpause"){
+    const paused = !((cache.overview || {}).batch || {}).paused;
+    try { await api("POST", "/v1/settings", {batch_paused: paused}); toast("batch_paused = " + paused, "ok"); } catch(err){ toast(err.message, "bad"); }
+    refresh();
+  }
+});
+
+const RENDER = {"Overview": pageOverview, "Models": pageModels, "Discovery": pageDiscovery, "Deployments": pageDeployments,
+  "Inference": pageInference, "Decision Fabric": pageDecision, "Batch Jobs": pageBatch, "GPU": pageGpu,
+  "Benchmarks": pageBenchmarks, "Registry": pageRegistry, "Savings": pageSavings, "Settings": pageSettings};
+
+let busy = false;
+async function refresh(){
+  if (busy) return;
+  busy = true;
+  document.getElementById("title").textContent = current;
+  try {
+    const out = await RENDER[current]();
+    setHTML(document.getElementById("view"), out);
+    if (cache.overview) headerState(cache.overview);
+    else api("GET", "/v1/gpu").then(g => headerState({blerbz: g})).catch(() => {});
+    document.getElementById("lastRefresh").textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch(err){
+    setHTML(document.getElementById("view"), html`<div class="card"><b>Could not load ${current}.</b><p class="small">${err.message}</p></div>`);
+  }
+  busy = false;
+}
+
+document.getElementById("signout").onclick = () => { KEY = null; lsSet("lif.adminKey", null); setHTML(document.getElementById("view"), html`<div class="empty">Signed out. Reload to sign in.</div>`); };
+document.getElementById("themeBtn").onclick = () => {
+  const r = document.documentElement; const cur = r.getAttribute("data-theme");
+  const next = cur === "dark" ? "light" : (cur === "light" ? "" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark"));
+  if (next) r.setAttribute("data-theme", next); else r.removeAttribute("data-theme");
+  lsSet("lif.theme", next || null);
+};
+(function(){ const t = lsGet("lif.theme"); if (t) document.documentElement.setAttribute("data-theme", t); })();
+document.addEventListener("keydown", e => { if (e.key === "Escape" && inspectorRec){ inspectorRec = null; renderInspector(); } });
+
+navRender();
+refresh();
+setInterval(() => { if (!document.hidden && !inspectorRec) refresh(); }, 10000);
+</script>
+</body>
+</html>

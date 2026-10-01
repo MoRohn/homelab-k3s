@@ -1,0 +1,94 @@
+# GPU scheduling and resource protection
+
+## Authority
+
+`bnn.gpusched`, a host systemd user unit on `127.0.0.1:8770` and `10.42.0.1:8770` running in enforce mode, is the **only** GPU admission authority on this host. LIF is a read-only client.
+
+- LIF reads `GET /metrics` with the gpusched **`metrics`** token (Secret `lif-gpusched`). That token can do nothing else.
+- LIF pods never set `runtimeClassName: nvidia` or `NVIDIA_VISIBLE_DEVICES`. Any CUDA context of 256 MiB or more without a lease would raise gpusched's `unmanaged` hold, blocking BLERBZ's own admissions.
+- A `lif:` token line exists in `~/.config/bnn/gpusched.token`, but it is **dormant** until gpusched restarts, because it reads tokens only at startup.
+
+Kubernetes PriorityClasses order CPU and RAM inside K3s only. The kubelet can't see unified GPU memory.
+
+## BLERBZ capacity state (`lif/gpu/state.py`)
+
+The state is polled every 5 s and treated as stale after 30 s.
+
+| State | Condition |
+|---|---|
+| IMMINENT | a `gpusched_leases{klass="production"}` is live, OR a resident isn't loaded (reloading), OR gpusched is unreachable or stale (**fail-safe**) |
+| HIGH | `gpusched_forecast_p_arrival_next_hour` ≥ 0.50 |
+| MODERATE | P ≥ 0.20, or no forecast |
+| LOW | otherwise |
+
+The forecast is gpusched's own: validated, recency-weighted, with a backtest Brier score of 0.069. It rises ahead of the Stream It windows (ET 01:45–07:00, 07:45–10:30, 12:45–14:30, 17:45–19:30).
+
+## CAN_RUN (`can_run(job, snapshot)`, deterministic)
+
+| Job | LOW/MODERATE | HIGH | IMMINENT |
+|---|---|---|---|
+| P0–P1 (BLERBZ) | RUN | RUN | RUN |
+| P2–P3 CPU (interactive) | RUN | RUN | RUN_DEGRADED |
+| P4 CPU (async) | RUN | RUN | QUEUE (or RUN_DEGRADED if it can't wait) |
+| P5 CPU (batch) | RUN | RUN | PAUSE_BACKGROUND |
+| P6–P8 CPU (eval/experiments) | RUN | QUEUE | PAUSE_BACKGROUND |
+| any GPU job | QUEUE: must go through a gpusched lease; REJECT if it can't wait and memory > admissible | | |
+
+The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → interactive, and P4–8 → background.
+
+## CPU tiers: why, and their cost
+
+- Today gpusched admits about **0.6–1.2 GiB**, so no LLM fits on the GPU.
+- The CPU tiers run llama.cpp on the **A725 cores only** (`--cpu-mask 7C1F`, CPUs 0–4 and 10–14), with `--no-repack`, a q8_0 KV cache, and a hard cgroup memory limit.
+- They create no CUDA context, so a GPU takeover can't evict them.
+
+### The `--no-repack` lesson (measured 2026-09-30)
+
+- By default, llama.cpp repacks quantized weights into **anonymous** memory.
+- The 4B model held 3.1 GB anonymous. Three models dropped MemAvailable from ~10 to 3.9 GiB, PSI reached 4.2, swap grew, and gpusched admissible went to 0.
+- With `--no-repack` the weights stay file-backed (reclaimable). 4B anon dropped to **~670 MiB**, at a cost of only **−5 % decode** (22.3 → 21.1 tok/s).
+- Measured anon today: 4B ~670–850 MiB, 1.7B ~530–680 MiB, and embedding ~296 MiB after cutting its context to 4096 tokens over 2 slots.
+
+### Bandwidth yield
+
+GB10's CPU and GPU share one memory bus. With the CPU tiers saturated (8 concurrent generations), production LLM decode went from **2.98 / 3.09 tok/s idle to 2.74 tok/s, about −10 %**. That is n = 1 per arm, so it is indicative only (`benchmarks/2026-10-01-production-llm-interference.md`, private, local only).
+
+While BLERBZ is IMMINENT, the gateway therefore:
+- drops CPU concurrency to `yield.cpu_concurrency_blerbz` (1);
+- caps `max_tokens` at 512.
+
+Batch P5 and above pauses.
+
+Also measured: 4-way concurrency on the 4B model *lowers* aggregate throughput (21 → 16.4 tok/s), so its concurrency is set to 2.
+
+## Host memory guard (controller, every 5 s)
+
+LIF hands memory back **before** gpusched's 8 GiB headroom is crossed, whatever the cause.
+
+| Group | Deployments | Shed below | Restore above |
+|---|---|---|---|
+| optional | `tier0-small` | 9216 MiB MemAvailable | 10240 MiB |
+| secondary | `embedding` | 6144 MiB | 8704 MiB |
+| hot fallback | `tier0` | never shed by the guard | — |
+
+- Each condition must hold for 60 s, which avoids flapping.
+- Shed state is persisted, so it survives a controller restart.
+- There is no action without a trustworthy gpusched reading.
+- **Observed 2026-10-01 07:21:** Firefox and interactive desktop sessions (~2 GiB) pushed MemAvailable to ~7.9 GiB. The guard shed `tier0-small`, and `local/instant` was served by the 4B with `fallback: true`.
+- Even with that done, MemAvailable stayed below 8 GiB because of non-LIF processes. LIF alone cannot restore the headroom.
+
+## Why there are no GPU tiers yet, and the concrete path
+
+1. **GRAMZ unload only happens for `kind: command` jobs.**
+   - In gpusched, `_maybe_unload_for` requires `spec.kind == "command"` and `preemptible`.
+   - K8s-gated pods (the gate and hold sidecars) can **never** trigger the ~34.6 GB unload.
+   - A GPU tier therefore needs a gpusched **command-job adapter**: a preemptible command (e.g. `docker run` or a scheduler-owned unit) that serves a llama.cpp-cuda or vLLM model, attributed by container, and is stopped on preemption.
+   - That keeps gpusched as the authority. Unloads happen only at P(production) ≤ 10 %, the reload takes ~165 s, and the window shuts at reserved windows.
+   - The hardware-fit verdict `fits_when_gramz_unloaded` marks models suitable for this path.
+2. **Proposal (owner decision): requantize the production LLM.**
+   - Serving Qwen2.5-32B as FP8 instead of bf16 frees about 30 GB.
+   - It would likely also improve the ~3 tok/s decode behind Stream It's 39 % pre-fix failure rate.
+   - It must keep the `:8100` contract (including the `adapter` field) and pass a BNN-workload quality evaluation before cutover.
+3. Any vLLM start needs an explicit memory size and a lease `mem_mb` that covers the load peak. Never use the default `gpu_memory_utilization`.
+
+**Status: not implemented or validated.** A live BLERBZ GPU takeover of a LIF GPU model has not been tested, because no LIF GPU model exists.

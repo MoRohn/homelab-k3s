@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deploy/k8s/base/00-namespaces.yaml
+  - deploy/k8s/base/01-priorityclasses.yaml
+  - deploy/k8s/base/02-model-store.yaml
+  - deploy/k8s/base/03-registry.yaml
+  - deploy/k8s/base/10-services.yaml
+  - deploy/k8s/base/11-rbac.yaml
+  - deploy/k8s/base/12-networkpolicy.yaml
+  - deploy/k8s/base/13-ingress.yaml
+  - deploy/k8s/base/14-monitoring.yaml
+  - deploy/k8s/serving/tier0.yaml
+  - deploy/k8s/serving/tier0-small.yaml
+  - deploy/k8s/serving/embedding.yaml
+  - deploy/k8s/serving/gpu-engine-bridge.yaml
+configMapGenerator:
+  - name: lif-config
+    namespace: ai-system
+    files:
+      - lif.yaml=config/lif.yaml
+      - models.yaml=config/models.yaml
+      - core-decisions.yaml=config/decisions/core.yaml
+      - candidate-model-analysis.yaml=config/workflows/candidate-model-analysis.yaml
+      - core-evals.yaml=evals/core.yaml
+images:
+  - name: 127.0.0.1:5000/lif/fabric
+    newTag: IMAGE_TAG

@@ -1,0 +1,612 @@
+# decision-fabric: append-only decision log on local-path so rollouts surge with zero downtime.
+# batch + controller stay Recreate: one writer only (batch would double-dispatch items).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: ai-system
+  labels: &id001
+    app: gateway
+    app.kubernetes.io/part-of: lif
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      priorityClassName: ai-critical
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: gateway
+        image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+        args:
+        - lif.gateway.app:app
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: LIF_GATEWAY_URL
+          value: http://gateway.ai-system.svc:8080
+        - name: LIF_CONTROLLER_URL
+          value: http://controller.ai-system.svc:8080
+        - name: LIF_DECISION_URL
+          value: http://decision-fabric.ai-system.svc:8080
+        - name: LIF_BATCH_URL
+          value: http://batch.ai-system.svc:8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '2'
+            memory: 384Mi
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 2
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: secrets
+          mountPath: /var/run/lif/secrets
+          readOnly: true
+        - name: config
+          mountPath: /etc/lif
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: gpusched
+          mountPath: /var/run/lif/gpusched
+          readOnly: true
+      volumes:
+      - name: secrets
+        secret:
+          secretName: lif-secrets
+          defaultMode: 288
+      - name: config
+        projected:
+          sources:
+          - configMap:
+              name: lif-config
+              items:
+              - key: lif.yaml
+                path: lif.yaml
+              - key: models.yaml
+                path: models.yaml
+              - key: core-decisions.yaml
+                path: decisions/core.yaml
+              - key: candidate-model-analysis.yaml
+                path: workflows/candidate-model-analysis.yaml
+              - key: core-evals.yaml
+                path: evals/core.yaml
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: gpusched
+        secret:
+          secretName: lif-gpusched
+          defaultMode: 288
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: ai-system
+  labels:
+    app: gateway
+    app.kubernetes.io/part-of: lif
+spec:
+  selector:
+    app: gateway
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lif-decisions
+  namespace: ai-system
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decision-fabric
+  namespace: ai-system
+  labels: &id001
+    app: decision-fabric
+    app.kubernetes.io/part-of: lif
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: decision-fabric
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      priorityClassName: ai-critical
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: decision-fabric
+        image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+        args:
+        - lif.decision.app:app
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: LIF_GATEWAY_URL
+          value: http://gateway.ai-system.svc:8080
+        - name: LIF_CONTROLLER_URL
+          value: http://controller.ai-system.svc:8080
+        - name: LIF_DECISION_URL
+          value: http://decision-fabric.ai-system.svc:8080
+        - name: LIF_BATCH_URL
+          value: http://batch.ai-system.svc:8080
+        - name: LIF_DECISIONS_DB
+          value: /data/decisions.db
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 256Mi
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 2
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: secrets
+          mountPath: /var/run/lif/secrets
+          readOnly: true
+        - name: config
+          mountPath: /etc/lif
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: secrets
+        secret:
+          secretName: lif-secrets
+          defaultMode: 288
+      - name: config
+        projected:
+          sources:
+          - configMap:
+              name: lif-config
+              items:
+              - key: lif.yaml
+                path: lif.yaml
+              - key: models.yaml
+                path: models.yaml
+              - key: core-decisions.yaml
+                path: decisions/core.yaml
+              - key: candidate-model-analysis.yaml
+                path: workflows/candidate-model-analysis.yaml
+              - key: core-evals.yaml
+                path: evals/core.yaml
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: data
+        persistentVolumeClaim:
+          claimName: lif-decisions
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: decision-fabric
+  namespace: ai-system
+  labels:
+    app: decision-fabric
+    app.kubernetes.io/part-of: lif
+spec:
+  selector:
+    app: decision-fabric
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lif-registry
+  namespace: ai-system
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller
+  namespace: ai-system
+  labels: &id001
+    app: controller
+    app.kubernetes.io/part-of: lif
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      priorityClassName: ai-critical
+      automountServiceAccountToken: true
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: controller
+        image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+        args:
+        - lif.controller.app:app
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: LIF_GATEWAY_URL
+          value: http://gateway.ai-system.svc:8080
+        - name: LIF_CONTROLLER_URL
+          value: http://controller.ai-system.svc:8080
+        - name: LIF_DECISION_URL
+          value: http://decision-fabric.ai-system.svc:8080
+        - name: LIF_BATCH_URL
+          value: http://batch.ai-system.svc:8080
+        - name: LIF_REGISTRY_DB
+          value: /data/registry.db
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 384Mi
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 2
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: secrets
+          mountPath: /var/run/lif/secrets
+          readOnly: true
+        - name: config
+          mountPath: /etc/lif
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: gpusched
+          mountPath: /var/run/lif/gpusched
+          readOnly: true
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: secrets
+        secret:
+          secretName: lif-secrets
+          defaultMode: 288
+      - name: config
+        projected:
+          sources:
+          - configMap:
+              name: lif-config
+              items:
+              - key: lif.yaml
+                path: lif.yaml
+              - key: models.yaml
+                path: models.yaml
+              - key: core-decisions.yaml
+                path: decisions/core.yaml
+              - key: candidate-model-analysis.yaml
+                path: workflows/candidate-model-analysis.yaml
+              - key: core-evals.yaml
+                path: evals/core.yaml
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: gpusched
+        secret:
+          secretName: lif-gpusched
+          defaultMode: 288
+      - name: data
+        persistentVolumeClaim:
+          claimName: lif-registry
+      serviceAccountName: lif-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: controller
+  namespace: ai-system
+  labels:
+    app: controller
+    app.kubernetes.io/part-of: lif
+spec:
+  selector:
+    app: controller
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lif-batch
+  namespace: ai-system
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch
+  namespace: ai-system
+  labels: &id001
+    app: batch
+    app.kubernetes.io/part-of: lif
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      priorityClassName: ai-batch
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: batch
+        image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+        args:
+        - lif.batch.app:app
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: LIF_GATEWAY_URL
+          value: http://gateway.ai-system.svc:8080
+        - name: LIF_CONTROLLER_URL
+          value: http://controller.ai-system.svc:8080
+        - name: LIF_DECISION_URL
+          value: http://decision-fabric.ai-system.svc:8080
+        - name: LIF_BATCH_URL
+          value: http://batch.ai-system.svc:8080
+        - name: LIF_BATCH_DB
+          value: /data/batch.db
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 256Mi
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 2
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: secrets
+          mountPath: /var/run/lif/secrets
+          readOnly: true
+        - name: config
+          mountPath: /etc/lif
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: gpusched
+          mountPath: /var/run/lif/gpusched
+          readOnly: true
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: secrets
+        secret:
+          secretName: lif-secrets
+          defaultMode: 288
+      - name: config
+        projected:
+          sources:
+          - configMap:
+              name: lif-config
+              items:
+              - key: lif.yaml
+                path: lif.yaml
+              - key: models.yaml
+                path: models.yaml
+              - key: core-decisions.yaml
+                path: decisions/core.yaml
+              - key: candidate-model-analysis.yaml
+                path: workflows/candidate-model-analysis.yaml
+              - key: core-evals.yaml
+                path: evals/core.yaml
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: gpusched
+        secret:
+          secretName: lif-gpusched
+          defaultMode: 288
+      - name: data
+        persistentVolumeClaim:
+          claimName: lif-batch
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch
+  namespace: ai-system
+  labels:
+    app: batch
+    app.kubernetes.io/part-of: lif
+spec:
+  selector:
+    app: batch
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+  namespace: ai-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gateway

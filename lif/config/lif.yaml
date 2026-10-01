@@ -1,0 +1,114 @@
+# Local Intelligence Fabric — platform policy.
+# Every service loads this file (mounted from the lif-config ConfigMap). Values here are
+# admission and routing INPUTS; the GPU itself is arbitrated by the host's bnn.gpusched.
+
+availability_target: 0.95
+
+# ── Host GPU scheduler (bnn.gpusched) ─────────────────────────────────────────
+# The single GPU admission authority on this box. The LIF only READS it (metrics
+# token) for the BLERBZ capacity signal. GPU tiers lease through its K8s gate.
+gpusched:
+  url: http://10.42.0.1:8770
+  token_file: /var/run/lif/gpusched/token
+  poll_sec: 5
+  stale_after_sec: 30           # older than this → treat BLERBZ state as IMMINENT (fail-safe)
+
+# BLERBZ predictive capacity state, from gpusched's validated forecast.
+blerbz:
+  state_thresholds:             # P(production arrival within the next hour)
+    moderate: 0.20
+    high: 0.50
+  # IMMINENT = a production lease is live, a resident is reloading, or gpusched is unreachable.
+
+# ── Tier 0 bandwidth yield ────────────────────────────────────────────────────
+# GB10 decode is memory-bandwidth bound (~273 GB/s shared by CPU and GPU). Production
+# LLM decode already uses ~235 GB/s, so CPU inference slows BLERBZ. While BLERBZ is
+# IMMINENT (production running) the CPU tiers throttle to this many concurrent requests.
+yield:
+  cpu_concurrency_normal: 4
+  cpu_concurrency_blerbz: 1
+  max_tokens_blerbz: 512        # clamp long generations while production runs
+
+# ── Host memory guard ─────────────────────────────────────────────────────────
+# The LIF's CPU tiers share the 128 GB pool with BNN's resident models. gpusched keeps an
+# 8 GiB MemAvailable headroom for its own admissions; the LIF gives memory back BEFORE
+# that line is crossed, whatever the cause (BNN, desktop apps, the LIF itself).
+memory_guard:
+  sustain_sec: 60
+  optional: [tier0-small]                  # shed first (redundancy tiers)
+  shed_optional_below_mib: 9216
+  restore_optional_above_mib: 10240
+  secondary: [embedding]                   # shed only in the danger zone
+  shed_secondary_below_mib: 6144
+  restore_secondary_above_mib: 8704
+  # tier0 (the hot fallback) is never shed by the guard; the kernel OOM score and its
+  # 3.5 GiB cgroup limit bound it instead.
+
+gpu:
+  safety_reserve_gb: 16
+
+# ── Decision Fabric ───────────────────────────────────────────────────────────
+decision_fabric:
+  provider: typesafe_jev        # typesafe_jev | rules  (rules = Jev disabled)
+  jev:
+    base_url: https://api.typesafe.ai
+    model: jev-1.13.0           # pinned; jev-latest is never used in production
+    timeout_sec: 4
+    max_concurrency: 16
+    circuit_breaker: {failures: 5, reset_sec: 60}
+    price_usd_per_mtok_input: 0.42
+  confidence:                   # defaults; each decision definition may override
+    auto: 0.97
+    validate: 0.85
+    escalate: 0.70
+  cache:
+    enabled: true
+    ttl_sec: 86400
+    max_entries: 50000
+
+# ── Privacy ───────────────────────────────────────────────────────────────────
+privacy:
+  default_class: CONFIDENTIAL   # unlabelled application data never leaves the box
+  jev_allowed: [PUBLIC]         # add INTERNAL here to allow internal data to Jev
+  external_llm_allowed: []      # no cloud LLM fallback is configured
+  confidential_external_allowed: false
+
+# ── Models ────────────────────────────────────────────────────────────────────
+models:
+  automatic_discovery: false
+  automatic_download: false
+  automatic_promotion: false
+  rollback_versions: 2
+  store_path: /models
+  discovery:
+    max_listed_per_category: 200
+    detail_fetch_per_category: 40
+    shortlist_per_category: 5
+    min_downloads: 1000
+    allowed_licenses: [apache-2.0, mit, bsd-3-clause, llama3.1, llama3.2, llama3.3, gemma, qwen]
+    blocked_orgs: []
+  promotion:
+    max_quality_regression: 0.01
+    max_latency_regression_pct: 10
+    max_memory_increase_pct: 20
+    structured_output_min: 0.98
+    crash_rate_max: 0
+    canary_percent: 10
+
+batch:
+  enabled: true
+  max_attempts: 3
+  default_timeout_sec: 600
+
+# ── Cost model (ESTIMATES — see docs/COST_MODEL.md) ─────────────────────────────
+cost:
+  # What the same tokens would cost on a comparable hosted small-model API.
+  external_equivalent_usd_per_mtok: {input: 0.15, output: 0.60}
+  # Local marginal cost: GB10 system power delta × electricity price.
+  electricity_usd_per_kwh: 0.16
+  cpu_tier_incremental_watts: 25
+
+gateway:
+  request_timeout_sec: 300
+  max_body_bytes: 4194304
+  rate_limit_rpm: 600

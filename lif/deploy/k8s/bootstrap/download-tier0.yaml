@@ -1,0 +1,33 @@
+# One-time seed of the pinned Tier 0 / embedding weights into the model store.
+# Resumable (curl -C -), sha256-verified, atomic rename; a mismatch leaves the file
+# quarantined as *.bad and fails the Job. Later downloads are driven by the controller.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: seed-tier0-models, namespace: ai-serving}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      priorityClassName: ai-maintenance
+      restartPolicy: Never
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
+      containers:
+        - name: fetch
+          image: curlimages/curl:8.10.1
+          command: ["/bin/sh", "-euc"]
+          args:
+            - |
+              fetch() {  # repo revision file sha256
+                d="/models/$1/$2"; f="$d/$3"; mkdir -p "$d"
+                if [ -f "$f" ] && echo "$4  $f" | sha256sum -c -s; then echo "ok (cached) $3"; return; fi
+                curl -fL --retry 5 --retry-delay 5 -C - -o "$f.part" "https://huggingface.co/$1/resolve/$2/$3"
+                if echo "$4  $f.part" | sha256sum -c -s; then mv "$f.part" "$f"; echo "ok $3"
+                else mv "$f.part" "$f.bad"; echo "SHA256 MISMATCH $3 (quarantined)"; exit 1; fi
+              }
+              fetch unsloth/Qwen3-4B-Instruct-2507-GGUF a06e946bb6b655725eafa393f4a9745d460374c9 Qwen3-4B-Instruct-2507-Q4_K_M.gguf 3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597
+              fetch Qwen/Qwen3-1.7B-GGUF 90862c4b9d2787eaed51d12237eafdfe7c5f6077 Qwen3-1.7B-Q8_0.gguf 061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a
+              fetch Qwen/Qwen3-Embedding-0.6B-GGUF 370f27d7550e0def9b39c1f16d3fbaa13aa67728 Qwen3-Embedding-0.6B-Q8_0.gguf 06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439
+          volumeMounts: [{name: models, mountPath: /models}]
+          resources: {requests: {cpu: 100m, memory: 64Mi}, limits: {memory: 256Mi}}
+      volumes: [{name: models, persistentVolumeClaim: {claimName: model-store}}]

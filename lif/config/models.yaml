@@ -1,0 +1,78 @@
+# Logical aliases → deployment profiles → pinned physical models.
+# Applications only ever name an alias (local/fast, local/default, ...). The registry
+# (controller) owns the live mapping. This file is the bootstrap seed, and it is also
+# the gateway's last-known-good fallback if the controller is unreachable.
+
+profiles:
+  qwen3-4b-instruct-2507-q4km-cpu:
+    category: general
+    runtime: llama.cpp
+    device: cpu
+    hf_repo: unsloth/Qwen3-4B-Instruct-2507-GGUF
+    revision: a06e946bb6b655725eafa393f4a9745d460374c9
+    file: Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+    sha256_prefix: 3605803b982cb64a
+    precision: q4_k_m
+    params_b: 4.0
+    context: 8192
+    concurrency: 2              # measured: 4-way batching lowers CPU throughput (bandwidth-bound)
+    memory_budget_mb: 3584        # mmap'd weights (page cache, charged to the pod) + KV + buffers
+    endpoint: http://tier0.ai-serving.svc:8080
+    license: apache-2.0
+
+  qwen3-1.7b-q8-cpu:
+    category: fast
+    runtime: llama.cpp
+    device: cpu
+    hf_repo: Qwen/Qwen3-1.7B-GGUF
+    revision: 90862c4b9d2787eaed51d12237eafdfe7c5f6077
+    file: Qwen3-1.7B-Q8_0.gguf
+    sha256_prefix: 061b54daade076b5
+    precision: q8_0
+    params_b: 1.7
+    context: 8192
+    concurrency: 4
+    memory_budget_mb: 2560
+    endpoint: http://tier0-small.ai-serving.svc:8080
+    license: apache-2.0
+    chat_template_kwargs: {enable_thinking: false}
+
+  qwen3-embedding-0.6b-q8-cpu:
+    category: embedding
+    runtime: llama.cpp
+    device: cpu
+    hf_repo: Qwen/Qwen3-Embedding-0.6B-GGUF
+    revision: 370f27d7550e0def9b39c1f16d3fbaa13aa67728
+    file: Qwen3-Embedding-0.6B-Q8_0.gguf
+    sha256_prefix: 06507c7b42688469
+    precision: q8_0
+    params_b: 0.6
+    context: 4096
+    concurrency: 2
+    memory_budget_mb: 1536
+    endpoint: http://embedding.ai-serving.svc:8080
+    license: apache-2.0
+    embedding_dim: 1024
+
+# Alias → ordered candidates. The router serves the first HEALTHY candidate and
+# reports any fallback in the response (`lif` metadata). An alias with no healthy
+# candidate returns 503 with a reason — never a silent substitution outside its chain.
+aliases:
+  local/instant:   [qwen3-1.7b-q8-cpu, qwen3-4b-instruct-2507-q4km-cpu]
+  local/fast:      [qwen3-4b-instruct-2507-q4km-cpu, qwen3-1.7b-q8-cpu]
+  local/default:   [qwen3-4b-instruct-2507-q4km-cpu, qwen3-1.7b-q8-cpu]
+  local/reasoning: [qwen3-4b-instruct-2507-q4km-cpu]
+  local/code:      [qwen3-4b-instruct-2507-q4km-cpu]
+  local/batch:     [qwen3-4b-instruct-2507-q4km-cpu, qwen3-1.7b-q8-cpu]
+  local/embedding: [qwen3-embedding-0.6b-q8-cpu]
+  # No local vision or rerank model fits today (see docs/GPU_SCHEDULING.md). These
+  # aliases exist so callers get a clear 503 rather than an unknown-model 404.
+  local/vision:    []
+  local/rerank:    []
+
+# Quality tier per alias. Used to label degraded service (e.g. local/default served by
+# a 1.7B model is marked `degraded: true`).
+alias_min_params_b:
+  local/default: 4.0
+  local/reasoning: 30.0
+  local/code: 14.0

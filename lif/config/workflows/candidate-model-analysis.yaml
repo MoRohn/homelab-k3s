@@ -1,0 +1,17 @@
+workflow:
+  name: candidate-model-analysis
+  version: v1
+  data_class: PUBLIC            # public Hugging Face metadata only
+  nodes:
+    license:          {type: deterministic, fn: license_ok}
+    architecture_fit: {type: deterministic, fn: architecture_fit}
+    comparison:       {type: deterministic, fn: build_comparison}
+    # suitability + operational_risk read the same state → ONE Jev request
+    suitability:      {type: jev, decision: model-suitability, state: input}
+    operational_risk: {type: jev, decision: operational-risk, state: input}
+    improvement:      {type: jev, decision: improvement-probability, state: comparison,
+                       depends_on: [comparison]}
+    recommendation:
+      type: policy
+      fn: candidate_recommendation
+      depends_on: [license, architecture_fit, suitability, operational_risk, improvement]

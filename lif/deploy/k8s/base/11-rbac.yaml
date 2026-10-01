@@ -1,0 +1,31 @@
+# The controller may manage LIF model servers and Jobs in ai-serving — nothing else.
+# No rights in kube-system, monitoring, argocd, or any BNN resource; no Secrets access.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: lif-controller, namespace: ai-system}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: lif-controller, namespace: ai-serving}
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    verbs: [get, patch, update]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get, list, create, delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: lif-controller, namespace: ai-serving}
+subjects: [{kind: ServiceAccount, name: lif-controller, namespace: ai-system}]
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: lif-controller}

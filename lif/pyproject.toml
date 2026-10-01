@@ -1,0 +1,30 @@
+[project]
+name = "local-intelligence-fabric"
+version = "0.1.0"
+description = "Local Intelligence Fabric on DGX Spark: gateway, Decision Fabric (Jev), model lifecycle, batch"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.118.0",
+  "uvicorn[standard]==0.37.0",
+  "httpx==0.28.1",
+  "pydantic==2.11.9",
+  "pyyaml==6.0.2",
+  "prometheus-client==0.23.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest==8.4.2", "pytest-asyncio==1.2.0"]
+
+[project.scripts]
+local-ai = "lif.cli.main:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lif*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

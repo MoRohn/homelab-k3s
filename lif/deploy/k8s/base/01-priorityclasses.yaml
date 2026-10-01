@@ -1,0 +1,43 @@
+# Pod priorities for CPU/RAM contention inside K3s. They do NOT arbitrate the GPU:
+# GB10 unified memory is not visible to the kubelet, so bnn.gpusched remains the GPU
+# authority (BLERBZ production = gpusched class "production", never blocked).
+# blerbz-critical is reserved for any BLERBZ workload that later moves into K3s.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: blerbz-critical}
+value: 900000
+preemptionPolicy: PreemptLowerPriority
+description: BLERBZ production media workloads (P0/P1).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: ai-critical}
+value: 100000
+description: LIF gateway, controller, registry, Tier 0 model (P2 fallback path).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: ai-interactive}
+value: 50000
+description: User-facing local inference beyond Tier 0 (P2/P3).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: ai-batch}
+value: 10000
+preemptionPolicy: Never
+description: Async and batch inference (P4/P5).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: ai-maintenance}
+value: 5000
+preemptionPolicy: Never
+description: Evaluation, benchmarks, downloads, validation (P6/P7).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: ai-experimental}
+value: 1000
+preemptionPolicy: Never
+description: Experiments (P8).

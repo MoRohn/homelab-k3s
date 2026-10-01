@@ -1,0 +1,46 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: {name: lif-services, namespace: ai-system, labels: {app.kubernetes.io/part-of: lif}}
+spec:
+  selector: {matchLabels: {app.kubernetes.io/part-of: lif}}
+  endpoints: [{port: http, path: /metrics, interval: 30s}]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: {name: lif-model-servers, namespace: ai-serving}
+spec:
+  selector: {matchLabels: {lif.dev/role: model-server}}
+  endpoints: [{port: http, path: /metrics, interval: 30s}]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata: {name: lif-alerts, namespace: ai-system}
+spec:
+  groups:
+    - name: lif
+      rules:
+        - alert: LIFUsefulAIUnavailable
+          expr: max(lif_available{capability="useful_local_ai"}) == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations: {summary: "No local text model is answering inference probes (fast and default both down)."}
+        - alert: LIFGatewayDown
+          expr: max(lif_available{capability="gateway"}) == 0
+          for: 3m
+          labels: {severity: critical}
+          annotations: {summary: "LIF gateway health probe failing."}
+        - alert: LIFDefaultDegraded
+          expr: max(lif_available{capability="default_model"}) == 0 and max(lif_available{capability="fast_model"}) == 1
+          for: 30m
+          labels: {severity: warning}
+          annotations: {summary: "local/default is being served by a fallback for 30m."}
+        - alert: LIFJevCircuitOpen
+          expr: max(lif_jev_circuit_open) == 1
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: "Jev circuit breaker open; decisions are running on rules/local fallback."}
+        - alert: LIFHostHeadroomLow
+          expr: max(gpusched_mem_available_mib) < 8192
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: "Host MemAvailable below gpusched's 8 GiB headroom — check LIF CPU tiers (anon memory)."}

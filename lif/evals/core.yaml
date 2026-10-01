@@ -1,0 +1,44 @@
+# Core evaluation suite. Synthetic content only — shaped like BLERBZ/BNN workloads
+# (headline summaries, story triage, structured extraction) without real data.
+# checker: contains (all of `expect`, case-insensitive) | regex | json (parse + required keys
+# + optional enum/type checks) | choice (answer must equal one label) | number (within tol)
+suite: core
+version: v1
+items:
+  # ── instruction following ──
+  - {id: if-01, cat: instruction, checker: regex, expect: '^(?:\W*\w+\W*){3}$',
+     prompt: "Reply with exactly three words describing the ocean. No punctuation besides spaces."}
+  - {id: if-02, cat: instruction, checker: regex, expect: '^[A-Z ,.!?''-]+$',
+     prompt: "Write one short sentence about mountains entirely in UPPERCASE letters."}
+  - {id: if-03, cat: instruction, checker: contains, expect: ["1.", "2.", "3."],
+     prompt: "List three benefits of exercise as a numbered list (1., 2., 3.). Nothing else."}
+  # ── summarization (BNN-style) ──
+  - {id: sum-01, cat: summarization, checker: contains, expect: ["bridge"],
+     prompt: "Summarize in one sentence: The city council voted 7-2 on Tuesday to fund repairs to the Elm Street bridge, closed since March after inspectors found corroded supports. Work starts in June and should take five months."}
+  - {id: sum-02, cat: summarization, checker: regex, expect: '^(?:\S+\s+){0,11}\S+[.!]?$',
+     prompt: "Write a news headline of at most 12 words for: A regional bakery chain will raise its minimum wage to $20 an hour next month, citing staff turnover and rising rents in its downtown locations."}
+  # ── classification / triage ──
+  - {id: cls-01, cat: classification, checker: choice, labels: [politics, sports, technology, weather, business], expect: weather,
+     prompt: "Classify the story into exactly one of: politics, sports, technology, weather, business. Answer with the label only.\nStory: A cold front will bring heavy snow and 40 mph gusts to the northern counties overnight."}
+  - {id: cls-02, cat: classification, checker: choice, labels: [politics, sports, technology, weather, business], expect: sports,
+     prompt: "Classify the story into exactly one of: politics, sports, technology, weather, business. Answer with the label only.\nStory: The Hawks rallied from 14 points down in the fourth quarter to win the conference final 101-98."}
+  - {id: cls-03, cat: classification, checker: choice, labels: [urgent, normal, low], expect: urgent,
+     prompt: "Rate editorial urgency as urgent, normal or low. Answer with one word.\nStory: Officials ordered an immediate evacuation of three neighborhoods as a wildfire jumped the highway."}
+  # ── structured extraction / JSON ──
+  - {id: json-01, cat: structured, checker: json, required: [name, city, age], types: {age: int},
+     prompt: "Extract JSON with keys name, city, age (integer) from: 'Maria Lopez, 34, moved to Denver last spring.' Output only JSON."}
+  - {id: json-02, cat: structured, checker: json, required: [title, sentiment], enums: {sentiment: [positive, negative, neutral]},
+     prompt: "Return only JSON {\"title\": string, \"sentiment\": positive|negative|neutral} for the review: 'The new phone's battery is fantastic and the camera is great.'"}
+  - {id: json-03, cat: structured, checker: json, required: [items], types: {items: list},
+     prompt: "Return only JSON with key items: a list of the fruits mentioned in 'We bought apples, pears and two mangoes.'"}
+  # ── reasoning ──
+  - {id: rsn-01, cat: reasoning, checker: number, expect: 42, tol: 0,
+     prompt: "A box has 6 rows of 7 eggs. How many eggs? Answer with the number only."}
+  - {id: rsn-02, cat: reasoning, checker: number, expect: 15, tol: 0,
+     prompt: "Tom is 3 times as old as Sam. In 5 years Tom will be twice Sam's age then. How old is Tom now? Answer with the number only."}
+  # ── coding ──
+  - {id: code-01, cat: coding, checker: regex, expect: 'def\s+\w+\s*\(.*\).*:[\s\S]*return',
+     prompt: "Write a Python function that returns the sum of squares of a list of integers. Code only."}
+  # ── hallucination-sensitive ──
+  - {id: hal-01, cat: hallucination, checker: regex, expect: "(?i)(not|no|cannot|can't|don't|unknown|unable|isn't|fictional|no such)",
+     prompt: "What did the 1897 Treaty of Glimmerford between Norway and Peru establish? If you do not know or it does not exist, say so."}

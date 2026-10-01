@@ -1,0 +1,153 @@
+# Versioned decision definitions. A new version is a new entry; old versions stay so
+# logged decisions remain interpretable. data_class = the class of the STATE this
+# decision reads; Jev is only called when privacy policy allows that class to leave.
+
+# ── model intelligence (public Hugging Face metadata → PUBLIC) ──────────────────
+- name: model-suitability
+  version: v2
+  type: choice
+  data_class: PUBLIC
+  owner: model-lifecycle
+  instructions: >
+    You are screening an open-weights model from Hugging Face for a private local AI
+    platform on a single NVIDIA DGX Spark (GB10, ARM64, 128 GB unified memory, heavily
+    shared with production media generation). Given the model's metadata, decide what to
+    do with it for the stated category.
+  choices:
+    reject: unsuitable for the category, obsolete, a toy/test/merge of unclear provenance, or clearly worse than mainstream alternatives
+    review: ambiguous; a human should look before spending download bandwidth
+    benchmark: plausible improvement for the category; worth downloading and benchmarking locally
+    candidate: strong, well-maintained model from a reputable publisher that very likely improves the portfolio
+  thresholds: {auto: 0.90, validate: 0.75, escalate: 0.55}
+  default: review
+  fallback: [rules]
+
+- name: improvement-probability
+  version: v1
+  type: score
+  data_class: PUBLIC
+  owner: model-lifecycle
+  instructions: >
+    How likely is this candidate model to beat the currently deployed model for the same
+    category on quality at similar or lower memory cost? The state contains both models' metadata.
+  levels: [very_unlikely, unlikely, possible, likely, very_likely]
+  default: possible
+  fallback: [rules]
+
+- name: operational-risk
+  version: v1
+  type: score
+  data_class: PUBLIC
+  owner: model-lifecycle
+  instructions: >
+    Rate the operational risk of running this model locally: custom code
+    (trust_remote_code), unusual architecture, missing safetensors/GGUF, poor documentation,
+    unclear license, or likely ARM64/CUDA runtime incompatibility.
+  levels: [low, moderate, high]
+  default: high
+  fallback: [rules]
+
+# ── request routing ───────────────────────────────────────────────────────────
+- name: request-route
+  version: v1
+  type: choice
+  data_class: CONFIDENTIAL        # prompts are private unless the caller declares PUBLIC
+  owner: gateway
+  instructions: >
+    Pick the smallest local model tier that can answer this request well. The state has
+    the conversation (possibly truncated), its token count, and whether structured output
+    is required.
+  choices:
+    instant: trivial - greeting, short factual lookup, reformatting, single-label classification
+    fast: short summarization, extraction, simple rewriting, straightforward Q&A
+    default: multi-step instructions, longer writing, moderate reasoning
+    reasoning: hard multi-step reasoning, math, planning, careful analysis
+    code: writing, reviewing or debugging code
+  thresholds: {auto: 0.85, validate: 0.70, escalate: 0.50}
+  default: default
+  fallback: [rules]
+
+- name: output-acceptable
+  version: v1
+  type: noul
+  data_class: CONFIDENTIAL
+  owner: gateway
+  instructions: >
+    Does the response actually complete the user's task (on-topic, complete, follows the
+    requested format)? This is not a factual-accuracy check.
+  default: "yes"
+  fallback: [rules, local_llm]      # rules judge only empty/truncated/invalid output
+
+# ── batch classification ─────────────────────────────────────────────────────
+- name: batch-priority
+  version: v1
+  type: score
+  data_class: CONFIDENTIAL
+  owner: batch
+  instructions: How urgent is this batch job for the business, given its description and deadline?
+  levels: [deferrable, normal, urgent]
+  default: normal
+  fallback: [rules]
+
+- name: batch-model-size
+  version: v1
+  type: choice
+  data_class: CONFIDENTIAL
+  owner: batch
+  instructions: Which model size is sufficient for the batch job's per-item task?
+  choices:
+    fast: classification, extraction, tagging, short summaries
+    default: longer summaries, rewriting, moderate reasoning
+    large: complex reasoning or long-form generation that small models do poorly
+  default: default
+  fallback: [rules]
+
+# ── resource decisions (numeric telemetry only → PUBLIC) ───────────────────────
+- name: gpu-admission
+  version: v1
+  type: choice
+  data_class: PUBLIC
+  owner: gpu-resource-manager
+  cacheable: false
+  instructions: >
+    An interactive request asked for a larger model that is not loaded. Given current GPU
+    load, memory headroom, the probability that production media work arrives soon, the
+    latency target and the model load time, choose how to serve it.
+  choices:
+    use_fast: serve now from the resident fast model (report fallback)
+    load_default: load the larger model now; the latency target and BLERBZ forecast allow it
+    queue: wait for capacity; the request can tolerate the delay
+  thresholds: {auto: 0.90, validate: 0.75, escalate: 0.60}
+  default: use_fast
+  fallback: [rules]
+
+# ── promotion (benchmark numbers on a synthetic suite → PUBLIC) ────────────────
+- name: candidate-vs-incumbent
+  version: v1
+  type: noul
+  data_class: PUBLIC
+  owner: promotion-controller
+  cacheable: false
+  instructions: >
+    Given locally measured benchmark results for a candidate model and the incumbent
+    serving the same alias (quality pass rate, structured-output success, TTFT, decode
+    speed, throughput, errors, memory), does the evidence show the candidate would improve
+    the portfolio for that alias? Consider regressions as well as gains.
+  default: "no"
+  fallback: []
+
+# ── BNN-style content triage (public news text → PUBLIC) ───────────────────────
+- name: story-topic
+  version: v1
+  type: choice
+  data_class: PUBLIC
+  owner: bnn
+  instructions: Classify the news story (headline and summary) into its primary topic.
+  choices:
+    world: international affairs, politics, conflicts, diplomacy, elections
+    sports: sports, athletes, teams, games, tournaments
+    business: companies, markets, economy, finance, deals, earnings
+    scitech: science, technology, computing, internet, space, health research
+  thresholds: {auto: 0.90, validate: 0.80, escalate: 0.60}
+  default: world
+  fallback: [local_llm]

@@ -1,0 +1,86 @@
+# embedding: CPU-only llama.cpp serving profile qwen3-embedding-0.6b-q8-cpu.
+# No runtimeClassName / NVIDIA_VISIBLE_DEVICES on purpose: this pod must never create a
+# CUDA context (gpusched would flag it as an unmanaged GPU consumer). Weights are mmap'd
+# from the model store, so they live in reclaimable page cache charged to this pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embedding
+  namespace: ai-serving
+  labels: {app: embedding, lif.dev/profile: qwen3-embedding-0.6b-q8-cpu, lif.dev/tier: cpu}
+spec:
+  # no `replicas:` — the controller's memory guard owns the count (shed/restore); `kubectl apply`
+  # and Argo CD must not fight it. A fresh install defaults to 1.
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: embedding}}
+  template:
+    metadata:
+      labels: {app: embedding, lif.dev/profile: qwen3-embedding-0.6b-q8-cpu, lif.dev/role: model-server}
+    spec:
+      priorityClassName: ai-critical
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp@sha256:6d607629e3dd5e85f45c43d1494648126cb3f93f2122c9cd53f43242c94cde14
+          command: ["/app/llama-server"]
+          args:
+            - "--model"
+            - "/models/Qwen/Qwen3-Embedding-0.6B-GGUF/370f27d7550e0def9b39c1f16d3fbaa13aa67728/Qwen3-Embedding-0.6B-Q8_0.gguf"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8080"
+            - "--threads"
+            - "10"
+            - "--threads-batch"
+            - "10"
+            - "--cpu-mask"
+            - "7C1F"
+            - "--cpu-strict"
+            - "1"
+            - "--metrics"
+            # Keep quantized weights file-backed (reclaimable page cache). Repacking copies them
+            # into anonymous memory (+3 GB measured for the 4B model) on this memory-saturated host.
+            - "--no-repack"
+            - "--no-webui"
+            - "--ctx-size"
+            - "4096"
+            - "--parallel"
+            - "2"
+            - "--cache-type-k"
+            - "q8_0"
+            - "--cache-type-v"
+            - "q8_0"
+            - "--flash-attn"
+            - "on"
+            - "--embedding"
+            - "--pooling"
+            - "last"
+            - "--ubatch-size"
+            - "512"
+            - "--batch-size"
+            - "512"
+          ports: [{name: http, containerPort: 8080}]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 500m, memory: 1536Mi}
+            limits: {cpu: "4", memory: 1536Mi}
+          startupProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5, failureThreshold: 60}
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10, failureThreshold: 3}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 30, timeoutSeconds: 10, failureThreshold: 4}
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: models, persistentVolumeClaim: {claimName: model-store, readOnly: true}}
+        - {name: tmp, emptyDir: {sizeLimit: 64Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: embedding, namespace: ai-serving, labels: {app: embedding, lif.dev/role: model-server}}
+spec:
+  selector: {app: embedding}
+  ports: [{name: http, port: 8080, targetPort: http}]
