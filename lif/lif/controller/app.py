@@ -21,6 +21,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from lif.common import config, log, metrics
 from lif.controller.k8s import K8s
+from lif.controller.autopromote import AutoPromoter
 from lif.controller.lifecycle import Lifecycle, OpError
 from lif.decision.dag import DagRuntime
 from lif.decision.fabric import DecisionFabric
@@ -44,6 +45,7 @@ class State:
         self.dag.load()
         self.k8s = K8s()
         self.life = Lifecycle(self.reg, self.k8s, self.gpu, self.fabric)
+        self.auto = AutoPromoter(self.life, lambda q: _prom(q))
         self.disc = Discovery(self.reg, self.dag, admissible_mib=lambda: self.gpu.current().admissible_mib,
                               observer=self._observe if (config.get("decision_engineering.observe") or {}).get(
                                   "discovery") else None)
@@ -136,6 +138,7 @@ async def lifespan(app: FastAPI):
     S.tasks = [asyncio.create_task(S.gpu.run()),
                asyncio.create_task(_loop(S.life.protect, 5, "protect")),
                asyncio.create_task(_loop(probe_all, 30, "probe")),
+               asyncio.create_task(_loop(S.auto.tick, 60, "auto-promotion")),
                asyncio.create_task(_loop(lambda: _daily(), 3600, "daily"))]
     S.reg.event("controller_started", "", "system")
     yield

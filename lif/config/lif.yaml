@@ -126,7 +126,7 @@ privacy:
 models:
   automatic_discovery: false
   automatic_download: false
-  automatic_promotion: false
+  automatic_promotion: true      # benchmark-approved models go through a measured canary (lif/controller/autopromote.py)
   rollback_versions: 2
   store_path: /models
   discovery:
@@ -144,6 +144,11 @@ models:
     min_quality_no_incumbent: 0.5   # absolute floor when the alias is empty (e.g. the first vision model)
     crash_rate_max: 0
     canary_percent: 10
+    # Live canary gates (autopromote.py), compared with the incumbent over the canary's own window:
+    canary_min_hours: 24            # a full day of traffic patterns before any verdict
+    canary_min_requests: 100        # …and enough answers for the percentiles to mean something
+    canary_max_hours: 72            # no verdict by then (too little traffic) → canary ends as inconclusive
+    canary_max_error_rate: 0.01     # failed upstream calls / requests
 
 batch:
   enabled: true
