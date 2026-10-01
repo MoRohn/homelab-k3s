@@ -39,6 +39,9 @@ metrics() {  # write atomically so node-exporter never reads a half-written file
     echo "# HELP homelab_offsite_bytes Size of the current off-site copy."
     echo "# TYPE homelab_offsite_bytes gauge"
     echo "homelab_offsite_bytes $(cat "$STATE/bytes" 2>/dev/null || echo 0)"
+    echo "# HELP homelab_offsite_last_run_failed 1 if the most recent sync attempt failed."
+    echo "# TYPE homelab_offsite_last_run_failed gauge"
+    echo "homelab_offsite_last_run_failed ${2:-0}"
   } > "$tmp"; chmod 644 "$tmp"; mv "$tmp" "$METRICS_DIR/offsite.prom"
 }
 
@@ -57,11 +60,28 @@ fi
 export RCLONE_CONFIG_SRC_TYPE=s3 RCLONE_CONFIG_SRC_PROVIDER=Minio \
        RCLONE_CONFIG_SRC_ENDPOINT=http://127.0.0.1:9000 \
        RCLONE_CONFIG_SRC_ACCESS_KEY_ID="$OFFSITE_MINIO_USER" \
-       RCLONE_CONFIG_SRC_SECRET_ACCESS_KEY="$OFFSITE_MINIO_PASSWORD"
+       RCLONE_CONFIG_SRC_SECRET_ACCESS_KEY="$OFFSITE_MINIO_PASSWORD" \
+       RCLONE_CONFIG_SRC_NO_CHECK_BUCKET=true
 export RCLONE_CONFIG_DST_TYPE=sftp RCLONE_CONFIG_DST_HOST="$OFFSITE_HOST" \
        RCLONE_CONFIG_DST_USER="$OFFSITE_USER" RCLONE_CONFIG_DST_KEY_FILE="$OFFSITE_KEY" \
        RCLONE_CONFIG_DST_KNOWN_HOSTS_FILE="$HOME/.ssh/known_hosts" \
+       RCLONE_CONFIG_DST_HOST_KEY_ALGORITHMS=ssh-ed25519 \
        RCLONE_CONFIG_DST_SHELL_TYPE=unix RCLONE_CONFIG_DST_MD5SUM_COMMAND=none RCLONE_CONFIG_DST_SHA1SUM_COMMAND=none
+
+trap 'metrics 1 1; echo "Off-site sync FAILED" >&2' ERR
+
+count() {  # a missing path (first run) counts as 0 files, not as a failure
+  { "$RCLONE" size "$1" --json 2>/dev/null || true; } | python3 -c 'import sys,json
+try: print(json.load(sys.stdin).get("count",0))
+except Exception: print(0)'; }
+# Shrink guard: if the source suddenly holds far fewer files than the off-site copy (bucket
+# wiped, wrong credentials, MinIO restored empty), stop instead of mirroring the loss.
+src_n=$(count src:longhorn-backups); dst_n=$(count "dst:$OFFSITE_PATH/current")
+if (( dst_n > 20 && src_n * 2 < dst_n )) && [[ ${ALLOW_SHRINK:-0} != 1 ]]; then
+  echo "REFUSING to sync: source has $src_n files, off-site copy has $dst_n. If this is" >&2
+  echo "intentional, rerun with ALLOW_SHRINK=1." >&2
+  metrics 1 1; exit 1
+fi
 
 stamp=$(date +%Y-%m-%dT%H%M)
 echo "Syncing longhorn-backups -> $OFFSITE_USER@$OFFSITE_HOST:$OFFSITE_PATH/current"
@@ -73,8 +93,9 @@ echo "Syncing longhorn-backups -> $OFFSITE_USER@$OFFSITE_HOST:$OFFSITE_PATH/curr
 # Prune old versions (only ever touches versions/, never current/)
 "$RCLONE" delete "dst:$OFFSITE_PATH/versions" --min-age "${KEEP_DAYS}d" --rmdirs 2>/dev/null || true
 
-"$RCLONE" size "dst:$OFFSITE_PATH/current" --json 2>/dev/null \
-  | python3 -c 'import sys,json; print(json.load(sys.stdin).get("bytes",0))' > "$STATE/bytes" || true
+{ "$RCLONE" size "dst:$OFFSITE_PATH/current" --json 2>/dev/null || true; } | python3 -c 'import sys,json
+try: print(json.load(sys.stdin).get("bytes",0))
+except Exception: print(0)' > "$STATE/bytes"
 date +%s > "$STATE/last_success"
 metrics 1
 echo "Off-site sync complete."
