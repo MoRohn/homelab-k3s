@@ -15,12 +15,13 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: {name: internal-services, namespace: ai-system}
 spec:
+  # console → batch: per-job pause/resume/cancel (batch has no app-level auth; the console enforces its own)
   podSelector:
     matchExpressions: [{key: app, operator: In, values: [decision-fabric, batch]}]
   policyTypes: [Ingress]
   ingress:
     - from:
-        - podSelector: {matchExpressions: [{key: app, operator: In, values: [gateway, controller, batch]}]}
+        - podSelector: {matchExpressions: [{key: app, operator: In, values: [gateway, controller, batch, console]}]}
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
 ---
 # gateway + controller: reachable in-cluster and from Traefik (LAN ingress, auth enforced by the apps)
@@ -47,3 +48,20 @@ spec:
   policyTypes: [Ingress]
   ingress:
     - from: [{ipBlock: {cidr: 10.42.0.1/32}}]   # node-local pushes/pulls via hostPort 127.0.0.1:5000
+---
+# console: only Traefik (LAN ingress), Prometheus (scrapes /metrics) and the host (kubelet probes).
+# The console believes X-Forwarded-For/-Proto from pod-network peers (console.trusted_proxies), so no
+# other pod may connect: one that could would pick its own client address for the rate limits.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: console-ingress, namespace: ai-system}
+spec:
+  podSelector: {matchLabels: {app: console}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: traefik}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: prometheus}}
+        - ipBlock: {cidr: 10.42.0.1/32}       # host (cni0): kubelet probes

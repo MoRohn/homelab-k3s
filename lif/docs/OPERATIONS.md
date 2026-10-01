@@ -5,6 +5,7 @@
 | What | How |
 |---|---|
 | Control Center | `https://lif.tiny-dgx.lan` (accept the self-signed cert). Add `192.168.68.72 lif.tiny-dgx.lan ai.tiny-dgx.lan` to `/etc/hosts` on your client. Paste `secrets/lif-admin.key` when prompted (stored in browser localStorage; "Sign out" clears it) |
+| Labzilla Console *(not yet deployed)* | `https://labzilla.local` (mDNS; or `https://labzilla.tiny-dgx.lan` with LAN DNS / `/etc/hosts`). Own sign-in: the first admin is created with `secrets/lif-console-setup.code`, then phones pair by QR code. See [CONSOLE.md → Deploy & access](CONSOLE.md#deploy--access) |
 | Gateway | `https://ai.tiny-dgx.lan/v1` with a gateway key |
 | CLI | `local-ai` (`pip install -e .` in `.venv`, or `python -m lif.cli.main`) |
 

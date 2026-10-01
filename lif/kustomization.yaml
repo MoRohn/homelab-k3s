@@ -11,6 +11,7 @@ resources:
   - deploy/k8s/base/13-ingress.yaml
   - deploy/k8s/base/14-monitoring.yaml
   - deploy/k8s/base/15-backup.yaml
+  - deploy/k8s/base/16-console.yaml
   - deploy/k8s/serving/tier0.yaml
   - deploy/k8s/serving/tier0-small.yaml
   - deploy/k8s/serving/embedding.yaml

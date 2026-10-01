@@ -158,3 +158,14 @@ gateway:
   request_timeout_sec: 300
   max_body_bytes: 4194304
   rate_limit_rpm: 600
+
+# ── Labzilla Console (docs/CONSOLE.md) ────────────────────────────────────────
+console:
+  public_url: https://labzilla.local          # pairing QR codes use this: phones resolve .local via mDNS
+  alt_urls: [https://labzilla.tiny-dgx.lan]   # needs LAN DNS or /etc/hosts
+  mdns: published                 # homelab/host/systemd/labzilla-mdns.service (user unit, no sudo)
+  session_ttl_days: 30            # signed-in browser
+  device_session_ttl_days: 90     # paired phone/tablet (revocable under Connect → Devices)
+  pairing_ttl_sec: 120            # single-use QR token lifetime
+  poll_sec: 5                     # one upstream poll per cycle, fanned out to every viewer over SSE
+  default_mode: auto              # Ask mode for new threads (auto|fast|balanced|deep|code|vision)

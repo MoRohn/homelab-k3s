@@ -6,3 +6,14 @@ docs
 deploy
 benchmarks
 .pytest_cache
+# Console: the ui stage installs its own node_modules and builds dist/; e2e fixtures never ship.
+apps/console/node_modules
+apps/console/dist
+apps/console/e2e
+apps/console/test-results
+apps/console/playwright-report
+apps/console/*.tsbuildinfo
+# Derived knowledge index: rebuilt at runtime in /tmp, and in a dev checkout it may hold the
+# private lif-operations repo.
+knowledge/.knowledge
+**/.knowledge
