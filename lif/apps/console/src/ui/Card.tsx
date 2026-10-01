@@ -1,3 +1,4 @@
+import { useId } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { cx, type Tone } from './tone';
 
@@ -21,12 +22,19 @@ export interface CardProps {
 export function Card({ title, subtitle, actions, children, padded = true, tone = 'neutral', as = 'section', level = 2, id, class: cls }: CardProps) {
   const Tag = as;
   const H = level === 3 ? 'h3' : 'h2';
+  // A titled section is named by its heading, so it is a navigable region for assistive technology.
+  const hid = useId();
   return (
-    <Tag id={id} class={cx('lz-card', tone !== 'neutral' && `lz-card-${tone}`, cls)}>
+    <Tag id={id} class={cx('lz-card', tone !== 'neutral' && `lz-card-${tone}`, cls)}
+      aria-labelledby={title && Tag !== 'div' ? hid : undefined}>
       {(title || actions) && (
         <header class="lz-card-header">
           <div class="grow">
-            {title && <H class="lz-card-title">{title}</H>}
+            {title && (
+              <H id={hid} class="lz-card-title">
+                {title}
+              </H>
+            )}
             {subtitle && <p class="lz-card-subtitle">{subtitle}</p>}
           </div>
           {actions && <div class="lz-card-actions">{actions}</div>}

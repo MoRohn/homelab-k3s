@@ -1,6 +1,7 @@
 // Home's attention strip: rendered only when something may need the user (§39) — pending approvals
 // answered inline (§40), the fallback explanation with a safe recovery (§81, §82), and the other
 // actionable notifications. Nothing here for normal autonomy, so a healthy Home stays calm.
+import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { get, post } from '@/api/client';
 import type { Approval, HumanError, Notification, SystemStatus } from '@/api/contracts.gen';
@@ -87,10 +88,19 @@ function Fallback({ note }: { note: Notification }) {
   return <HumanErrorCard error={error} onAction={(a) => void onAction(a)} />;
 }
 
-export function Attention({ status }: { status: SystemStatus }) {
+/** True when the strip has something to show (a fallback, a pending approval, or an actionable notice). */
+export function needsAttention(status: SystemStatus): boolean {
+  return (
+    status.approvals_pending > 0 ||
+    status.notifications.some((n) => n.kind === 'fallback' || (!OWN_TREATMENT.has(n.kind) && n.severity !== 'success'))
+  );
+}
+
+/** `whenCalm`: what to show when nothing needs the user (the cockpit says so; elsewhere nothing renders). */
+export function Attention({ status, whenCalm = null }: { status: SystemStatus; whenCalm?: ComponentChildren }) {
   const fallback = status.notifications.find((n) => n.kind === 'fallback');
   const others = status.notifications.filter((n) => !OWN_TREATMENT.has(n.kind) && n.severity !== 'success');
-  if (!status.approvals_pending && !fallback && !others.length) return null;
+  if (!needsAttention(status)) return <>{whenCalm}</>;
   return (
     <section class="lz-home-attention stack-sm" aria-labelledby="home-attention-title">
       <h2 id="home-attention-title" class="section-title">

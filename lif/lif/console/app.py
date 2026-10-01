@@ -31,13 +31,13 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from lif.common import log
 from lif.console import auth, db, errors, events, poller, settings, upstream
-from lif.console.routes import agents, ai, jobs, knowledge, models, system
+from lif.console.routes import agents, ai, home, jobs, knowledge, models, system
 from lif.console.routes import auth as auth_routes
 
 LOG = log.get("lif.console")
 
 ROUTERS = (auth_routes.router, events.router, system.router, models.router, ai.router, jobs.router,
-           agents.router, knowledge.router)
+           agents.router, knowledge.router, home.router)
 
 # Python's table doesn't know the PWA manifest; served as text/plain, some browsers ignore it (no install).
 mimetypes.add_type("application/manifest+json", ".webmanifest")

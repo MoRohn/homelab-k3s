@@ -1098,3 +1098,72 @@ export interface EventPayloads {
   pairing: Pairing;
   model: ModelEvent;
 }
+
+/**
+ * A recent time series for a sparkline: `values[i]` is at `start + i*step`. null = no data (drawn as a
+ * gap, never as 0): no traffic, or the source was silent.
+ */
+export interface Trend {
+  key: string;
+  label: string;
+  /** "tok/s", "s", "req/min", "GB", "%" */
+  unit: string;
+  start: number;
+  step: number;
+  values: (number | null)[];
+  /** the last non-null value */
+  latest?: number | null;
+  /** a line worth drawing (e.g. the 8 GB memory safety margin) */
+  threshold?: number | null;
+  threshold_label?: string | null;
+  /** drill-down */
+  href: string;
+}
+
+/** This console's Ask answers in the last `window_hours` (not all gateway traffic: that is in Trends). */
+export interface AskStats {
+  window_hours: number;
+  answers: number;
+  failed: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  /** request in → answer complete */
+  median_latency_ms?: number | null;
+  p90_latency_ms?: number | null;
+}
+
+/** Share of availability probes in which useful local AI answered (controller). */
+export interface Availability {
+  last_24h?: number | null;
+  last_7d?: number | null;
+  target?: number | null;
+}
+
+/** Local AI value in the last 24 h (controller /v1/savings). Counts are measured; every $ is an ESTIMATE. */
+export interface ValueStats {
+  requests?: number | null;
+  local_tokens?: number | null;
+  /** share of tasks solved without an LLM (code or Jev) */
+  llm_avoidance?: number | null;
+  /** ESTIMATE: what the same tokens would cost on a hosted API */
+  api_equivalent_usd?: number | null;
+  /** ESTIMATE: minus Jev spend and local power */
+  net_savings_usd?: number | null;
+  basis: string;
+}
+
+/** GET /api/home: the cockpit beyond the status block. Each part says when it is unavailable. */
+export interface HomeOverview {
+  generated_at: number;
+  ask: AskStats;
+  /** most recent first */
+  threads: ThreadSummary[];
+  availability: Availability;
+  value?: ValueStats | null;
+  /** why `value` is missing */
+  value_note?: string | null;
+  trends: Trend[];
+  trends_hours: number;
+  /** why trends are missing */
+  trends_note?: string | null;
+}

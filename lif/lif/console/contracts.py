@@ -1048,3 +1048,61 @@ class EventPayloads(Contract):
     thread: ThreadEvent = ThreadEvent()
     pairing: Pairing = Pairing()
     model: ModelEvent = ModelEvent()
+
+
+# ── Home cockpit (§6): one call for everything beyond the status block ──────────────────────────────
+
+class Trend(Contract):
+    """A recent time series for a sparkline: `values[i]` is at `start + i*step`. null = no data (drawn as a
+    gap, never as 0): no traffic, or the source was silent."""
+    key: str = ""
+    label: str = ""
+    unit: str = ""                           # "tok/s", "s", "req/min", "GB", "%"
+    start: float = 0.0
+    step: float = 0.0
+    values: list[float | None] = []
+    latest: float | None = None              # the last non-null value
+    threshold: float | None = None           # a line worth drawing (e.g. the 8 GB memory safety margin)
+    threshold_label: str | None = None
+    href: str = ""                           # drill-down
+
+
+class AskStats(Contract):
+    """This console's Ask answers in the last `window_hours` (not all gateway traffic: that is in Trends)."""
+    window_hours: int = 24
+    answers: int = 0
+    failed: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    median_latency_ms: float | None = None   # request in → answer complete
+    p90_latency_ms: float | None = None
+
+
+class Availability(Contract):
+    """Share of availability probes in which useful local AI answered (controller)."""
+    last_24h: float | None = None
+    last_7d: float | None = None
+    target: float | None = None
+
+
+class ValueStats(Contract):
+    """Local AI value in the last 24 h (controller /v1/savings). Counts are measured; every $ is an ESTIMATE."""
+    requests: int | None = None
+    local_tokens: int | None = None
+    llm_avoidance: float | None = None       # share of tasks solved without an LLM (code or Jev)
+    api_equivalent_usd: float | None = None  # ESTIMATE: what the same tokens would cost on a hosted API
+    net_savings_usd: float | None = None     # ESTIMATE: minus Jev spend and local power
+    basis: str = ""
+
+
+class HomeOverview(Contract):
+    """GET /api/home: the cockpit beyond the status block. Each part says when it is unavailable."""
+    generated_at: float = 0.0
+    ask: AskStats = AskStats()
+    threads: list[ThreadSummary] = []        # most recent first
+    availability: Availability = Availability()
+    value: ValueStats | None = None
+    value_note: str | None = None            # why `value` is missing
+    trends: list[Trend] = []
+    trends_hours: int = 6
+    trends_note: str | None = None           # why trends are missing
