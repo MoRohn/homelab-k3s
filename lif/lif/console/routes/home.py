@@ -105,11 +105,19 @@ def ask_stats(user_id: str, now: float) -> AskStats:
 
 
 def availability() -> Availability:
+    """The controller reports availability per probed capability ({capability: {availability, samples, …}});
+    the 95 % target is about `useful_local_ai` (the fast or default model answered)."""
     ov = poller.snapshot().raw.get("overview")
     ov = ov if isinstance(ov, dict) else {}
-    num = lambda v: float(v) if isinstance(v, (int, float)) else None  # noqa: E731
-    return Availability(last_24h=num(ov.get("availability_24h")), last_7d=num(ov.get("availability_7d")),
-                        target=num(config.get("availability_target")))
+
+    def useful(window: Any) -> float | None:
+        cap = window.get("useful_local_ai") if isinstance(window, dict) else None
+        v = cap.get("availability") if isinstance(cap, dict) else None
+        return float(v) if isinstance(v, (int, float)) else None
+
+    t = config.get("availability_target")
+    return Availability(last_24h=useful(ov.get("availability_24h")), last_7d=useful(ov.get("availability_7d")),
+                        target=float(t) if isinstance(t, (int, float)) else None)
 
 
 async def _value() -> tuple[ValueStats | None, str | None]:

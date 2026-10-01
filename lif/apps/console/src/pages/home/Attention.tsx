@@ -14,9 +14,15 @@ import { ApprovalCard, HumanErrorCard, Icon, List, ListItem, SEVERITY } from '@/
 const OWN_TREATMENT = new Set<Notification['kind']>(['fallback', 'approval']);
 const SHOWN_APPROVALS = 2;
 
+function useOpenApprovals(pending: number) {
+  return useResource<Approval[]>(pending > 0 ? 'approvals' : null, () => get<Approval[]>('/api/approvals'), {
+    refreshOn: ['approval'],
+  });
+}
+
 function Approvals({ pending }: { pending: number }) {
   const me = useMe();
-  const approvals = useResource<Approval[]>('approvals', () => get<Approval[]>('/api/approvals'), { refreshOn: ['approval'] });
+  const approvals = useOpenApprovals(pending);
   const [busy, setBusy] = useState<string | null>(null);
   const open = (approvals.data ?? []).filter((a) => a.status === 'pending');
   if (!open.length) {
@@ -100,7 +106,11 @@ export function needsAttention(status: SystemStatus): boolean {
 export function Attention({ status, whenCalm = null }: { status: SystemStatus; whenCalm?: ComponentChildren }) {
   const fallback = status.notifications.find((n) => n.kind === 'fallback');
   const others = status.notifications.filter((n) => !OWN_TREATMENT.has(n.kind) && n.severity !== 'success');
-  if (!needsAttention(status)) return <>{whenCalm}</>;
+  // The status count can lag an answered approval by one poll: once the list says nothing is open, and
+  // nothing else needs the user, the strip is calm (no heading over an empty section).
+  const approvals = useOpenApprovals(status.approvals_pending);
+  const openApprovals = approvals.data ? approvals.data.some((a) => a.status === 'pending') : status.approvals_pending > 0;
+  if (!fallback && !others.length && !(openApprovals || approvals.error)) return <>{whenCalm}</>;
   return (
     <section class="lz-home-attention stack-sm" aria-labelledby="home-attention-title">
       <h2 id="home-attention-title" class="section-title">
