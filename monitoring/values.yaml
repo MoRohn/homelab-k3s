@@ -101,9 +101,10 @@ kube-state-metrics:
     limits: {memory: 128Mi}
 
 prometheus-node-exporter:
+  # 64Mi was OOM-killed ~40 times a day here (many interfaces, NVMe, hwmon); it peaks ~60Mi
   resources:
-    requests: {cpu: 10m, memory: 24Mi}
-    limits: {memory: 64Mi}
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 128Mi}
 
 grafana:
   # Credentials come from a Secret created by scripts/install-monitoring.sh (not in git)
