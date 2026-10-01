@@ -64,3 +64,22 @@
 .lz-canary-pick { max-width: 220px; }
 
 .lz-compare-link { color: var(--brand-text); font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }
+
+/* Discovery: which kinds of model to look for (checkbox pills; none ticked = every kind) */
+.lz-kinds { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.lz-kinds legend { padding: 0; margin-bottom: var(--space-2); }
+.lz-kinds-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.lz-kind { position: relative; display: inline-flex; }
+.lz-kind input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.lz-kind span {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-pill); color: var(--text-muted);
+  font-size: var(--fs-sm); cursor: pointer; transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+.lz-kind span:hover { border-color: var(--border-strong); color: var(--text); }
+.lz-kind input:checked + span { border-color: var(--brand); background: var(--brand-tint); color: var(--text); }
+.lz-kind input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+.lz-kinds:disabled .lz-kind span { opacity: 0.55; cursor: not-allowed; }
+@media (pointer: coarse) { .lz-kind span { min-height: var(--touch); } }
+.lz-vision-gap { gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); margin-top: calc(-1 * var(--space-3)); border: 1px dashed var(--border-strong); border-radius: var(--radius); }
+.lz-vision-gap > .lz-icon { color: var(--text-faint); }

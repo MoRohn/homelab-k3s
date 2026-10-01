@@ -3,7 +3,7 @@
 // Enter, "/" focuses the prompt, Escape closes dialogs and focus returns. And §59: reduced motion stops animation.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from 'playwright/test';
-import { setScenario, targets, waitReady, type Target } from './helpers';
+import { apiPost, setScenario, targets, waitReady, type Target } from './helpers';
 
 let pages: Target[] = [];
 test.beforeAll(async ({ request, baseURL }) => {
@@ -38,6 +38,70 @@ for (const [width, height] of [
     });
   }
 }
+
+test.describe('Ask history', () => {
+  /** A few conversations so the panel has groups, rows and the search box. */
+  async function seed(page: Page): Promise<string> {
+    await page.goto('/ask');
+    await waitReady(page);
+    const tag = `k${Date.now().toString(36)}`;          // the database outlives one test: keep rows distinguishable
+    const titles = ['GPU memory notes', `Parser review ${tag}`, 'Weekend plan', 'Lighthouse story'];
+    for (const title of titles) expect((await apiPost(page, '/api/ai/threads', { title })).ok()).toBe(true);
+    await page.reload();
+    await waitReady(page);
+    return tag;
+  }
+
+  for (const scheme of ['dark', 'light'] as const) {
+    test(`panel and sheet pass axe (${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await seed(page);
+      const panel = page.getByRole('complementary', { name: 'History' });
+      await expect(panel.locator('a.ask-hrow-link').first()).toBeVisible();
+      await panel.locator('a.ask-hrow-link').first().hover();
+      expect.soft(await seriousViolations(page), `ask history panel ${scheme}`).toEqual([]);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole('button', { name: 'History' }).click();
+      const sheet = page.getByRole('dialog', { name: 'History' });
+      await expect(sheet.locator('a.ask-hrow-link').first()).toBeVisible();
+      expect.soft(await seriousViolations(page), `ask history sheet ${scheme}`).toEqual([]);
+    });
+  }
+
+  test('keyboard: arrows move between conversations, search filters, the panel collapses and comes back', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const tag = await seed(page);
+    // Ask puts the cursor in the prompt once it has loaded; start from there, as a person would.
+    await expect(page.locator('[data-slash-focus]')).toBeFocused();
+    const panel = page.getByRole('complementary', { name: 'History' });
+    const rows = panel.locator('a.ask-hrow-link');
+    await rows.first().focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(rows.last()).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(rows.first()).toBeFocused();
+    const search = panel.getByRole('searchbox', { name: 'Search conversations' });
+    await search.fill(tag);
+    await expect(rows).toHaveCount(1);
+    await search.press('ArrowDown');
+    await expect(rows.first()).toBeFocused();
+    await expect(rows.first()).toContainText('Parser review');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/ask\/th_/);
+    await expect(rows.first()).toHaveAttribute('aria-current', 'page');
+    await search.fill('');
+    // Collapse: the header offers History again, with its state.
+    await panel.getByRole('button', { name: 'Hide history' }).click();
+    await expect(panel).toHaveCount(0);
+    const show = page.getByRole('button', { name: 'History' });
+    await expect(show).toHaveAttribute('aria-expanded', 'false');
+    await show.click();
+    await expect(page.getByRole('complementary', { name: 'History' })).toBeVisible();
+  });
+});
 
 test.describe('keyboard (desktop)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });

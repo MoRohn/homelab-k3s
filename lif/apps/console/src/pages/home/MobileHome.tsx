@@ -207,7 +207,7 @@ export default function MobileHome() {
           </div>
           <List aria-label="Recent prompts">
             {threads.map((t) => (
-              <ListItem key={t.id} title={<span class="truncate">{t.title || 'Untitled'}</span>} meta={fmt.ago(t.updated_at)} href={`/ask/${encodeURIComponent(t.id)}`} />
+              <ListItem key={t.id} title={<span class="truncate">{t.title || 'Untitled'}</span>} meta={t.active ? <span class="ask-hrow-live"><span class="ask-live-dot" aria-hidden="true" />Answering…</span> : fmt.ago(t.updated_at)} href={`/ask/${encodeURIComponent(t.id)}`} />
             ))}
           </List>
         </section>

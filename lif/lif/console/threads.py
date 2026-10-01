@@ -9,7 +9,8 @@ by user id shows the same history on every device of that owner.
 
 Attachment text is stored inside `attachments_json` next to each Attachment's metadata (key `text`);
 contracts.Attachment ignores unknown keys, so the text never reaches the browser, but it is still
-there to rebuild the conversation context for the next turn.
+there to rebuild the conversation context for the next turn. Images are never stored: a message keeps
+an image's name, size and dimensions only, and a replayed turn says an image was there ("not kept").
 
 Owner: AI.
 """
@@ -84,14 +85,43 @@ def get_thread(user_id: str, thread_id: str) -> Thread | None:
                   updated_at=r["updated_at"], origin_device=r["origin_device"], messages=msgs)
 
 
-def list_threads(user_id: str, limit: int = 100) -> list[ThreadSummary]:
+_SUMMARY_SQL = ("SELECT t.*, (SELECT content FROM messages m WHERE m.thread_id=t.id AND m.role='user' "
+                "ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_prompt, "
+                "(SELECT attachments_json FROM messages m WHERE m.thread_id=t.id AND m.role='user' "
+                "ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_files FROM threads t ")
+
+
+def _summary(r: Any, now: float, active: set[str]) -> ThreadSummary:
+    preview = " ".join((r["last_prompt"] or "").split())[:PREVIEW_MAX]
+    if not preview and r["last_files"]:        # an image-only prompt: name what was sent
+        names = [str(a.get("name") or "") for a in json.loads(r["last_files"] or "[]") if isinstance(a, dict)]
+        preview = ", ".join(n for n in names if n)[:PREVIEW_MAX]
+    return ThreadSummary(id=r["id"], title=r["title"], updated_at=r["updated_at"], mode=r["mode"], preview=preview,
+                         group=_group(r["updated_at"], now), origin_device=r["origin_device"],  # type: ignore[arg-type]
+                         active=r["id"] in active)
+
+
+def list_threads(user_id: str, limit: int = 100, active: set[str] | None = None) -> list[ThreadSummary]:
+    """Newest first. `active` = thread ids with an answer being produced right now (routes/ai.py _RUNS):
+    the database alone can't tell, a row left 'streaming' by a restart is not live."""
     now = time.time()
-    rows = db.q("SELECT t.*, (SELECT content FROM messages m WHERE m.thread_id=t.id AND m.role='user' "
-                "ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_prompt "
-                "FROM threads t WHERE t.user_id=? ORDER BY t.updated_at DESC LIMIT ?", (user_id, limit))
-    return [ThreadSummary(id=r["id"], title=r["title"], updated_at=r["updated_at"], mode=r["mode"],
-                          preview=" ".join((r["last_prompt"] or "").split())[:PREVIEW_MAX],
-                          group=_group(r["updated_at"], now)) for r in rows]
+    rows = db.q(_SUMMARY_SQL + "WHERE t.user_id=? ORDER BY t.updated_at DESC LIMIT ?", (user_id, limit))
+    return [_summary(r, now, active or set()) for r in rows]
+
+
+def thread_summary(user_id: str, thread_id: str, active: set[str] | None = None) -> ThreadSummary | None:
+    r = db.one(_SUMMARY_SQL + "WHERE t.id=? AND t.user_id=?", (thread_id, user_id))
+    return _summary(r, time.time(), active or set()) if r else None
+
+
+RENAME_MAX = 120
+
+
+def rename_thread(user_id: str, thread_id: str, title: str) -> bool:
+    """A title the user chose. updated_at stays: renaming must not move the conversation in the list."""
+    with db.tx() as c:
+        return c.execute("UPDATE threads SET title=? WHERE id=? AND user_id=?",
+                         (title, thread_id, user_id)).rowcount > 0
 
 
 def delete_thread(user_id: str, thread_id: str) -> bool:
@@ -231,6 +261,9 @@ def context(thread_id: str, *, before: float, max_messages: int = 12, max_chars:
     for r in rows:
         atts = json.loads(r["attachments_json"] or "[]") if r["role"] == "user" else []
         text = compose(r["content"], atts) if r["role"] == "user" else r["content"]
+        images = [str(a.get("name") or "image") for a in atts if a.get("kind") == "image" and a.get("included")]
+        if images:          # images are never stored: the model only learns that one was there
+            text = (text + "\n\n" if text else "") + f"[Earlier image, not kept: {', '.join(images)}]"
         if used + len(text) > max_chars or any(a.get("text_omitted") for a in atts):     # too big to replay
             break
         used += len(text)

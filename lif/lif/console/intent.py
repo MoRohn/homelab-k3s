@@ -153,6 +153,7 @@ CATEGORY_WORDS: tuple[tuple[str, str], ...] = (
     ("reranking", r"re-?rank(?:ing|er)?"),
     ("fast", r"fast|small|quick|tiny"),
     ("general", r"general|chat|default|balanced"),
+    ("vision", r"vision|image|images|multimodal|multi-modal|vlm"),
 )
 
 ROLE_WORDS: tuple[tuple[str, str], ...] = (
@@ -284,7 +285,7 @@ def _discover(text: str, snap: Snapshot, user: User) -> CommandResolution:
                "switched — candidates wait for your review.",
         confirm="none", perm="models.discover", path="/api/models/discovery", body={"categories": cats or None}))
     return CommandResolution(kind="model_request", title=f"Check for better {what}", proposed_action=action,
-                             navigate="/models/discovery",
+                             navigate="/models/discovery" + (f"?category={cats[0]}" if len(cats) == 1 else ""),
                              answer=_with_note(f"Model Scout will look for better {what}.", note))
 
 

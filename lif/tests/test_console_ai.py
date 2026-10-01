@@ -104,6 +104,7 @@ def env(tmp_path, monkeypatch):
 @pytest.fixture()
 def client(env):
     app = FastAPI()
+    app.state.limiters = auth.Limiters()          # fresh buckets: Ask allows 20 messages a minute
     errors.install(app)
     for r in (ai.router, jobs.router, agents.router, knowledge.router):
         app.include_router(r)
@@ -339,7 +340,7 @@ def test_ask_stream_happy_path(client, env):
     assert th["messages"][1]["receipt"]["alias"] == "local/fast"
     listing = client.get("/api/ai/threads").json()
     assert listing[0]["id"] == t["id"] and listing[0]["group"] == "today"
-    thread_events = [d for typ, d, aud in env["hub"].events if typ == "thread"]
+    thread_events = [d for typ, d, aud in env["hub"].events if typ == "thread" and d.kind == "message"]
     assert thread_events[-1].status == "done" and thread_events[-1].content == "Hello world"
     assert all(aud == "user:u_owner" for typ, _, aud in env["hub"].events if typ == "thread")
 
@@ -364,7 +365,8 @@ def test_ask_allow_jev_route_and_context(client, env):
     (httpx.Response(429, json={"error": {"message": "queue timeout waiting for a model slot",
                                          "type": "capacity"}}), "Local AI is busy"),
     (httpx.Response(503, json={"error": {"message": "no local model is deployed for local/vision (capacity; see "
-                                                    "/v1/capabilities)", "type": "capacity"}}), "No local vision model yet"),
+                                                    "/v1/capabilities)", "type": "capacity"}}),
+     "No local vision model is installed yet"),
     (httpx.Response(503, json={"error": {"message": "all models for local/default are unavailable: x: down",
                                          "type": "capacity"}}), "Balanced models are offline"),
     # upstream 4xx comes back as HTTP 200 with raw JSON error lines
@@ -432,7 +434,7 @@ def test_ask_attachments(client, env):
     assert "shot.png" not in prompt and "spec.pdf" not in prompt
     atts = client.get(f"/api/ai/threads/{t['id']}").json()["messages"][0]["attachments"]
     assert [a["included"] for a in atts] == [True, False, False]
-    assert "No local vision model yet" in atts[1]["note"] and "PDF" in atts[2]["note"]
+    assert "couldn't read the image" in atts[1]["note"] and "PDF" in atts[2]["note"]
     assert all("text" not in a for a in atts)                        # file text stays server-side
     only_image = client.post(f"/api/ai/threads/{t['id']}/messages",
                              json={"content": "", "attachments": [{"name": "a.png", "kind": "image", "size": 1}]})
@@ -887,3 +889,223 @@ def test_review_question_is_readable_and_never_leaks_private_state():
     assert "the model id" in priv.action
     nodc = review_approval({"id": 3, "status": "pending", "package": pkg})      # missing class → private
     assert "acme" not in nodc.action
+
+
+# ── live history: thread events for every session of the owner (§67–§70) ──────────────────────
+
+def _thread_events(env, kind: str | None = None) -> list[Any]:
+    return [d for typ, d, _ in env["hub"].events if typ == "thread" and (kind is None or d.kind == kind)]
+
+
+def test_thread_events_follow_the_owner_everywhere(client, env):
+    gateway(happy_stream(), [])
+    env["user"] = DEVICE                                    # started on the phone
+    t = client.post("/api/ai/threads", json={"mode": "auto"}).json()
+    created = _thread_events(env, "upsert")[-1]
+    assert created.thread_id == t["id"] and created.summary.origin_device == "Phone"
+    assert created.summary.active is False and created.summary.title == "New conversation"
+
+    client.post(f"/api/ai/threads/{t['id']}/messages", json={"content": "How warm is the GPU?"})
+    ups = [e for e in _thread_events(env, "upsert") if e.thread_id == t["id"]]
+    # the new prompt (title, preview, "Answering…"), then the finished row
+    assert [e.summary.active for e in ups[-2:]] == [True, False]
+    assert ups[-2].summary.title == "How warm is the GPU?" and ups[-2].summary.preview == "How warm is the GPU?"
+    msgs = _thread_events(env, "message")
+    assert msgs[0].status == "streaming" and msgs[-1].status == "done" and msgs[-1].content == "Hello world"
+    # every thread event goes to this owner's sessions only (desktop and paired phones share the user id)
+    assert {aud for typ, _, aud in env["hub"].events if typ == "thread"} == {"user:u_owner"}
+
+    env["user"] = ADMIN                                     # the desktop sees where it came from
+    row = client.get("/api/ai/threads").json()[0]
+    assert row["origin_device"] == "Phone" and row["active"] is False
+
+
+def test_thread_list_active_comes_from_live_runs_not_the_database(client, env):
+    t = threads.create_thread(ADMIN.id, "auto", "local_only")
+    threads.add_message(t.id, "user", "hi")
+    msg = threads.add_message(t.id, "assistant", "", status="streaming")      # left over by a restart
+    assert client.get("/api/ai/threads").json()[0]["active"] is False
+    ai._RUNS[msg.id] = ai._Run(thread_id=t.id, message_id=msg.id, user_id=ADMIN.id)
+    try:
+        assert client.get("/api/ai/threads").json()[0]["active"] is True
+    finally:
+        ai._RUNS.pop(msg.id, None)
+
+
+def test_rename_and_delete_publish_and_stay_scoped(client, env):
+    t = client.post("/api/ai/threads", json={"title": "First"}).json()
+    before = client.get("/api/ai/threads").json()[0]["updated_at"]
+    r = client.patch(f"/api/ai/threads/{t['id']}", json={"title": "  GPU   notes  "})
+    assert r.status_code == 200 and r.json()["title"] == "GPU notes"
+    assert client.get("/api/ai/threads").json()[0]["updated_at"] == before          # renaming doesn't reorder
+    assert _thread_events(env, "upsert")[-1].summary.title == "GPU notes"
+    assert client.patch(f"/api/ai/threads/{t['id']}", json={"title": "  "}).status_code == 422
+    assert client.patch(f"/api/ai/threads/{t['id']}", json={"title": "x" * 121}).status_code == 422
+
+    env["user"] = User(id="someone_else", name="x", role="admin", perms=list(auth.ALL_PERMS))
+    n = len(env["hub"].events)
+    assert client.patch(f"/api/ai/threads/{t['id']}", json={"title": "mine now"}).status_code == 404
+    assert client.delete(f"/api/ai/threads/{t['id']}").status_code == 404
+    assert len(env["hub"].events) == n                       # nothing published for someone else's thread
+
+    env["user"] = DEVICE                                     # a paired phone may delete its owner's thread
+    assert client.delete(f"/api/ai/threads/{t['id']}").json()["ok"] is True
+    gone = _thread_events(env, "deleted")[-1]
+    assert gone.thread_id == t["id"] and env["hub"].events[-1][2] == "user:u_owner"
+
+
+def test_quota_pruned_threads_are_announced(client, env, monkeypatch):
+    gateway(happy_stream(), [])
+    old = client.post("/api/ai/threads", json={}).json()
+    cur = client.post("/api/ai/threads", json={}).json()
+    monkeypatch.setattr(threads, "enforce_quota", lambda user_id, keep: [old["id"]])
+    client.post(f"/api/ai/threads/{cur['id']}/messages", json={"content": "hi"})
+    assert old["id"] in [e.thread_id for e in _thread_events(env, "deleted")]
+
+
+def test_thread_events_reach_admin_and_device_sessions_but_not_another_user():
+    """The real hub: the owner's desktop (admin) and phone (device, same user id) both get thread events;
+    another person's session never does."""
+    async def run() -> None:
+        hub = events.Hub()
+        other = User(id="u_guest", name="guest", role="admin", perms=list(auth.ALL_PERMS))
+        subs = {name: hub.subscribe(u, session=name) for name, u in
+                (("desktop", ADMIN), ("phone", DEVICE), ("guest", other))}
+        for g in subs.values():
+            await asyncio.wait_for(g.__anext__(), 1)                 # retry: frame
+        await asyncio.sleep(0)
+        hub.publish("thread", ai.ThreadEvent(kind="deleted", thread_id="th_x"), audience=f"user:{ADMIN.id}")
+        hub.publish("status", {"health": "healthy"})
+        for name in ("desktop", "phone"):
+            frame = await asyncio.wait_for(subs[name].__anext__(), 1)
+            assert frame.startswith("event: thread\n") and '"thread_id":"th_x"' in frame
+        frame = await asyncio.wait_for(subs["guest"].__anext__(), 1)
+        assert frame.startswith("event: status")                     # skipped the thread event
+        hub.close()
+    asyncio.run(run())
+
+
+# ── vision: images in Ask ─────────────────────────────────────────────────────────────────────
+
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 200 + b"\xff\xd9"
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+def data_url(raw: bytes, mime: str = "image/jpeg") -> str:
+    import base64
+    return f"data:{mime};base64,{base64.b64encode(raw).decode()}"
+
+
+def image(name: str = "photo.jpg", raw: bytes = JPEG, mime: str = "image/jpeg", **over: Any) -> dict[str, Any]:
+    return {"name": name, "kind": "image", "size": len(raw), "image": data_url(raw, mime), "width": 1024,
+            "height": 768, **over}
+
+
+def test_ask_images_are_sent_as_content_parts_and_never_stored(client, env):
+    seen: list[httpx.Request] = []
+    gateway(happy_stream(), seen)
+    t = client.post("/api/ai/threads", json={}).json()
+    r = client.post(f"/api/ai/threads/{t['id']}/messages", json={
+        "content": "What is on this board?", "mode": "auto", "privacy": "allow_jev",
+        "attachments": [image(), image("diagram.png", PNG, "image/png")]})
+    assert r.status_code == 200 and "error" not in [e for e, _ in sse(r.text)]
+    req = seen[0]
+    assert req.headers["x-lif-data-class"] == "CONFIDENTIAL"         # images never go to Jev
+    body = json.loads(req.content)
+    assert body["model"] == "local/auto"                             # the gateway routes auto + images to vision
+    parts = body["messages"][-1]["content"]
+    assert parts[0] == {"type": "text", "text": "What is on this board?"}
+    assert parts[1] == {"type": "image_url", "image_url": {"url": data_url(JPEG)}}
+    assert parts[2]["image_url"]["url"].startswith("data:image/png;base64,")
+    # only name, kind, size and dimensions are kept
+    raw = db.one("SELECT attachments_json FROM messages WHERE thread_id=? AND role='user'", (t["id"],))
+    assert "base64" not in raw["attachments_json"] and "/9j/" not in raw["attachments_json"]
+    atts = client.get(f"/api/ai/threads/{t['id']}").json()["messages"][0]["attachments"]
+    assert [(a["name"], a["included"], a["width"], a["height"]) for a in atts] == [
+        ("photo.jpg", True, 1024, 768), ("diagram.png", True, 1024, 768)]
+    assert all("not kept" in a["note"] for a in atts)
+    # the next turn replays the image turn as text
+    gateway(happy_stream(), seen)
+    client.post(f"/api/ai/threads/{t['id']}/messages", json={"content": "And the second one?"})
+    replay = json.loads(seen[-1].content)["messages"]
+    assert replay[0]["content"] == ("What is on this board?\n\n[Earlier image, not kept: photo.jpg, diagram.png]")
+    assert isinstance(replay[-1]["content"], str)
+
+
+def test_ask_image_only_prompt(client, env):
+    seen: list[httpx.Request] = []
+    gateway(happy_stream(), seen)
+    t = client.post("/api/ai/threads", json={}).json()
+    r = client.post(f"/api/ai/threads/{t['id']}/messages", json={"content": "", "mode": "vision",
+                                                                 "attachments": [image("receipt.jpg")]})
+    assert r.status_code == 200
+    body = json.loads(seen[0].content)
+    assert body["model"] == "local/vision"
+    assert body["messages"][-1]["content"] == [{"type": "image_url", "image_url": {"url": data_url(JPEG)}}]
+    row = client.get("/api/ai/threads").json()[0]
+    assert row["title"] == "receipt.jpg" and row["preview"] == "receipt.jpg"
+
+
+@pytest.mark.parametrize("att,status,title", [
+    (image(mime="image/gif"), 422, "That image couldn't be sent"),
+    ({**image(), "image": "data:image/jpeg;base64,!!!notbase64"}, 422, "That image couldn't be sent"),
+    (image(raw=b"GIF89a" + b"\x00" * 20), 422, "That image couldn't be sent"),          # mime says jpeg, bytes don't
+    (image(raw=b"\xff\xd8\xff" + b"\x00" * (ai.MAX_IMAGE_BYTES + 1)), 413, "That image is too large"),
+])
+def test_ask_invalid_images_are_refused_before_anything_is_stored(client, env, att, status, title):
+    seen: list[httpx.Request] = []
+    gateway(happy_stream(), seen)
+    t = client.post("/api/ai/threads", json={}).json()
+    r = client.post(f"/api/ai/threads/{t['id']}/messages", json={"content": "look", "attachments": [att]})
+    assert r.status_code == status and r.json()["error"]["title"] == title
+    assert seen == [] and client.get(f"/api/ai/threads/{t['id']}").json()["messages"] == []
+
+
+def test_ask_image_count_and_gateway_size_limits(client, env, monkeypatch):
+    seen: list[httpx.Request] = []
+    gateway(happy_stream(), seen)
+    t = client.post("/api/ai/threads", json={}).json()
+    r = client.post(f"/api/ai/threads/{t['id']}/messages",
+                    json={"content": "five", "attachments": [image(f"{i}.jpg") for i in range(5)]})
+    assert r.status_code == 422 and r.json()["error"]["title"] == "Up to 4 images per message"
+    monkeypatch.setattr(ai, "GATEWAY_BODY_MAX", 1000)
+    r = client.post(f"/api/ai/threads/{t['id']}/messages", json={"content": "big", "attachments": [image()] * 4})
+    assert r.status_code == 413 and r.json()["error"]["title"] == "Too much to send in one message"
+    assert seen == [] and client.get(f"/api/ai/threads/{t['id']}").json()["messages"] == []
+
+
+def test_ask_image_gateway_refusals_are_human(client, env):
+    t = client.post("/api/ai/threads", json={}).json()
+    gateway(httpx.Response(422, json={"error": {"message": "local/fast does not accept images",
+                                                "type": "not_supported", "code": "images_not_supported",
+                                                "lif": {"use": "local/vision"}}}), [])
+    evs = sse(client.post(f"/api/ai/threads/{t['id']}/messages",
+                          json={"content": "what is this", "mode": "fast", "attachments": [image()]}).text)
+    err = next(d for e, d in evs if e == "error")
+    assert err["title"] == "Fast mode can't read images" and "Vision" in err["next_step"]
+
+    # local/auto with images: the gateway sends them to local/vision, which isn't installed
+    gateway(httpx.Response(503, json={"error": {"message": "no local model is deployed for local/vision; no vision "
+                                                           "model is installed yet", "type": "capacity"}}), [])
+    evs = sse(client.post(f"/api/ai/threads/{t['id']}/messages",
+                          json={"content": "what is this", "mode": "auto", "attachments": [image()]}).text)
+    err = next(d for e, d in evs if e == "error")
+    assert err["title"] == "No local vision model is installed yet"
+    assert {"label": "Find a vision model", "action": "/models/discovery?category=vision"} in err["actions"]
+    assert "HTTP" not in json.dumps(err) or err["tech"]                   # raw text only in tech
+
+    # installed but not answering: a different, honest message
+    env["snap"].roles[2] = env["snap"].roles[2].model_copy(update={"cause": None, "state": "offline"})
+    evs = sse(client.post(f"/api/ai/threads/{t['id']}/messages",
+                          json={"content": "again", "mode": "vision", "attachments": [image()]}).text)
+    assert next(d for e, d in evs if e == "error")["title"] == "The vision model isn't answering"
+
+
+def test_vision_discovery_everywhere(client, env):
+    disc = intent.resolve("Check for better vision models", env["snap"], ADMIN)
+    assert disc.kind == "model_request" and disc.proposed_action.body == {"categories": ["vision"]}
+    assert disc.navigate == "/models/discovery?category=vision"
+    upstreams({})
+    cat = client.get("/api/agents").json()["catalog"]
+    scout = next(a for a in cat if a["id"] == "model-scout")
+    assert "vision" in [o["value"] for o in scout["params"][0]["options"]]

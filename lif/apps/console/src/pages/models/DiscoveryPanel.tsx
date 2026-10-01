@@ -25,8 +25,20 @@ export function upgradesLine(n: number): string {
   return `${fmt.num(n)} meaningful upgrade${n === 1 ? '' : 's'} found`;
 }
 
+/** Kinds of model a check can look for (controller discovery categories), in the order people think of them. */
+export const DISCOVERY_KINDS: { value: string; label: string }[] = [
+  { value: 'general', label: 'General' },
+  { value: 'fast', label: 'Fast' },
+  { value: 'coding', label: 'Coding' },
+  { value: 'reasoning', label: 'Reasoning' },
+  { value: 'vision', label: 'Vision' },
+  { value: 'embedding', label: 'Embedding' },
+  { value: 'reranking', label: 'Reranking' },
+];
+
 export interface DiscoveryStart {
-  start: () => Promise<void>;
+  /** No categories (or an empty list) = every kind. */
+  start: (categories?: string[]) => Promise<void>;
   starting: boolean;
   /** Why the button is disabled (permission, already running, turned off), or null. */
   blocked: string | null;
@@ -70,13 +82,15 @@ export function useDiscoveryStart(state: DiscoveryState | undefined): DiscoveryS
           ? 'A check is already in progress'
           : null);
 
-  const start = async () => {
+  const start = async (categories?: string[]) => {
     setStarting(true);
     const ids = new Set(runs.map((r) => r.id));
+    const kinds = categories?.length ? categories : null;
     try {
-      await post('/api/models/discovery', {});
+      await post('/api/models/discovery', { categories: kinds });
       setBaseline({ ids, at: Date.now() });
-      toast({ title: 'Checking for better models', body: 'Progress shows here. Nothing is installed or switched by this check alone.', tone: 'info' });
+      const what = kinds ? DISCOVERY_KINDS.filter((k) => kinds.includes(k.value)).map((k) => k.label.toLowerCase()).join(', ') : '';
+      toast({ title: `Checking for better ${what ? `${what} ` : ''}models`, body: 'Progress shows here. Nothing is installed or switched by this check alone.', tone: 'info' });
       invalidate(KEY.discovery);
       invalidate('jobs');
     } catch (e) {
@@ -90,7 +104,7 @@ export function useDiscoveryStart(state: DiscoveryState | undefined): DiscoveryS
   return { start, starting, blocked, mine, waiting, stalled };
 }
 
-export function CheckButton({ ds, size = 'md' }: { ds: DiscoveryStart; size?: 'md' | 'lg' }) {
+export function CheckButton({ ds, size = 'md', categories }: { ds: DiscoveryStart; size?: 'md' | 'lg'; categories?: string[] }) {
   return (
     <Button
       variant="primary"
@@ -98,7 +112,7 @@ export function CheckButton({ ds, size = 'md' }: { ds: DiscoveryStart; size?: 'm
       size={size}
       loading={ds.starting}
       disabled={!!ds.blocked}
-      onClick={() => void ds.start()}
+      onClick={() => void ds.start(categories)}
       subtitle={ds.blocked ?? 'Searches Hugging Face and screens new models'}
     >
       Check for better models

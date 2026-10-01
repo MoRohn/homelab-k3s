@@ -42,9 +42,9 @@ const CAUSE_HELP: Record<RoleCause, { meaning: string; next: string }> = {
 function causeHelp(r: ModelRole) {
   if (!r.cause) return null;
   const help = CAUSE_HELP[r.cause];
-  // Discovery has no vision category upstream: say so instead of sending people to a check that can't help.
+  // A check can look for vision models (with their image projector); "Find a vision model" below starts one.
   if (r.cause === 'not_deployed' && r.role === 'vision')
-    return { ...help, next: 'Checks for better models don’t search for vision models yet, so this role stays empty for now.' };
+    return { ...help, next: 'Check for vision models to find one that fits this machine; you choose whether to install it.' };
   return help;
 }
 
@@ -144,6 +144,10 @@ export default function RoleDetail({ role }: { role?: string }) {
           r.served_by ? (
             <Button size="sm" variant="ghost" iconRight="arrow-right" onClick={() => route(deploymentHref(r.served_by!))}>
               View physical model
+            </Button>
+          ) : r.role === 'vision' && r.cause === 'not_deployed' ? (
+            <Button size="sm" variant="secondary" icon="scout" onClick={() => route('/models/discovery?category=vision')}>
+              Find a vision model
             </Button>
           ) : undefined
         }

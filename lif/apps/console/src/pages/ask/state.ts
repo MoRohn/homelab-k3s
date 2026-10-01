@@ -5,9 +5,12 @@
 // - The thread lives in the shared store cache under threadKey(id). While a local stream is in flight
 //   the fetcher returns the local copy, so an SSE reconnect (store invalidates everything) or a
 //   remount can't replace a live answer with an older server snapshot.
-// - Hub `thread` events (~1 s partial content) keep a thread followed from another device live (§68),
-//   and give us the server message id of our own stream, which Stop needs to cancel upstream work.
-import { askStream, get, post, toHumanError } from '@/api/client';
+// - Hub `thread` events keep every open console of the owner live (§67–§70): kind "message" (~1 s partial
+//   content) lets a thread followed from another device grow, and gives us the server message id of our own
+//   stream, which Stop needs; kind "upsert"/"deleted" patch the History list in place (new conversation,
+//   new prompt, rename, "Answering…" on and off, delete), so no screen polls and nothing waits for a reload.
+// - A dropped live connection refetches on reconnect (store.onReconnect), so missed events are recovered.
+import { askStream, del, get, patch as patchReq, post, toHumanError } from '@/api/client';
 import type {
   AiCapabilities,
   AskMode,
@@ -25,7 +28,8 @@ import type {
 } from '@/api/contracts.gen';
 import { observable } from '@/api/observable';
 import { subscribe } from '@/api/sse';
-import { invalidate, peek, prime } from '@/api/store';
+import { invalidate, peek, prefetch, prime } from '@/api/store';
+import { toast } from '@/ui/Toast';
 
 export const THREADS_KEY = 'ask/threads';
 export const CAPS_KEY = 'ask/capabilities';
@@ -63,6 +67,14 @@ export const agentTaskHandoff = observable<string | null>(null);
  *  after emitting `done`, and a refetch in between must not flip the answer back to "streaming". */
 const finished = new Map<string, Message>();
 
+/** A conversation deleted while it was open here (on another device, or by the storage cap). Ask leaves it. */
+export const deletedThread = observable<string | null>(null);
+
+/** Warm a conversation's cache (History row hovered or focused) so opening it shows the full history at once. */
+export function prefetchThread(id: string): void {
+  prefetch(threadKey(id), () => loadThread(id));
+}
+
 /** Fetcher for useResource(threadKey(id)). */
 export async function loadThread(id: string): Promise<Thread> {
   const live = inflight.has(id) ? peek<Thread>(threadKey(id)) : undefined;
@@ -82,7 +94,8 @@ export async function createThread(mode: AskMode, privacy: PrivacyChoice, firstP
   const title = firstPrompt.replace(/\s+/g, ' ').trim().slice(0, 80) || null;
   const t = await post<Thread>('/api/ai/threads', { mode, privacy, title });
   prime(threadKey(t.id), t);
-  invalidate(THREADS_KEY);
+  // The server's upsert event adds the row everywhere; add it here too in case this tab's stream is slower.
+  upsertRow({ id: t.id, title: t.title, updated_at: t.updated_at, preview: '', mode: t.mode, group: 'today', origin_device: t.origin_device ?? null, active: false });
   return t;
 }
 
@@ -101,6 +114,8 @@ function routeOnly(r: StreamRoute): Receipt {
 }
 
 function asStored(a: AttachmentIn): Attachment {
+  if (a.kind === 'image')
+    return { name: a.name, kind: 'image', size: a.size, included: !!a.image, note: a.image ? 'Sent to the vision model on this machine; the image itself is not kept.' : null, width: a.width ?? null, height: a.height ?? null };
   return { name: a.name, kind: a.kind, size: a.size, included: a.text !== undefined && a.text !== null, note: null };
 }
 
@@ -211,6 +226,11 @@ export function retry(thread: Thread): Promise<void> {
     lastBody.get(thread.id) ??
     (() => {
       const lastUser = [...thread.messages].reverse().find((m) => m.role === 'user');
+      if (lastUser?.attachments.some((a) => a.kind === 'image' && a.included)) {
+        // Images are never stored, so this device can't resend one it didn't attach.
+        toast({ title: 'Attach the image again to retry', body: 'Labzilla doesn’t keep images, so only the device that sent it can resend it.', tone: 'info' });
+        return null;
+      }
       // Local only: allowing Jev is a per-prompt choice, never inherited from an earlier send.
       return lastUser ? { content: lastUser.content, mode: thread.mode, privacy: 'local_only' as const, attachments: [] } : null;
     })();
@@ -241,9 +261,80 @@ export async function stop(threadId: string, messageId?: string): Promise<HumanE
   }
 }
 
+// ── History list (§67): patched in place from hub events, refetched when it can't be ────────────
+
+/** Apply a change to the cached History list. Without a cached list there is nothing to patch: a seeded
+ *  one-row list would look fresh and hide every other conversation, so the next viewer fetches instead. */
+function patchList(fn: (rows: ThreadSummary[]) => ThreadSummary[]): void {
+  const rows = peek<ThreadSummary[]>(THREADS_KEY);
+  if (rows) prime(THREADS_KEY, fn(rows));
+  else invalidate(THREADS_KEY);
+}
+
+function upsertRow(row: ThreadSummary): void {
+  patchList((rows) => [row, ...rows.filter((r) => r.id !== row.id)].sort((a, b) => b.updated_at - a.updated_at));
+}
+
+function setActive(threadId: string, active: boolean): void {
+  const rows = peek<ThreadSummary[]>(THREADS_KEY);
+  const row = rows?.find((r) => r.id === threadId);
+  if (!rows) return;
+  if (!row) return invalidate(THREADS_KEY);         // a conversation this tab hasn't listed yet
+  if (row.active !== active) prime(THREADS_KEY, rows.map((r) => (r.id === threadId ? { ...r, active } : r)));
+}
+
+/** Rename everywhere: this tab at once, the others through the server's upsert event. */
+export async function renameThread(id: string, title: string): Promise<HumanError | null> {
+  const before = peek<ThreadSummary[]>(THREADS_KEY);
+  patchList((rows) => rows.map((r) => (r.id === id ? { ...r, title } : r)));
+  try {
+    const row = await patchReq<ThreadSummary>(`/api/ai/threads/${enc(id)}`, { title });
+    upsertRow(row);
+    const t = peek<Thread>(threadKey(id));
+    if (t) prime(threadKey(id), { ...t, title: row.title });
+    return null;
+  } catch (e) {
+    if (before) prime(THREADS_KEY, before);
+    return toHumanError(e);
+  }
+}
+
+/** Conversations this tab deleted itself: their `deleted` event is not news here. */
+const deletedHere = new Set<string>();
+
+/** Delete on the server (any running answer stops); every other device drops it from its list. */
+export async function deleteThread(id: string): Promise<HumanError | null> {
+  deletedHere.add(id);
+  try {
+    await del(`/api/ai/threads/${enc(id)}`);
+  } catch (e) {
+    const err = toHumanError(e);
+    if (!/not found/i.test(err.title)) {                    // already gone elsewhere: same outcome
+      deletedHere.delete(id);
+      return err;
+    }
+  }
+  inflight.get(id)?.ctrl.abort();
+  patchList((rows) => rows.filter((r) => r.id !== id));
+  return null;
+}
+
 const RANK: Record<Message['status'], number> = { streaming: 0, done: 1, error: 1, cancelled: 1 };
 
 function onThreadEvent(ev: ThreadEvent): void {
+  if (ev.kind === 'upsert') {
+    if (!ev.summary) return;
+    upsertRow(ev.summary);
+    const t = peek<Thread>(threadKey(ev.thread_id));
+    if (t && t.title !== ev.summary.title) prime(threadKey(ev.thread_id), { ...t, title: ev.summary.title });
+    return;
+  }
+  if (ev.kind === 'deleted') {
+    patchList((rows) => rows.filter((r) => r.id !== ev.thread_id));
+    if (!deletedHere.delete(ev.thread_id) && peek<Thread>(threadKey(ev.thread_id))) deletedThread.set(ev.thread_id);
+    return;
+  }
+  setActive(ev.thread_id, ev.status === 'streaming');
   const job = inflight.get(ev.thread_id);
   if (job) {
     // Our own stream: the deltas already carry the text; only learn the server id for Stop.
@@ -254,17 +345,14 @@ function onThreadEvent(ev: ThreadEvent): void {
   if (!t) return;
   const m = t.messages.find((x) => x.id === ev.message_id);
   if (!m) {
-    // A prompt sent from another device: fetch it (user message, receipt) once.
+    // A prompt sent from another device: fetch it (user message, receipt) once; later frames patch it.
     invalidate(threadKey(ev.thread_id));
     return;
   }
   // Never let a late "streaming" frame downgrade a finished message.
   if (RANK[ev.status] < RANK[m.status]) return;
   patchMsg(ev.thread_id, ev.message_id, (x) => ({ ...x, content: ev.content.length >= x.content.length ? ev.content : x.content, status: ev.status }));
-  if (ev.status !== 'streaming') {
-    invalidate(threadKey(ev.thread_id));
-    invalidate(THREADS_KEY);
-  }
+  if (ev.status !== 'streaming') invalidate(threadKey(ev.thread_id));      // receipt, final text
 }
 
 subscribe('thread', onThreadEvent);

@@ -1,10 +1,11 @@
 // Discovery (/models/discovery; §28): the check in progress (or the one just started) and the recent checks with
 // their funnel counts. Per-run internals (raw funnel keys, timings) stay behind "Internal steps".
+import { useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso/router';
 import type { DiscoveryRun, Health } from '@/api/contracts.gen';
 import { usePageTitle } from '@/shell/usePageTitle';
 import { Button, Card, EmptyState, HumanErrorCard, Icon, Skeleton, StatusBadge, TechDetails, fmt } from '@/ui';
-import { CheckButton, DiscoveryProgress, StageList, upgradesLine, useDiscoveryStart } from './DiscoveryPanel';
+import { CheckButton, DISCOVERY_KINDS, DiscoveryProgress, StageList, upgradesLine, useDiscoveryStart } from './DiscoveryPanel';
 import { useDiscovery } from './shared';
 
 const RUN_STATUS: Record<DiscoveryRun['status'], { health: Health; label: string }> = {
@@ -40,9 +41,34 @@ function RunRow({ run }: { run: DiscoveryRun }) {
   );
 }
 
+/** Which kinds to look for: none ticked means every kind. ?category=vision (or a comma list) preselects. */
+function KindPicker({ value, onChange, disabled }: { value: string[]; onChange: (v: string[]) => void; disabled?: boolean }) {
+  const toggle = (k: string) => onChange(value.includes(k) ? value.filter((x) => x !== k) : [...value, k]);
+  return (
+    <fieldset class="lz-kinds" disabled={disabled}>
+      <legend class="small muted">What to look for</legend>
+      <div class="lz-kinds-row">
+        <label class="lz-kind">
+          <input type="checkbox" checked={value.length === 0} onChange={() => onChange([])} />
+          <span>Every kind</span>
+        </label>
+        {DISCOVERY_KINDS.map((k) => (
+          <label key={k.value} class="lz-kind">
+            <input type="checkbox" checked={value.includes(k.value)} onChange={() => toggle(k.value)} />
+            <span>{k.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 export default function Discovery() {
   usePageTitle('Check for better models');
-  const { route } = useLocation();
+  const { route, query } = useLocation();
+  const [kinds, setKinds] = useState<string[]>(() =>
+    (query.category ?? '').split(',').map((c) => c.trim()).filter((c) => DISCOVERY_KINDS.some((k) => k.value === c)),
+  );
   const disc = useDiscovery();
   const ds = useDiscoveryStart(disc.data);
   const state = disc.data;
@@ -60,8 +86,9 @@ export default function Discovery() {
           <h1>Check for better models</h1>
           <p>Labzilla searches Hugging Face, screens what it finds, and benchmarks the most promising models on this machine. Trying one is always a separate step.</p>
         </div>
-        <CheckButton ds={ds} />
+        <CheckButton ds={ds} categories={kinds} />
       </header>
+      <KindPicker value={kinds} onChange={setKinds} disabled={!!ds.blocked && !ds.blocked.startsWith('Checking')} />
 
       {state && !state.enabled && (
         <Card tone="warning" title="Checking for new models is turned off">
@@ -107,7 +134,7 @@ export default function Discovery() {
               icon="scout"
               title="No checks yet"
               body="A check looks for newer models that could do a role better. It doesn't change anything on its own."
-              action={ds.blocked ? undefined : { label: 'Check for better models', icon: 'scout', onClick: () => void ds.start() }}
+              action={ds.blocked ? undefined : { label: 'Check for better models', icon: 'scout', onClick: () => void ds.start(kinds) }}
             />
           )
         )}

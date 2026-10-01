@@ -1,11 +1,17 @@
 // File intake for Ask (§20). Everything happens in this browser: text-like files are read here and
-// sent to Labzilla as JSON (≤ 256 KB each, brief §1 — no multipart). Images, PDFs and office documents
-// are listed but NOT processed and never uploaded: no local vision model or PDF extraction exists yet,
-// and saying so beats pretending the model saw them.
+// sent to Labzilla as JSON (≤ 256 KB each, brief §1 — no multipart). Images are downscaled here with a
+// canvas (longest side ≤ 1024 px, JPEG q0.85, so a 12 MP phone photo becomes ~150 KB) and sent once to the
+// local vision model; Labzilla never stores them. PDFs and office documents are listed but NOT processed:
+// there is no PDF extraction yet, and saying so beats pretending the model saw them.
 import type { AttachmentIn, AttachmentKind } from '@/api/contracts.gen';
 
 export const MAX_TEXT_BYTES = 256 * 1024;
 export const MAX_FILES = 8;
+export const MAX_IMAGES = 4;
+const IMAGE_MAX_PX = 1024;
+const IMAGE_QUALITY = 0.85;
+/** Above this, ask the decoder for a smaller bitmap first instead of holding a 48 MP one in memory. */
+const BIG_IMAGE_BYTES = 6 * 1024 * 1024;
 
 export interface Picked {
   id: string;
@@ -15,8 +21,12 @@ export interface Picked {
   /** Extracted text; absent when the file is not processed. */
   text?: string;
   included: boolean;
-  /** Why it isn't included ("Not processed: no local vision model yet"). */
+  /** Why it isn't included ("Not processed: PDF text extraction isn't available"). */
   note?: string;
+  /** Images: the downscaled JPEG as a data URL (also the thumbnail), and its size in pixels. */
+  image?: string;
+  width?: number;
+  height?: number;
 }
 
 const EXT: Record<string, AttachmentKind> = {
@@ -47,16 +57,80 @@ export function kindOf(file: File): AttachmentKind {
 }
 
 const NOT_PROCESSED: Partial<Record<AttachmentKind, string>> = {
-  image: 'Not processed: no local vision model yet.',
   pdf: 'Not processed: PDF text extraction isn’t available locally yet. Paste the text instead.',
   document: 'Not processed: document conversion isn’t available yet. Paste the text instead.',
 };
 
 let seq = 0;
 
-/** Read one file locally. Never throws; the result says whether its text will be sent. */
+async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      // Phone photos carry their rotation in EXIF: apply it, or portraits arrive sideways.
+      return await createImageBitmap(file, file.size > BIG_IMAGE_BYTES
+        ? { imageOrientation: 'from-image', resizeWidth: IMAGE_MAX_PX * 2, resizeQuality: 'high' }
+        : { imageOrientation: 'from-image' });
+    } catch {
+      /* fall through: older Safari rejects the options */
+    }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function asDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+/** Downscale to ≤ 1024 px on the longest side and re-encode as JPEG (white behind transparency). */
+export async function shrinkImage(file: File): Promise<{ image: string; width: number; height: number; bytes: number }> {
+  const src = await decode(file);
+  const sw = 'naturalWidth' in src ? src.naturalWidth : src.width;
+  const sh = 'naturalHeight' in src ? src.naturalHeight : src.height;
+  if (!sw || !sh) throw new Error('empty image');
+  const scale = Math.min(1, IMAGE_MAX_PX / Math.max(sw, sh));
+  const width = Math.max(1, Math.round(sw * scale));
+  const height = Math.max(1, Math.round(sh * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('no canvas');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, width, height);
+  if ('close' in src) src.close();
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', IMAGE_QUALITY));
+  canvas.width = canvas.height = 0;            // let the pixels go now, not at the next GC
+  if (!blob) throw new Error('encode failed');
+  return { image: await asDataUrl(blob), width, height, bytes: blob.size };
+}
+
+/** Read one file locally. Never throws; the result says whether its text (or image) will be sent. */
 export async function intake(file: File): Promise<Picked> {
-  const base = { id: `f${++seq}`, name: file.name || 'pasted file', kind: kindOf(file), size: file.size };
+  const base = { id: `f${++seq}`, name: file.name || 'pasted image', kind: kindOf(file), size: file.size };
+  if (base.kind === 'image') {
+    try {
+      const img = await shrinkImage(file);
+      return { ...base, size: img.bytes, image: img.image, width: img.width, height: img.height, included: true };
+    } catch {
+      const heic = /\.(heic|heif)$/i.test(base.name) || /hei[cf]/.test(file.type);
+      return { ...base, included: false, note: heic ? 'This browser can’t read HEIC photos. Share it as JPEG, or take a screenshot.' : 'This browser couldn’t read the image.' };
+    }
+  }
   const skip = NOT_PROCESSED[base.kind];
   if (skip) return { ...base, included: false, note: skip };
   // Check the size before reading: never load a large log just to reject it.
@@ -71,8 +145,11 @@ export async function intake(file: File): Promise<Picked> {
 }
 
 export function toAttachmentIn(p: Picked): AttachmentIn {
+  if (p.kind === 'image') return { name: p.name, kind: 'image', size: p.size, text: null, image: p.included ? p.image ?? null : null, width: p.width ?? null, height: p.height ?? null };
   return { name: p.name, kind: p.kind, size: p.size, text: p.included ? p.text ?? null : null };
 }
+
+export const isImage = (p: Picked) => p.kind === 'image' && p.included;
 
 export function fileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

@@ -685,14 +685,24 @@ export interface Attachment {
   size: number;
   included: boolean;
   note?: string | null;
+  /** images: pixel size as sent (the image itself is never stored) */
+  width?: number | null;
+  height?: number | null;
 }
 
-/** A file as sent by the client: text is extracted in the browser (≤ 256 KB); images/PDFs carry no text. */
+/**
+ * A file as sent by the client: text is extracted in the browser (≤ 256 KB). An image is downscaled in the
+ * browser (≤ 1024 px JPEG) and sent once as a data URL for the vision model; the server never stores it.
+ */
 export interface AttachmentIn {
   name: string;
   kind: AttachmentKind;
   size: number;
   text?: string | null;
+  /** "data:image/jpeg;base64,…" (jpeg, png or webp; ≤ 1.5 MB decoded) */
+  image?: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface Message {
@@ -726,6 +736,15 @@ export interface ThreadSummary {
   preview: string;
   mode: AskMode;
   group: "today" | "yesterday" | "earlier";
+  /** paired device that started it ("iPhone"); None = an admin browser */
+  origin_device?: string | null;
+  /** an answer is being written right now (on any device) */
+  active: boolean;
+}
+
+/** PATCH /api/ai/threads/{id}. */
+export interface RenameThreadRequest {
+  title: string;
 }
 
 /** POST /api/ai/threads. */
@@ -1031,12 +1050,19 @@ export interface JobsEvent {
   job?: Job | null;
 }
 
-/** Partial assistant output (~1 s cadence) so another device can follow a running answer (§68). */
+/**
+ * Live Ask history for every session of the owner (§67–§70).
+ * kind "message": partial assistant output (~1 s cadence) so another device can follow a running answer.
+ * kind "upsert": the conversation was created, renamed, got a new prompt or finished; `summary` is its new row.
+ * kind "deleted": the conversation is gone (deleted on a device, or removed by the storage cap).
+ */
 export interface ThreadEvent {
+  kind: "message" | "upsert" | "deleted";
   thread_id: string;
   message_id: string;
   content: string;
   status: "streaming" | "done" | "error" | "cancelled";
+  summary?: ThreadSummary | null;
 }
 
 export interface ModelEvent {

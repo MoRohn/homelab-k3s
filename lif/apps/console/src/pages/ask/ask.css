@@ -153,6 +153,8 @@
 .ask-prompt-text { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-muted); font-weight: var(--fw-medium); }
 .ask-prompt-text.is-clamped { max-height: 9.5em; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
 .ask-prompt-files { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ask-prompt-files > li { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.ask-prompt-files .lz-icon { align-self: center; flex-shrink: 0; }
 .ask-answer { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .ask-pending { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .ask-note.ask-note { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius); background: var(--tone-bg); color: var(--text); font-size: var(--fs-sm); }
@@ -169,10 +171,122 @@
 .ask-command { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border); }
 .ask-page.is-empty .ask-command { border-top: 0; padding-top: 0; }
 
-/* history + continue */
-.ask-history-group { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-4); }
-.ask-history-group .is-current .lz-li-title { color: var(--brand-text); }
-.ask-history-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* ── history: panel (wide) and sheet/drawer (phone, tablet) ── */
+.ask-layout { display: flex; align-items: flex-start; min-width: 0; }
+.ask-layout > .ask-page { flex: 1 1 auto; min-width: 0; }
+.ask-side {
+  position: sticky;
+  top: var(--ask-side-top, 48px);
+  flex: 0 0 300px;
+  width: 300px;
+  height: calc(100dvh - var(--ask-side-top, 48px));
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+@media (max-width: 1279.98px) { .ask-side { flex-basis: 264px; width: 264px; } }
+.ask-side-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-3) 0 var(--space-4); }
+.ask-side-title { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.ask-hist { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.ask-hist-tools { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-2); }
+.ask-hist.is-sheet .ask-hist-tools { padding: 0 0 var(--space-3); }
+.ask-hist-search { position: relative; display: flex; align-items: center; }
+.ask-hist-search .lz-icon { position: absolute; left: 10px; color: var(--text-faint); pointer-events: none; }
+.ask-hist-search input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 var(--space-2) 0 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.ask-hist-search input::placeholder { color: var(--text-faint); }
+.ask-hist-search input:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.ask-hist-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 var(--space-2) var(--space-4); overscroll-behavior: contain; }
+.ask-hist.is-sheet .ask-hist-list { padding: 0 0 var(--space-4); overflow: visible; }
+.ask-hist-group { margin-top: var(--space-3); }
+.ask-hist-heading { padding: 0 var(--space-2) var(--space-1); font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.ask-hist-rows { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ask-hist-none { padding: var(--space-3) var(--space-2); }
+.ask-hist { --hrow-base: var(--bg); }
+.ask-hist.is-sheet { --hrow-base: var(--surface); }
+.ask-hrow { --hrow-bg: var(--hrow-base); position: relative; display: flex; align-items: stretch; border-radius: var(--radius-sm); background: var(--hrow-bg); }
+.ask-hrow:hover { --hrow-bg: var(--surface-2); }
+.ask-hrow.is-current { --hrow-bg: color-mix(in srgb, var(--brand) 12%, var(--hrow-base)); }
+.ask-hrow.is-current::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--brand); }
+.ask-hrow-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.ask-hrow-link:hover { text-decoration: none; }
+.ask-hrow-link:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ask-hrow-title, .ask-hrow-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-hrow-title { font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+.ask-hrow.is-current .ask-hrow-title { color: var(--brand-text); }
+.ask-hrow-preview { font-size: var(--fs-xs); color: var(--text-muted); }
+.ask-hrow-meta { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--fs-xs); color: var(--text-muted); font-feature-settings: var(--font-features-num); }
+.ask-hrow-device { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-hrow-device::before { content: '·'; margin-right: var(--space-2); }
+.ask-hrow-live { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-weight: var(--fw-medium); }
+.ask-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 22%, transparent); animation: lz-pulse 1.6s ease-in-out infinite; }
+/* Row actions float over the end of the row on hover or keyboard focus, so titles get the full width the
+   rest of the time. On touch (no hover) they sit beside the row, always visible. */
+.ask-hrow-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-1) 0 var(--space-5);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: linear-gradient(to right, transparent, var(--hrow-bg) 40%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.ask-hrow:hover .ask-hrow-actions, .ask-hrow:focus-within .ask-hrow-actions { opacity: 1; pointer-events: auto; }
+.ask-hrow-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: var(--space-1);
+  min-height: 34px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--focus);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.ask-hrow-rename:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--focus); }
+@media (pointer: coarse) {
+  .ask-hrow-actions { position: static; opacity: 1; pointer-events: auto; background: none; padding: 0 var(--space-1) 0 0; }
+  .ask-hrow-link { min-height: var(--touch); padding-block: var(--space-2); }
+  .ask-hist-search input { min-height: var(--touch); font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-live-dot { animation: none; }
+}
+
+/* images in the composer: thumbnails with a remove button */
+.ask-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0 var(--space-1); list-style: none; }
+.ask-thumb { position: relative; display: flex; flex-direction: column; gap: 2px; width: 112px; }
+.ask-thumb img { width: 112px; height: 84px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); }
+.ask-thumb-meta { color: var(--text-muted); text-align: center; }
+.ask-thumb-x.ask-thumb-x { position: absolute; top: 4px; right: 4px; min-width: 28px; min-height: 28px; width: 28px; height: 28px; border-radius: 50%; }
+.ask-hint-row { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; color: var(--text-muted); }
+.ask-blocked a { color: var(--brand-text); }
 .ask-continue { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); text-align: center; }
 .ask-continue-url { overflow-wrap: anywhere; color: var(--text-muted); }
 

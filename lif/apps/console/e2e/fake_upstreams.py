@@ -70,6 +70,8 @@ COUNTED_STATES = ("PRODUCTION", "CANARY", "CANDIDATE", "STAGED", "APPROVED", "ST
 P4B, P17B, PEMB = "qwen3-4b-instruct-2507-q4km-cpu", "qwen3-1.7b-q8-cpu", "qwen3-embedding-0.6b-q8-cpu"
 PAPPR, PCODE, PPHI = "qwen2-5-7b-instruct-q4km-cpu", "qwen2-5-coder-7b-instruct-q4km-cpu", "phi-4-mini-instruct-q4km-cpu"
 PREJ, PGPU = "llama-3-2-3b-instruct-q4km-cpu", "qwen2-5-coder-14b-instruct-q4km-gpu"
+# vision: the installed model (POST /__vision) and the candidate a vision discovery run shortlists
+PVIS, PVISC = "qwen2-5-vl-3b-instruct-q4km-cpu", "gemma-3-4b-it-q4km-cpu"
 # memory-guard deployments → the profile each one serves (the real guard reports deployment names)
 DEPLOYMENT_PROFILE = {"tier0": P4B, "tier0-small": P17B, "embedding": PEMB}
 CONN_FAIL = "All connection attempts failed"
@@ -128,6 +130,9 @@ def _profile(mid: str, repo: str, category: str, params_b: float, *, device: str
         p["embedding_dim"] = 1024
     if size:
         p["size"] = size
+    if category == "vision":            # a vision GGUF needs its image projector next to the weights
+        p["mmproj"] = {"file": f"mmproj-{repo.split('/')[-1].replace('-GGUF', '')}-Q8_0.gguf", "size": 845_000_000,
+                       "sha256": hashlib.sha256((mid + ":mmproj").encode()).hexdigest(), "quant": "Q8_0"}
     return p
 
 
@@ -1205,6 +1210,22 @@ async def _discovery(w: World, run: dict) -> None:
         return
     cats = run.pop("_categories")
     funnel = {c: _funnel(150 + 40 * i, 0, []) for i, c in enumerate(cats)}
+    if "vision" in cats and PVISC not in w.models:
+        repo = "ggml-org/gemma-3-4b-it-GGUF"
+        prof = _profile(PVISC, repo, "vision", 3.9, budget=4096)
+        meta = _meta(repo, "vision", 3.9, downloads=61_000, likes=180, age_days=120, t0=w.t0, family="Gemma3",
+                     quant="Q4_K_M", size=2_490_000_000)
+        meta.update(pipeline_tag="image-text-to-text", tags=["gguf", "image-text-to-text", "vision"],
+                    architecture="Gemma3ForConditionalGeneration", mmproj_listed=True)
+        meta["gguf_pick"]["mmproj"] = dict(prof["mmproj"])
+        w.models[PVISC] = {"id": PVISC, "model_id": repo, "revision": prof["revision"], "category": "vision",
+                           "state": "CANDIDATE", "meta": meta, "profile": prof,
+                           "fit": _fit("fits_cpu", 2380, 640, 14.0, ["CPU tier: weights + image projector fit"]),
+                           "screening": _screening("shortlist", "Small vision model with an image projector; "
+                                                   "fits the CPU tier", 0.68),
+                           "reason": f"shortlisted by discovery run {run['id']}", "pinned": False, "blocked": False,
+                           "created": time.time(), "updated": time.time()}
+        funnel["vision"] = _funnel(120, 1, [repo])
     run.update(status="succeeded", finished=time.time(), funnel={"categories": funnel, "total_ms": 6000})
     w.running_run = None
     w.tasks["discovery"] = "done"
@@ -1372,6 +1393,36 @@ async def set_scenario(request: Request) -> JSONResponse:
     W = build(name)
     _STORE_CACHE.clear()
     return JSONResponse({"name": name})
+
+
+def install_vision(w: World, on: bool) -> None:
+    """Dev toggle: a deployed local/vision model (or none, as in the real world today)."""
+    if on and PVIS not in w.models:
+        repo = "Qwen/Qwen2.5-VL-3B-Instruct-GGUF"
+        prof = _profile(PVIS, repo, "vision", 3.8, budget=4608, endpoint="http://vision.ai-serving.svc:8080")
+        w.models[PVIS] = {"id": PVIS, "model_id": repo, "revision": prof["revision"], "category": "vision",
+                          "state": "PRODUCTION", "meta": {"model_id": repo, "params_b": 3.8, "license": "apache-2.0"},
+                          "profile": prof, "fit": {}, "screening": {}, "reason": "installed (dev toggle)",
+                          "pinned": False, "blocked": False, "created": time.time(), "updated": time.time()}
+        w.alias_versions["local/vision"] = [{"alias": "local/vision", "version": 1, "chain": [PVIS], "canary": None,
+                                             "ts": time.time(), "actor": "operator", "note": f"promote {PVIS}"}]
+        w.log("state_changed", PVIS, "operator", {"from": "APPROVED", "to": "PRODUCTION"})
+    elif not on and PVIS in w.models:
+        del w.models[PVIS]
+        w.alias_versions.pop("local/vision", None)
+
+
+@app.get("/__vision")
+async def get_vision() -> dict:
+    return {"installed": PVIS in W.models}
+
+
+@app.post("/__vision")
+async def set_vision(request: Request) -> dict:
+    """POST {"installed": true|false}. A scenario reset uninstalls it again."""
+    body = await _json(request)
+    install_vision(W, bool(body.get("installed")))
+    return {"installed": PVIS in W.models}
 
 
 async def _json(request: Request) -> dict:
@@ -1772,8 +1823,13 @@ def _route_auto(text: str, data_class: str) -> tuple[str, dict]:
     return alias, decision
 
 
-def _answer(prompt: str, alias: str) -> str:
+def _answer(prompt: str, alias: str, images: int = 0) -> str:
     topic = " ".join(prompt.split()[:8]) or "your request"
+    if images:
+        return (f"**What I see:** {'an image' if images == 1 else f'{images} images'} — a synthetic description "
+                f"from the e2e fake vision model about “{topic}”.\n\n"
+                "- The picture arrived as an `image_url` content part, already downscaled by the browser.\n"
+                "- Nothing here was generated by a model, and the image is not kept.")
     if alias == "local/code" or "```" in prompt or re.search(r"\b(code|python|parser|function)\b", prompt.lower()):
         return ("Here is a small, self-contained starting point.\n\n"
                 "```python\nimport json\n\n\ndef parse(text: str) -> dict:\n"
@@ -1798,13 +1854,24 @@ async def chat(request: Request) -> Response:
     last_user = next((m for m in reversed(messages) if m.get("role") == "user"), {})
     content = last_user.get("content", "")
     text = content if isinstance(content, str) else " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+    n_images = 0 if isinstance(content, str) else sum(
+        1 for p in content if isinstance(p, dict) and p.get("type") == "image_url")
     data_class = request.headers.get("x-lif-data-class", "CONFIDENTIAL").upper()
     snap = gpu_snapshot(W)
 
     route_decision = None
     alias = requested
-    if requested == "local/auto":
+    if n_images and requested == "local/auto":           # the gateway sends images to the vision alias
+        alias, route_decision = "local/vision", {"decision": "vision", "confidence": 1.0, "provider": "rules",
+                                                 "action": "auto"}
+    elif n_images and requested != "local/vision":
+        return g_err(422, f"{requested} does not accept images; use local/vision or local/auto", "not_supported",
+                     code="images_not_supported", lif={"requested": requested, "use": "local/vision"})
+    elif requested == "local/auto":
         alias, route_decision = _route_auto(text, data_class)
+    if n_images and not alias_chains(W).get("local/vision"):
+        return g_err(503, "no local model is deployed for local/vision; no vision model is installed yet", "capacity",
+                     lif={"requested": requested, "blerbz": snap["state"]})
     st = resolve(W, alias, sample_canary=True)
     if not st.get("available"):
         reason = st["reason"]
@@ -1821,7 +1888,9 @@ async def chat(request: Request) -> Response:
         meta["route_decision"] = route_decision
     if st.get("canary"):
         meta["canary"] = True
-    answer = _answer(text, alias)
+    answer = _answer(text, alias, n_images)
+    if "[long]" in text:            # a slow answer (~12 s) so another device can watch it grow
+        answer = "\n\n".join([answer] * 4)
     pieces = re.findall(r"\s*\S+", answer)
     prompt_tokens = max(1, len(text) // 4) + 12
     usage = {"prompt_tokens": prompt_tokens, "completion_tokens": len(pieces), "total_tokens": prompt_tokens + len(pieces)}

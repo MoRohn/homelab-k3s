@@ -1026,6 +1026,14 @@ def _publish(prev: Snapshot, new: Snapshot) -> None:
             hub.publish("model", ModelEvent(role=r.role, deployment_id=r.served_by,
                                             summary=f"{r.label}: {r.state_label.lower()}"
                                                     + (f" ({r.cause_label})" if r.cause_label else "")))
+    # The registry changed (a check shortlisted a candidate, a download or benchmark moved a model on): Models
+    # and candidate screens refetch, so a finished check shows its candidates without a reload.
+    mk = sorted((str(m.get("id")), str(m.get("state"))) for m in new.raw.get("models") or [] if isinstance(m, dict))
+    if keys.get("models") != mk:
+        had = "models" in keys
+        keys["models"] = mk
+        if prev.updated_at and had:
+            hub.publish("model", ModelEvent(summary="Model registry changed"))
     seen = {a.id for a in prev.approvals}
     if prev.updated_at:
         for a in new.approvals:

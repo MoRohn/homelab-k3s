@@ -2,11 +2,11 @@
 // mode (logical capability, never a physical model), privacy, and input by keyboard, paste, voice or file.
 // Wide/medium: mode and privacy are compact controls in the prompt's own toolbar (Attach · Auto ▾ · Local only ·
 // Send). Compact: a one-line summary opens them in a sheet so the prompt stays the first thing the thumb reaches.
-import type { Ref } from 'preact';
+import type { ComponentChildren, Ref } from 'preact';
 import { useRef, useState } from 'preact/hooks';
 import type { AiCapabilities, AskMode, PrivacyChoice } from '@/api/contracts.gen';
 import { Button, Dialog, IconButton, Icon, PrivacyBadge, Select, Sheet, Switch, Textarea, Tooltip, cx } from '@/ui';
-import { MAX_FILES, fileSize, type Picked } from './files';
+import { MAX_FILES, fileSize, isImage, type Picked } from './files';
 import { useDictation } from './voice';
 
 export interface ComposerProps {
@@ -33,6 +33,12 @@ export interface ComposerProps {
   coarse: boolean;
   /** Larger prompt for an empty conversation (desktop). */
   hero?: boolean;
+  /** Something to send: text, or an image on its own. */
+  canSend: boolean;
+  /** Why Send is held back right now (e.g. images but no vision model), shown under the box. */
+  blocked?: ComponentChildren;
+  /** "Switched to Vision · Undo", shown under the box. */
+  notice?: ComponentChildren;
 }
 
 const DICTATION_OK = 'lz-dictation-ok';
@@ -52,8 +58,9 @@ function dictationAcknowledged(): boolean {
 }
 
 export function Composer(p: ComposerProps) {
-  const { value, onInput, mode, privacy, caps, files, streaming, compact, coarse } = p;
+  const { value, onInput, mode, privacy, caps, files, streaming, compact, coarse, canSend } = p;
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [disclose, setDisclose] = useState(false);
@@ -85,7 +92,8 @@ export function Composer(p: ComposerProps) {
   // Jev only picks the model in Auto; in other modes the switch has no effect, so don't claim it.
   const jevActive = jev && mode === 'auto';
   const privacyLabel = jev ? 'Local + Jev allowed' : privacy === 'allow_jev' ? 'Local only (files attached)' : 'Local only';
-  const hasText = value.trim().length > 0;
+  const images = files.filter(isImage);
+  const others = files.filter((f) => !isImage(f));
 
   const toggleVoice = () => {
     if (dictation.listening) return dictation.stop();
@@ -98,14 +106,15 @@ export function Composer(p: ComposerProps) {
     const force = e.metaKey || e.ctrlKey;
     if (force || (!coarse && !e.shiftKey)) {
       e.preventDefault();
-      if (!streaming && hasText) p.onSend();
+      if (!streaming && canSend) p.onSend();
     }
   };
 
   const onPaste = (e: ClipboardEvent) => {
     const list = e.clipboardData?.files;
     // Only intercept pasted files (a screenshot, a copied file); pasted text goes into the prompt as usual.
-    if (list?.length && !e.clipboardData?.getData('text/plain')) {
+    // A copied image often carries its URL as text too: the image wins.
+    if (list?.length && ([...list].some((f) => f.type.startsWith('image/')) || !e.clipboardData?.getData('text/plain'))) {
       e.preventDefault();
       p.onFiles([...list]);
     }
@@ -205,7 +214,7 @@ export function Composer(p: ComposerProps) {
         onSubmit={(e) => {
           e.preventDefault();
           if (streaming) p.onStop();
-          else if (hasText) p.onSend();
+          else if (canSend) p.onSend();
         }}
       >
         <Textarea
@@ -237,10 +246,23 @@ export function Composer(p: ComposerProps) {
           </p>
         )}
 
-        {files.length > 0 && (
+        {images.length > 0 && (
+          <ul role="list" class="ask-thumbs" aria-label="Attached images">
+            {images.map((f) => (
+              <li key={f.id} class="ask-thumb">
+                <img src={f.image} alt={f.name} width={f.width} height={f.height} decoding="async" />
+                <span class="ask-thumb-meta xsmall num" title={`${f.name} · ${fileSize(f.size)} after resizing`}>
+                  {f.width}×{f.height}
+                </span>
+                <IconButton icon="x" size="sm" variant="secondary" class="ask-thumb-x" label={`Remove ${f.name}`} onClick={() => p.onRemoveFile(f.id)} />
+              </li>
+            ))}
+          </ul>
+        )}
+        {others.length > 0 && (
           <div class="ask-files">
             <ul role="list" aria-label="Attached files">
-              {files.map((f) => (
+              {others.map((f) => (
                 <li key={f.id} class={cx('ask-file', !f.included && 'is-skipped')}>
                   <Icon name={f.kind === 'image' ? 'image' : f.kind === 'code' ? 'code' : 'file'} size={16} />
                   <span class="grow">
@@ -259,27 +281,35 @@ export function Composer(p: ComposerProps) {
         )}
 
         <div class="ask-toolbar">
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            hidden
-            onChange={(e) => {
-              const el = e.currentTarget as HTMLInputElement;
-              if (el.files?.length) p.onFiles([...el.files]);
-              el.value = '';
-            }}
-          />
+          {[fileInput, cameraInput].map((ref, i) => (
+            <input
+              key={i}
+              ref={ref}
+              type="file"
+              multiple={i === 0}
+              accept={i === 1 ? 'image/*' : undefined}
+              capture={i === 1 ? 'environment' : undefined}
+              hidden
+              onChange={(e) => {
+                const el = e.currentTarget as HTMLInputElement;
+                if (el.files?.length) p.onFiles([...el.files]);
+                el.value = '';
+              }}
+            />
+          ))}
           <IconButton
             icon="attach"
-            label={files.length >= MAX_FILES ? `Up to ${MAX_FILES} files` : 'Attach a file (read on this device)'}
+            label={files.length >= MAX_FILES ? `Up to ${MAX_FILES} files` : 'Attach files or images (read on this device)'}
             disabled={files.length >= MAX_FILES}
             onClick={() => fileInput.current?.click()}
           />
+          {coarse && (
+            <IconButton icon="camera" label="Take a photo" disabled={files.length >= MAX_FILES} onClick={() => cameraInput.current?.click()} />
+          )}
           {dictation.supported && <IconButton icon="mic" label={dictation.listening ? 'Stop dictation' : 'Dictate'} pressed={dictation.listening} onClick={toggleVoice} />}
           {!compact && inlineControls}
           <span class="grow" />
-          {!compact && hasText && !streaming && (
+          {!compact && canSend && !streaming && (
             <span class="xsmall faint ask-keyhint" aria-hidden="true">
               {coarse ? '' : 'Enter to send · Shift+Enter for a new line'}
             </span>
@@ -289,14 +319,25 @@ export function Composer(p: ComposerProps) {
               Stop
             </Button>
           ) : (
-            <Button type="submit" variant="primary" icon="send" loading={p.busy} disabled={!hasText} class="ask-send">
+            <Button type="submit" variant="primary" icon="send" loading={p.busy} disabled={!canSend} class="ask-send">
               Send
             </Button>
           )}
         </div>
       </form>
 
-      {!compact && modeHint && <p class="ask-hint xsmall muted">{modeHint}</p>}
+      {p.notice && (
+        <p class="ask-hint ask-hint-row xsmall" role="status">
+          {p.notice}
+        </p>
+      )}
+      {p.blocked && (
+        <p class="ask-note lz-tone-info ask-blocked" role="note">
+          <Icon name="info" size={16} />
+          <span>{p.blocked}</span>
+        </p>
+      )}
+      {!compact && modeHint && !p.blocked && <p class="ask-hint xsmall muted">{modeHint}</p>}
 
       {compact && (
         <Sheet open={optionsOpen} onClose={() => setOptionsOpen(false)} title="Ask options" footer={<Button variant="primary" block onClick={() => setOptionsOpen(false)}>Done</Button>}>

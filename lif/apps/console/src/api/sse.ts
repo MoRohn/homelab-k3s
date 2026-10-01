@@ -141,10 +141,27 @@ export function useConnectionState(): ConnectionState {
   return useObservable(connection);
 }
 
+/** After the tab slept a while (phone locked, laptop lid): a mobile browser often resumes with a stream that
+ *  still reads "open" but delivers nothing. Start a fresh one, which also refetches what may have been missed. */
+const STALE_AFTER_HIDDEN_MS = 20_000;
+let hiddenAt = 0;
+
+function onVisibility(): void {
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+    return;
+  }
+  const slept = hiddenAt > 0 && Date.now() - hiddenAt > STALE_AFTER_HIDDEN_MS;
+  hiddenAt = 0;
+  if (!wanted) return;
+  if (slept && connection.get() === 'open') {
+    attempt = Math.max(attempt, 1);       // onopen then counts as a reconnect: caches revalidate
+    open();
+  } else reconnectNow();
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('online', reconnectNow);
   window.addEventListener('offline', () => wanted && connection.set('offline'));
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') reconnectNow();
-  });
+  document.addEventListener('visibilitychange', onVisibility);
 }

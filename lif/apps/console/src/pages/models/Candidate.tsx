@@ -119,6 +119,16 @@ export default function Candidate({ id }: { id?: string }) {
         ? 'Benchmark it first so the trial can be judged'
         : `Not available while this model is ${d.state_label.toLowerCase()}`);
   const percent = Number(share);
+  // Nothing serves this role yet (the first vision model): there is no incumbent to share traffic with, so the
+  // controller refuses a trial. The honest step is Promote, previewed and confirmed like everywhere else.
+  const firstForRole = !c.incumbent;
+  const promoteWhy =
+    access('models.release') ??
+    (d.actions.includes('promote')
+      ? null
+      : c.recommendation_code === 'benchmark_first'
+        ? 'Benchmark it first so you know what you are promoting'
+        : `Not available while this model is ${d.state_label.toLowerCase()}`);
 
   const ignore = () => {
     setIgnored(d.id, true);
@@ -175,14 +185,20 @@ export default function Candidate({ id }: { id?: string }) {
 
       <Card title="Actions">
         <div class="stack-sm">
-          <Select
+          {firstForRole && (
+            <p class="small muted">
+              Nothing answers for {roleLabel} yet, so there is nothing to share a trial with. Promote makes this the {roleLabel} model; you can roll it
+              back later.
+            </p>
+          )}
+          {!firstForRole && <Select
             class="lz-canary-pick"
             label="Trial share"
             value={share}
             options={CANARY_SHARES.map((s) => ({ value: s, label: `${s}% of ${roleLabel} requests` }))}
             onChange={setShare}
             disabled={!!canaryWhy}
-          />
+          />}
           <div class="lz-model-actions">
             <Button icon="eye" variant="ghost" onClick={ignore} subtitle="Hides it on this device; nothing changes on Labzilla">
               Ignore
@@ -205,6 +221,27 @@ export default function Candidate({ id }: { id?: string }) {
             >
               {canDownload ? 'Download' : 'Benchmark more'}
             </Button>
+            {firstForRole ? (
+              <Button
+                icon="promote"
+                variant="primary"
+                disabled={!!promoteWhy}
+                loading={ops.busy === 'Promote'}
+                subtitle={promoteWhy ?? `Makes this the ${roleLabel} model`}
+                onClick={() =>
+                  void ops.run({
+                    label: 'Promote',
+                    path: `/api/models/deployments/${encodeURIComponent(d.id)}/promote`,
+                    body: { alias: c.role },
+                    preview: previewPath(d.id, 'promote', { alias: c.role }),
+                    done: `${d.name} now answers for ${roleLabel}`,
+                    tone: 'primary',
+                  })
+                }
+              >
+                Promote
+              </Button>
+            ) : (
             <Button
               icon="layers"
               variant="primary"
@@ -224,6 +261,7 @@ export default function Candidate({ id }: { id?: string }) {
             >
               Canary
             </Button>
+            )}
           </div>
         </div>
       </Card>

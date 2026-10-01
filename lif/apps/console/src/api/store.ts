@@ -108,6 +108,15 @@ export function peek<T>(key: string): T | undefined {
   return cache.get(key)?.data as T | undefined;
 }
 
+/** Warm a key nobody shows yet (e.g. a History row under the pointer), so opening it is instant. Skipped
+ *  while the cached copy is younger than maxAgeMs or a fetch is already running. */
+export function prefetch<T>(key: string, fetcher: () => Promise<T>, maxAgeMs = 10_000): void {
+  const e = entry(key);
+  if (e.inflight || Date.now() - e.ts < maxAgeMs) return;
+  e.fetcher ??= fetcher;
+  void revalidate(key);
+}
+
 onReconnect(() => invalidate(''));
 
 /** Stale-while-revalidate resource. key=null skips fetching (e.g. waiting for a route param). */

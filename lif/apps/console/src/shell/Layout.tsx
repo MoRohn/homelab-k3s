@@ -5,9 +5,9 @@ import { reachable } from '@/api/client';
 import { useObservable } from '@/api/observable';
 import { logout, useMe } from '@/api/session';
 import { STATUS_KEY, useSystemStatus } from '@/api/status';
-import { invalidate, prime } from '@/api/store';
+import { prime } from '@/api/store';
 import { useConnectionState, useEvent } from '@/api/sse';
-import { THREADS_KEY, streaming } from '@/pages/ask/state';
+import { streaming } from '@/pages/ask/state';
 import { installAvailable, promptInstall } from '@/pwa';
 import { Icon } from '@/ui/Icon';
 import { Sheet } from '@/ui/Sheet';
@@ -75,9 +75,10 @@ export function Layout({ children, hideCommandBar }: LayoutProps) {
   const offered = useRef(new Set<string>());
   useEvent('thread', (t) => {
     if (bp === 'compact' || t.status !== 'streaming' || offered.current.has(t.thread_id)) return;
-    if (streaming.get().has(t.thread_id) || path === `/ask/${t.thread_id}`) return;
+    if (t.kind !== 'message' || streaming.get().has(t.thread_id) || path === `/ask/${t.thread_id}`) return;
+    // On a wide Ask page the History panel already shows it answering, live.
+    if (bp === 'wide' && path.startsWith('/ask')) return;
     offered.current.add(t.thread_id);
-    invalidate(THREADS_KEY);
     toast({
       title: 'Conversation started on another device',
       body: 'Open it here to follow the answer and continue.',

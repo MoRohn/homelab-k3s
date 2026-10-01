@@ -5,6 +5,10 @@
 // - Arrivals: shell promptHandoff (command bar, Mobile Gateway) and ?q=&mode=&send=1 (shortcuts) send
 //   once; ?focus=1 focuses the prompt; fileHandoff brings files picked on the Mobile Gateway.
 // - Streaming and its state live in ./state at module scope, so navigation never drops an answer.
+// - History: a persistent, collapsible panel beside the conversation on wide screens; a sheet (phone) or a
+//   drawer (tablet) one tap from the header. Live on every device through hub `thread` events (state.ts).
+// - Images (vision): attaching one in Auto switches the mode to Vision (said under the box, with Undo). With no
+//   local vision model the composer says so, links to a vision model check, and doesn't send.
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso/router';
 import type { AskMode, CommandResolution, HumanError, Message, PrivacyChoice, PromptSuggestion, Thread } from '@/api/contracts.gen';
@@ -16,13 +20,13 @@ import { CommandResult } from '@/shell/CommandResult';
 import { promptDraft, promptHandoff } from '@/shell/commands';
 import { useBreakpoint, useCoarsePointer } from '@/shell/useBreakpoint';
 import { usePageTitle } from '@/shell/usePageTitle';
-import { Button, EmptyState, HumanErrorCard, Icon, IconButton, Skeleton, toast, type IconName } from '@/ui';
+import { Button, Drawer, EmptyState, HumanErrorCard, Icon, IconButton, Sheet, Skeleton, cx, toast, type IconName } from '@/ui';
 import { Composer, isAskMode } from './Composer';
 import { ContinueElsewhere } from './ContinueElsewhere';
 import { History } from './History';
 import { AnswerView, PromptView } from './MessageView';
-import { MAX_FILES, intake, toAttachmentIn, type Picked } from './files';
-import { CAPS_KEY, createThread, fetchCapabilities, fileHandoff, loadThread, retry, send, stop, streaming, threadKey } from './state';
+import { MAX_FILES, MAX_IMAGES, intake, isImage, toAttachmentIn, type Picked } from './files';
+import { CAPS_KEY, createThread, deletedThread, fetchCapabilities, fileHandoff, loadThread, retry, send, stop, streaming, threadKey } from './state';
 import './ask.css';
 
 /** First-time discovery (§77, §78): shown only while the prompt is empty. Questions about Labzilla itself are
@@ -53,10 +57,23 @@ interface CommandTurn {
   resolution: CommandResolution;
 }
 
+const PANEL_PREF = 'lz-ask-history-hidden';
+
+function readPanelHidden(): boolean {
+  try {
+    return localStorage.getItem(PANEL_PREF) === '1';
+  } catch {
+    return false;
+  }
+}
+
+const MODE_NAME: Record<AskMode, string> = { auto: 'Auto', fast: 'Fast', balanced: 'Balanced', deep: 'Deep', code: 'Code', vision: 'Vision' };
+
 export default function Ask({ id }: { id?: string }) {
   const { url, path, query, route } = useLocation();
   const bp = useBreakpoint();
   const compact = bp === 'compact';
+  const wide = bp === 'wide';
   const coarse = useCoarsePointer();
   const me = useMe();
   const caps = useResource(CAPS_KEY, fetchCapabilities, { maxAgeMs: 60_000, refreshOn: ['model'] });
@@ -72,6 +89,11 @@ export default function Ask({ id }: { id?: string }) {
   const [startError, setStartError] = useState<HumanError | null>(null);
   const [modeNotice, setModeNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [panelHidden, setPanelHidden] = useState(readPanelHidden);
+  /** Set when attaching an image switched Auto → Vision; Undo restores `from`. */
+  const [autoVision, setAutoVision] = useState<{ from: AskMode } | null>(null);
+  /** The person undid the switch: don't switch again until the images are gone. */
+  const [visionDeclined, setVisionDeclined] = useState(false);
   const [continueOpen, setContinueOpen] = useState(false);
   const [announce, setAnnounce] = useState('');
   const [resolving, setResolving] = useState(false);
@@ -100,6 +122,24 @@ export default function Ask({ id }: { id?: string }) {
     }
   }, [t?.id]);
 
+  // Images in the composer: Vision reads them. In Auto, switch to Vision visibly (Undo keeps Auto, which the
+  // gateway also routes to vision). With no vision model installed, stay put; the composer says why it can't send.
+  const images = files.filter(isImage);
+  const visionMode = caps.data?.modes.find((x) => x.mode === 'vision');
+  const visionReady = visionMode ? visionMode.available : true;      // unknown: the gateway decides at send time
+  useEffect(() => {
+    if (!images.length) {
+      setVisionDeclined(false);
+      if (autoVision && mode === 'vision') setMode(autoVision.from);
+      if (autoVision) setAutoVision(null);
+      return;
+    }
+    if (mode === 'auto' && visionReady && !visionDeclined && !autoVision) {
+      setAutoVision({ from: 'auto' });
+      setMode('vision');            // the notice under the composer is a status region: it announces itself
+    }
+  }, [images.length, visionReady, mode]);
+
   // If the chosen mode turns out to be unavailable, say so and fall back to Auto rather than fail on send.
   useEffect(() => {
     const m = caps.data?.modes.find((x) => x.mode === mode);
@@ -113,7 +153,8 @@ export default function Ask({ id }: { id?: string }) {
    *  failure shows on the answer with Retry, which resends the exact request (attachment text included). */
   const start = async (content: string, m: AskMode, p: PrivacyChoice, picked: Picked[], threadId: string | undefined, fromComposer: boolean) => {
     const prompt = content.trim();
-    if (!prompt || creating) return;
+    const firstImage = picked.find(isImage);
+    if ((!prompt && !firstImage) || creating) return;
     if (threadId && liveHere.has(threadId)) return;
     setStartError(null);
     setModeNotice(null);
@@ -122,7 +163,7 @@ export default function Ask({ id }: { id?: string }) {
     if (!tid) {
       setCreating(true);
       try {
-        tid = (await createThread(m, p, prompt)).id;
+        tid = (await createThread(m, p, prompt || firstImage?.name || '')).id;
       } catch (e) {
         setStartError(toHumanError(e));
         return;
@@ -134,6 +175,7 @@ export default function Ask({ id }: { id?: string }) {
     if (fromComposer) {
       setText('');
       setFiles([]);
+      setAutoVision(null);
       // The hero composer is replaced by the docked one after the first send: keep keyboard focus.
       if (!coarse) focusPrompt();
     }
@@ -148,7 +190,7 @@ export default function Ask({ id }: { id?: string }) {
    *  reached, the prompt goes to the model as before: the check must never block asking. */
   const submit = async (content: string, viaResolver = routable(content, mode, files.length > 0)) => {
     const prompt = content.trim();
-    if (!prompt || creating || resolving) return;
+    if ((!prompt && !images.length) || creating || resolving || imageBlock) return;
     if (viaResolver) {
       setResolving(true);
       let r: CommandResolution | null = null;
@@ -202,7 +244,14 @@ export default function Ask({ id }: { id?: string }) {
   const addFiles = async (list: File[]) => {
     const room = MAX_FILES - files.length;
     if (list.length > room) toast({ title: `Up to ${MAX_FILES} files per prompt`, body: room > 0 ? `Added the first ${room}.` : undefined, tone: 'warning' });
-    const picked = await Promise.all(list.slice(0, Math.max(0, room)).map(intake));
+    let picked = await Promise.all(list.slice(0, Math.max(0, room)).map(intake));
+    const imageRoom = MAX_IMAGES - files.filter(isImage).length;
+    const newImages = picked.filter(isImage);
+    if (newImages.length > imageRoom) {
+      const drop = new Set(newImages.slice(Math.max(0, imageRoom)).map((f) => f.id));
+      picked = picked.filter((f) => !drop.has(f.id));
+      toast({ title: `Up to ${MAX_IMAGES} images per prompt`, body: imageRoom > 0 ? `Added the first ${imageRoom}.` : 'Remove one to add another.', tone: 'warning' });
+    }
     setFiles((prev) => [...prev, ...picked].slice(0, MAX_FILES));
   };
   const addFilesRef = useRef(addFiles);
@@ -284,6 +333,66 @@ export default function Ask({ id }: { id?: string }) {
     focusPrompt();
   };
 
+  // This conversation was deleted on another device (or removed by the storage cap): say so and leave it.
+  useEffect(() => {
+    const take = (tid: string | null) => {
+      if (!tid) return;
+      deletedThread.set(null);
+      if (tid !== id) return;
+      toast({ title: 'This conversation was deleted', body: 'It was removed on another device.', tone: 'info' });
+      route('/ask', true);
+    };
+    take(deletedThread.get());
+    return deletedThread.subscribe(take);
+  }, [id]);
+
+  const togglePanel = () => {
+    const next = !panelHidden;
+    setPanelHidden(next);
+    try {
+      localStorage.setItem(PANEL_PREF, next ? '1' : '0');
+    } catch {
+      /* convenience only */
+    }
+  };
+
+  // Why images can't go out as things stand: no vision model, or a text-only mode was chosen.
+  const imageBlock = !images.length ? null : !visionReady && (mode === 'auto' || mode === 'vision') ? (
+    <>
+      No local vision model is installed yet — <a href="/models/discovery?category=vision">Models › Check for better models (Vision)</a>.
+    </>
+  ) : mode !== 'auto' && mode !== 'vision' ? (
+    <>
+      {MODE_NAME[mode]} reads text only.{' '}
+      {visionReady ? (
+        <button type="button" class="ask-linkbtn" onClick={() => setMode('vision')}>
+          Use Vision for the {images.length === 1 ? 'image' : 'images'}
+        </button>
+      ) : (
+        <>
+          No local vision model is installed yet — <a href="/models/discovery?category=vision">Models › Check for better models (Vision)</a>.
+        </>
+      )}
+    </>
+  ) : null;
+  const visionNotice = autoVision && mode === 'vision' && images.length > 0 && (
+    <>
+      <Icon name="image" size={14} /> Switched to Vision to read the {images.length === 1 ? 'image' : 'images'}.{' '}
+      <button
+        type="button"
+        class="ask-linkbtn xsmall"
+        onClick={() => {
+          setMode(autoVision.from);
+          setAutoVision(null);
+          setVisionDeclined(true);
+          setAnnounce(`Mode set back to ${MODE_NAME[autoVision.from]}.`);
+        }}
+      >
+        Undo
+      </button>
+    </>
+  );
+
   const empty = !id || (!!t && messages.length === 0);
   const composer = (
     <Composer
@@ -292,6 +401,8 @@ export default function Ask({ id }: { id?: string }) {
       mode={mode}
       onMode={(m) => {
         setModeNotice(null);
+        setAutoVision(null);
+        if (images.length && m !== 'vision') setVisionDeclined(true);
         setMode(m);
       }}
       privacy={privacy}
@@ -309,10 +420,14 @@ export default function Ask({ id }: { id?: string }) {
       compact={compact}
       coarse={coarse}
       hero={empty && !compact}
+      canSend={(text.trim().length > 0 || images.length > 0) && !imageBlock}
+      blocked={imageBlock}
+      notice={visionNotice}
     />
   );
 
-  return (
+  const deviceName = me.data?.device_name ?? null;
+  const page = (
     <div class={`page ask-page${compact ? ' is-compact' : ''}${empty ? ' is-empty' : ''}`} style={compact && dockH ? { paddingBottom: `${dockH}px` } : undefined}>
       <header class="page-header ask-header">
         <div class="grow">
@@ -324,9 +439,17 @@ export default function Ask({ id }: { id?: string }) {
             <IconButton icon="phone" label="Continue on another device" onClick={() => setContinueOpen(true)} />
           )}
           {id && <IconButton icon="plus" label="New conversation" onClick={newConversation} />}
-          <Button variant="ghost" size="sm" icon="history" onClick={() => setHistoryOpen(true)}>
-            History
-          </Button>
+          {wide ? (
+            panelHidden && (
+              <Button variant="ghost" size="sm" icon="history" aria-expanded={false} aria-controls="ask-history" onClick={togglePanel}>
+                History
+              </Button>
+            )
+          ) : (
+            <Button variant="ghost" size="sm" icon="history" aria-haspopup="dialog" onClick={() => setHistoryOpen(true)}>
+              History
+            </Button>
+          )}
         </div>
       </header>
 
@@ -435,17 +558,49 @@ export default function Ask({ id }: { id?: string }) {
         {announce}
       </p>
 
-      <History
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        currentId={id}
-        onNew={newConversation}
-        onOpen={(tid) => {
-          setHistoryOpen(false);
-          route(`/ask/${encodeURIComponent(tid)}`);
-        }}
-      />
       {id && <ContinueElsewhere open={continueOpen} onClose={() => setContinueOpen(false)} threadId={id} />}
     </div>
+  );
+
+  if (wide)
+    return (
+      <div class={cx('ask-layout', panelHidden && 'is-collapsed')}>
+        {!panelHidden && (
+          <aside id="ask-history" class="ask-side" aria-labelledby="ask-history-title">
+            <div class="ask-side-head">
+              <h2 id="ask-history-title" class="ask-side-title">
+                History
+              </h2>
+              <IconButton icon="chevron-left" size="sm" label="Hide history" aria-expanded={true} aria-controls="ask-history" onClick={togglePanel} />
+            </div>
+            <History variant="panel" currentId={id} deviceName={deviceName} onNew={newConversation} />
+          </aside>
+        )}
+        {page}
+      </div>
+    );
+
+  const sheetBody = (
+    <History
+      variant="sheet"
+      currentId={id}
+      deviceName={deviceName}
+      onNew={newConversation}
+      onPicked={() => setHistoryOpen(false)}
+    />
+  );
+  return (
+    <>
+      {page}
+      {compact ? (
+        <Sheet open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" height="full">
+          {sheetBody}
+        </Sheet>
+      ) : (
+        <Drawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" subtitle="Synced across your devices" side="left" width="360px">
+          {sheetBody}
+        </Drawer>
+      )}
+    </>
   );
 }

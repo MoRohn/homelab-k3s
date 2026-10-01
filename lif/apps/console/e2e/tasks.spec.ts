@@ -2,6 +2,7 @@
 // a fallback, check the GPU and BLERBZ, pause a batch job, check for better models, approve a review,
 // connect a phone and continue its conversation on the desktop. §62: an outage reads as a human message.
 import { devices, expect, test, type Page } from 'playwright/test';
+import { FAKE, STATE } from './env';
 import { RAW_TERMS, setScenario, waitReady } from './helpers';
 
 test.use({ viewport: { width: 1440, height: 900 }, colorScheme: 'dark' });
@@ -330,4 +331,202 @@ test('an outage reads as a human message with Retry, never a cryptic error (§62
   await context.setOffline(false);
   await banner.getByRole('button', { name: 'Retry' }).click({ timeout: 3_000 }).catch(() => undefined);
   await expect(banner).toBeHidden({ timeout: 15_000 });
+});
+
+/** Prompts the fake gateway answers slowly (~12 s), so another device can watch the answer grow. */
+const LONG = '[long] Tell me a story about a lighthouse keeper and her cat';
+
+test('Ask threads are live on every open console: new thread, streaming, rename and delete (§67–§70)', async ({ page, browser, baseURL }) => {
+  test.setTimeout(120_000);
+  // Context B: the same owner in another browser, already sitting on Ask with History open beside it.
+  const other = await browser.newContext({ storageState: STATE, baseURL, viewport: { width: 1440, height: 900 }, colorScheme: 'dark', reducedMotion: 'reduce' });
+  try {
+    const b = await other.newPage();
+    await b.goto('/ask');
+    await waitReady(b);
+    const historyB = b.getByRole('complementary', { name: 'History' });
+    await expect(historyB).toBeVisible();
+
+    // Context A starts a conversation and it streams.
+    await page.goto('/ask');
+    await waitReady(page);
+    await sendPrompt(page, LONG);
+    await expect(page).toHaveURL(/\/ask\/[^/]+$/, { timeout: 15_000 });
+    const threadPath = new URL(page.url()).pathname;
+    const id = decodeURIComponent(threadPath.split('/').pop()!);
+
+    // B: the new row appears without a reload, marked as answering.
+    const rowB = historyB.locator(`a.ask-hrow-link[data-id="${id}"]`);
+    await expect(rowB).toBeVisible({ timeout: 10_000 });
+    await expect(rowB).toContainText('Answering…');
+    await expect(rowB).toContainText('lighthouse keeper');
+
+    // B opens it mid-answer and watches the partial answer grow live, then the receipt arrives.
+    await rowB.click();
+    await expect(b).toHaveURL(new RegExp(`${threadPath}$`));
+    await expect(rowB).toHaveAttribute('aria-current', 'page');
+    const answerB = b.getByRole('region', { name: 'Conversation' }).locator('article').last();
+    await expect(answerB).toContainText('Following an answer that started on another device', { timeout: 15_000 });
+    await expect(answerB).toContainText('synthetic reply', { timeout: 15_000 });
+    const early = (await answerB.innerText()).length;
+    await expect.poll(async () => (await answerB.innerText()).length, { timeout: 15_000 }).toBeGreaterThan(early + 40);
+    await expect(b.getByText(/^Handled by local\//)).toBeVisible({ timeout: 45_000 });
+    await expect(rowB).not.toContainText('Answering…');
+    await expect(page.getByText(/^Handled by local\//)).toBeVisible({ timeout: 15_000 });
+
+    // Rename on B (keyboard: F2, type, Enter) shows on A, in the list and the open conversation's title.
+    await rowB.focus();
+    await b.keyboard.press('F2');
+    const field = historyB.getByRole('textbox', { name: 'Conversation name' });
+    await expect(field).toBeFocused();
+    await field.fill('Lighthouse story');
+    await field.press('Enter');
+    const historyA = page.getByRole('complementary', { name: 'History' });
+    await expect(historyA.locator(`a.ask-hrow-link[data-id="${id}"]`)).toContainText('Lighthouse story', { timeout: 10_000 });
+    await expect(page.locator('main h1')).toContainText('Lighthouse story');
+
+    // Delete on A asks first (destructive); B, which has it open, leaves it and its row disappears.
+    const liA = historyA.locator('li', { has: page.locator(`a[data-id="${id}"]`) });
+    await liA.hover();
+    await liA.getByRole('button', { name: 'Delete “Lighthouse story”' }).click();
+    const confirm = page.getByRole('alertdialog', { name: 'Delete this conversation?' });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', { name: 'Delete' }).click();
+    await expect(page).toHaveURL(/\/ask$/);
+    await expect(rowB).toHaveCount(0, { timeout: 10_000 });
+    await expect(b).toHaveURL(/\/ask$/, { timeout: 10_000 });
+    await expect(b.getByText('This conversation was deleted')).toBeVisible();
+    await expectHumanText(b, 'ask live history');
+  } finally {
+    await other.close();
+  }
+});
+
+test('the phone opens History in one tap and recovers what it missed after a dropped connection (§62, §70)', async ({ page, browser, baseURL }) => {
+  test.setTimeout(90_000);
+  const phoneCtx = await browser.newContext({ storageState: STATE, baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, colorScheme: 'dark', reducedMotion: 'reduce' });
+  try {
+    const phone = await phoneCtx.newPage();
+    await phone.goto('/ask');
+    await waitReady(phone);
+    await phone.getByRole('button', { name: 'History' }).tap();
+    const sheet = phone.getByRole('dialog', { name: 'History' });
+    await expect(sheet).toBeVisible();
+    // The phone's live connection drops (with History open); meanwhile the desktop starts a conversation.
+    await phoneCtx.setOffline(true);
+    await page.goto('/ask');
+    await waitReady(page);
+    await sendPrompt(page, `${LONG} while the phone is offline`);
+    await expect(page).toHaveURL(/\/ask\/[^/]+$/, { timeout: 15_000 });
+    const id = decodeURIComponent(new URL(page.url()).pathname.split('/').pop()!);
+    await expect(sheet.locator(`a.ask-hrow-link[data-id="${id}"]`)).toHaveCount(0);
+    // Back online: the reconnect refetches, so the open sheet shows the conversation it never got an event for.
+    await phoneCtx.setOffline(false);
+    await expect(sheet.locator(`a.ask-hrow-link[data-id="${id}"]`)).toBeVisible({ timeout: 30_000 });
+    await sheet.locator(`a.ask-hrow-link[data-id="${id}"]`).tap();
+    await expect(sheet).toBeHidden();
+    await expect(phone.getByRole('region', { name: 'Conversation' })).toContainText('while the phone is offline');
+  } finally {
+    await phoneCtx.close();
+  }
+});
+
+/** A 1600×1200 PNG made in the page (no binary fixture in the repo). */
+async function testImage(page: Page): Promise<{ name: string; mimeType: string; buffer: Buffer }> {
+  const b64 = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 1600;
+    c.height = 1200;
+    const g = c.getContext('2d')!;
+    const grad = g.createLinearGradient(0, 0, 1600, 1200);
+    grad.addColorStop(0, '#0b6');
+    grad.addColorStop(1, '#36f');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 1600, 1200);
+    g.fillStyle = '#fff';
+    g.font = '120px sans-serif';
+    g.fillText('TODO: ship vision', 120, 640);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  return { name: 'whiteboard.png', mimeType: 'image/png', buffer: Buffer.from(b64, 'base64') };
+}
+
+/** Install or remove the fake vision model, then wait until the console's poller has seen it (≤ one 30 s
+ *  routing poll), so the page under test agrees with the world. */
+async function setVision(page: Page, installed: boolean) {
+  const r = await fetch(`${FAKE}/__vision`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ installed }) });
+  if (!r.ok) throw new Error(`vision toggle: ${r.status}`);
+  await expect
+    .poll(async () => {
+      const caps = await (await page.request.get('/api/ai/capabilities')).json();
+      return caps.modes.find((m: { mode: string; available: boolean }) => m.mode === 'vision')?.available;
+    }, { timeout: 60_000, intervals: [2000], message: `console sees vision installed=${installed}` })
+    .toBe(installed);
+}
+
+test('vision in Ask: honest without a vision model, then Auto switches to Vision and the image is never kept (§10, §20)', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('/ask');
+  await waitReady(page);
+  await setVision(page, false);
+  const img = await testImage(page);
+  // No vision model: the image is shown, the note says why it can't be read and links to a vision check.
+  await page.locator('.ask-composer input[type="file"]:not([capture])').setInputFiles(img);
+  const thumbs = page.getByRole('list', { name: 'Attached images' });
+  await expect(thumbs.getByRole('img', { name: 'whiteboard.png' })).toBeVisible();
+  await expect(thumbs).toContainText('1024×768');                       // downscaled in the browser
+  await expect(page.getByText('No local vision model is installed yet')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Send/ })).toBeDisabled();
+  const link = page.getByRole('link', { name: 'Models › Check for better models (Vision)' });
+  await expect(link).toHaveAttribute('href', '/models/discovery?category=vision');
+  await link.click();
+  await waitReady(page);
+  await expect(page.getByRole('checkbox', { name: 'Vision' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Every kind' })).not.toBeChecked();
+
+  // A vision model is installed; once Labzilla sees it, attaching in Auto switches to Vision (with Undo).
+  await setVision(page, true);
+  await page.goto('/ask');
+  await waitReady(page);
+  await page.locator('.ask-composer input[type="file"]:not([capture])').setInputFiles(img);
+  await expect(page.getByText('Switched to Vision to read the image.')).toBeVisible();
+  const mode = page.getByRole('combobox', { name: 'Mode' });
+  await expect(mode).toHaveValue('vision');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(mode).toHaveValue('auto');                               // Auto also routes images to vision
+  await mode.selectOption('vision');
+  await page.getByRole('textbox', { name: 'What do you want to do?' }).fill('What is on this whiteboard?');
+  await page.getByRole('button', { name: /^Send/ }).click();
+  await expect(page).toHaveURL(/\/ask\/[^/]+$/, { timeout: 15_000 });
+  await expect(page.getByText(/^Handled by local\/vision/)).toBeVisible({ timeout: 45_000 });
+  const files = page.getByRole('list', { name: 'Files' });
+  await expect(files).toContainText('whiteboard.png');
+  await expect(files).toContainText('image not kept');
+  // After a reload the server copy says the same: the image itself was never stored.
+  await page.reload();
+  await waitReady(page);
+  await expect(page.getByRole('list', { name: 'Files' })).toContainText('1024×768');
+  await expect(page.getByRole('list', { name: 'Files' })).toContainText('image not kept');
+  await expectHumanText(page, 'ask vision');
+});
+
+test('"Check for better vision models" from the command bar, and Find a vision model on Models (§8, §28)', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.goto('/models');
+  await setVision(page, false);
+  await page.reload();
+  await waitReady(page);
+  const bar = page.locator('.lz-commandbar input');
+  await bar.fill('Check for better vision models');
+  await bar.press('Enter');
+  const result = page.getByRole('region', { name: 'Command result' });
+  await expect(result.getByRole('button', { name: /Check for better vision models/ })).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Find a vision model' }).click();
+  await expect(page.getByText('Checking for better models…')).toBeVisible({ timeout: 10_000 });
+  // The fake run finishes about 6 s later and shortlists a vision model (with its image projector).
+  await expect(page.getByText('Checking for better models…')).toHaveCount(0, { timeout: 30_000 });
+  // Candidates come from the model registry, which Labzilla re-reads every 30 s.
+  await expect(page.getByRole('list', { name: 'Model candidates' })).toContainText(/Gemma/i, { timeout: 45_000 });
+  await expectHumanText(page, 'models after a vision check');
 });

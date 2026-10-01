@@ -20,7 +20,7 @@ import {
   fmt,
   type Column,
 } from '@/ui';
-import { CheckButton, DiscoveryProgress, useDiscoveryStart } from './DiscoveryPanel';
+import { CheckButton, DiscoveryProgress, useDiscoveryStart, type DiscoveryStart } from './DiscoveryPanel';
 import {
   ADVANCED_ROLES,
   MAIN_ROLES,
@@ -110,6 +110,33 @@ function Portfolio() {
   // Anything the server adds later that we don't know shows with the main roles rather than vanishing.
   const main = roles.filter((r) => !ADVANCED_ROLES.includes(r.role)).sort(byOrder(MAIN_ROLES));
   return <RoleTable roles={main} caption="Model roles" />;
+}
+
+/** The Vision row has no model: offer the one step that can change that (a check for vision models). Kept
+ *  outside the table, whose rows are links: a button inside a link row is a nested control. */
+function VisionGap({ ds }: { ds: DiscoveryStart }) {
+  const overview = useOverview();
+  const vision = overview.data?.roles.find((r) => r.role === 'vision');
+  if (!vision || vision.cause !== 'not_deployed') return null;
+  return (
+    <div class="lz-vision-gap row wrap">
+      <Icon name="image" size={16} />
+      <span class="grow small">
+        <strong>Vision</strong> <span class="muted">— no vision model is installed, so Ask can’t read images yet.</span>
+      </span>
+      <Button
+        size="sm"
+        variant="secondary"
+        icon="scout"
+        loading={ds.starting}
+        disabled={!!ds.blocked}
+        title={ds.blocked ?? 'Searches Hugging Face for vision models that fit this machine'}
+        onClick={() => void ds.start(['vision'])}
+      >
+        Find a vision model
+      </Button>
+    </div>
+  );
 }
 
 function Candidates() {
@@ -242,6 +269,7 @@ export default function Models() {
       </header>
       {live !== undefined ? <DiscoveryProgress run={live} stalled={ds.stalled} /> : <LastCheck />}
       <Portfolio />
+      <VisionGap ds={ds} />
       <Candidates />
       <Advanced />
     </div>

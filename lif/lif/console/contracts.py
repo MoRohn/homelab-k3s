@@ -660,14 +660,20 @@ class Attachment(Contract):
     size: int = 0
     included: bool = False
     note: str | None = None
+    width: int | None = None                # images: pixel size as sent (the image itself is never stored)
+    height: int | None = None
 
 
 class AttachmentIn(Contract):
-    """A file as sent by the client: text is extracted in the browser (≤ 256 KB); images/PDFs carry no text."""
+    """A file as sent by the client: text is extracted in the browser (≤ 256 KB). An image is downscaled in the
+    browser (≤ 1024 px JPEG) and sent once as a data URL for the vision model; the server never stores it."""
     name: str = ""
     kind: AttachmentKind = "other"
     size: int = 0
     text: str | None = None
+    image: str | None = None                # "data:image/jpeg;base64,…" (jpeg, png or webp; ≤ 1.5 MB decoded)
+    width: int | None = None
+    height: int | None = None
 
 
 class Message(Contract):
@@ -701,6 +707,13 @@ class ThreadSummary(Contract):
     preview: str = ""
     mode: AskMode = "auto"
     group: Literal["today", "yesterday", "earlier"] = "today"
+    origin_device: str | None = None        # paired device that started it ("iPhone"); None = an admin browser
+    active: bool = False                    # an answer is being written right now (on any device)
+
+
+class RenameThreadRequest(Contract):
+    """PATCH /api/ai/threads/{id}."""
+    title: str = ""
 
 
 class CreateThreadRequest(Contract):
@@ -996,11 +1009,16 @@ class JobsEvent(Contract):
 
 
 class ThreadEvent(Contract):
-    """Partial assistant output (~1 s cadence) so another device can follow a running answer (§68)."""
+    """Live Ask history for every session of the owner (§67–§70).
+    kind "message": partial assistant output (~1 s cadence) so another device can follow a running answer.
+    kind "upsert": the conversation was created, renamed, got a new prompt or finished; `summary` is its new row.
+    kind "deleted": the conversation is gone (deleted on a device, or removed by the storage cap)."""
+    kind: Literal["message", "upsert", "deleted"] = "message"
     thread_id: str = ""
     message_id: str = ""
     content: str = ""
     status: Literal["streaming", "done", "error", "cancelled"] = "streaming"
+    summary: ThreadSummary | None = None
 
 
 class ModelEvent(Contract):

@@ -156,6 +156,7 @@ export async function request<T>(method: string, path: string, body?: unknown, o
 export const get = <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts);
 export const post = <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>('POST', path, body ?? {}, opts);
 export const del = <T>(path: string, opts?: RequestOptions) => request<T>('DELETE', path, undefined, opts);
+export const patch = <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>('PATCH', path, body ?? {}, opts);
 
 /** Build a query string, skipping undefined/null/'' values: qs({status: 'failed'}) → '?status=failed'. */
 export function qs(params: Record<string, string | number | boolean | null | undefined>): string {

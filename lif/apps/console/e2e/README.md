@@ -29,6 +29,8 @@ To run only the fake upstreams, use `lif/.venv/bin/uvicorn --app-dir lif/apps/co
 
 ## Scenarios
 
+To install or remove the fake vision model: `curl -XPOST localhost:8091/__vision -H 'content-type: application/json' -d '{"installed":true}'`.
+
 To switch scenarios while running:
 `curl -XPOST localhost:8091/__scenario -H 'content-type: application/json' -d '{"name":"fallback"}'`.
 `GET /__scenario` returns the current scenario.
@@ -60,8 +62,16 @@ All of it is synthetic and generic. None of it is a production measurement.
 - **Other data:** activity events of many kinds, plus settings, availability, storage, savings and Decision Engineering overview and providers. Kimi is off: `no MOONSHOT_API_KEY secret`.
 - **Gateway chat:** synthetic answers at about 20 tok/s.
   - Streaming responses carry `X-LIF-*` headers and a final usage chunk with `lif` metadata, then `[DONE]`.
-  - `local/auto` resolves through a rules stand-in. `local/vision` gives 503.
+  - `local/auto` resolves through a rules stand-in; with images it goes straight to `local/vision`.
+  - Images (OpenAI `image_url` content parts) sent to a text alias get the gateway's 422 (`type: not_supported`,
+    `code: images_not_supported`). Without a vision model, `local/vision` gives 503 (`no local model is deployed for
+    local/vision; no vision model is installed yet`).
   - A prompt containing `[fail-midstream]` emits the gateway's mid-stream error with no `[DONE]`.
+  - A prompt containing `[long]` streams for about 12 s, so a second browser can watch the answer grow.
+- **Vision:** no vision model by default, as in the real world today. `POST /__vision {"installed": true}` installs
+  one (a PRODUCTION `local/vision` model with its image projector, `mmproj`); a scenario reset removes it. The console
+  sees the change at its next routing poll (up to 30 s). A discovery run that includes `vision` shortlists a vision
+  candidate whose profile and `gguf_pick` carry an `mmproj` file.
 
 ## Fidelity rules
 
@@ -105,7 +115,7 @@ Start `run_dev.sh` first (fresh database), then run `npm run e2e` in `lif/apps/c
 
 | Item | Value |
 |---|---|
-| Specs | `setup` (first-run §83–84; saves the admin session), `responsive` (7 sizes × 2 schemes × 17 pages: no sideways scroll, prompt on screen, nav per breakpoint), `a11y` (axe WCAG 2.0/2.1 A+AA at 390 and 1440 in both schemes, keyboard, reduced motion), `tasks` (§103–105 first-time-user tasks, phone pairing, outages) |
+| Specs | `setup` (first-run §83–84; saves the admin session), `responsive` (7 sizes × 2 schemes × 17 pages: no sideways scroll, prompt on screen, nav per breakpoint), `a11y` (axe WCAG 2.0/2.1 A+AA at 390 and 1440 in both schemes, keyboard, Ask history panel and sheet, reduced motion), `tasks` (§103–105 first-time-user tasks, phone pairing, outages, live Ask history across two browsers and after a dropped connection, vision in Ask) |
 | Browser | The pinned `playwright` devDependency and its cached Chromium. One worker, because the fake world and its scenario are global. |
 | Memory | `global-setup.ts` refuses to launch when MemAvailable is below 3 GiB |
 | Output | `E2E_OUT` (default `<tmpdir>/labzilla-console-e2e`): session state, failure screenshots. Page screenshots go to `E2E_SHOTS` (default `$E2E_OUT/shots`). Nothing is written to the repo. |

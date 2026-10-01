@@ -176,7 +176,7 @@ ROLE_BY_ALIAS = {r[1]: r for r in ROLES}
 CATEGORY_ALIAS: dict[str, str] = {"fast": "local/fast", "general": "local/default", "coding": "local/code",
                                   "reasoning": "local/reasoning", "embedding": "local/embedding",
                                   "reranking": "local/rerank", "vision": "local/vision"}
-DISCOVERY_CATEGORIES = ("fast", "general", "coding", "reasoning", "embedding", "reranking")
+DISCOVERY_CATEGORIES = ("fast", "general", "coding", "reasoning", "embedding", "reranking", "vision")
 
 
 def role_label(alias: str) -> str:

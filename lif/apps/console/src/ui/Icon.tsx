@@ -88,6 +88,7 @@ const P: Record<IconName, string> = {
   code: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',
   file: 'M6 3h8l5 5v13H6zM14 3v5h5',
   image: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 10a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7z',
   layers: 'M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5',
   scout: 'M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zM20 20l-5.5-5.5M10 7v6M7 10h6',
   history: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2',
@@ -119,7 +120,7 @@ export type IconName =
   | 'info' | 'success' | 'warning' | 'error' | 'paused' | 'offline' | 'busy' | 'unknown' | 'bell' | 'clock'
   | 'gpu' | 'memory' | 'cpu' | 'bolt' | 'server' | 'database' | 'network' | 'shield' | 'lock' | 'key' | 'phone'
   | 'desktop' | 'qr' | 'link' | 'wifi' | 'wifi-off' | 'user' | 'settings' | 'sun' | 'moon' | 'decision' | 'route'
-  | 'sparkle' | 'code' | 'file' | 'image' | 'layers' | 'scout' | 'history' | 'cube' | 'chip' | 'dot' | 'wrap'
+  | 'sparkle' | 'code' | 'file' | 'image' | 'camera' | 'layers' | 'scout' | 'history' | 'cube' | 'chip' | 'dot' | 'wrap'
   | 'spark' | 'queue' | 'book' | 'paperclip' | 'alert';
 
 export interface IconProps {

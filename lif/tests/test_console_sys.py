@@ -449,6 +449,19 @@ def test_canary_pick_is_not_reported_as_change(fake: Fake, published: list[tuple
     assert not [d for t, d in published if t in ("model", "notification")]
 
 
+def test_registry_change_publishes_a_model_event(fake: Fake, published: list[tuple[str, Any]]) -> None:
+    """A finished check adds a candidate without touching any role: Models must still hear about it."""
+    refresh()
+    refresh()
+    published.clear()
+    refresh()
+    assert not [d for t, d in published if t == "model"]                 # nothing changed, nothing said
+    fake.s["models"]["vision-cand"] = {**fake.s["models"][CAND], "id": "vision-cand", "category": "vision"}
+    poller._st.src["models"].attempt_ts = 0.0                              # due now (30 s cadence)
+    refresh()
+    assert [d.summary for t, d in published if t == "model"] == ["Model registry changed"]
+
+
 def test_new_activity_publishes_and_candidate_notifies(fake: Fake, published: list[tuple[str, Any]]) -> None:
     refresh()
     fake.s["activity"].insert(0, {"seq": 4, "ts": NOW, "kind": "comparison_complete", "subject": CAND, "actor": "controller",
@@ -617,6 +630,8 @@ def test_discovery_runs_and_start(fake: Fake, published: list[tuple[str, Any]]) 
     assert r.status_code == 200 and r.json()["current"]["status"] == "running"
     assert all(s["count"] is None for s in r.json()["current"]["stages"])     # no invented progress
     assert any(p == "/v1/models/refresh" and b == {"categories": ["coding"]} for _, _, p, b, _ in fake.calls)
+    r = c.post("/api/models/discovery", json={"categories": ["vision"]})      # vision models can be searched for
+    assert r.status_code == 200, r.text
     fake.s["settings"]["discovery_disabled"] = True
     refresh()
     r = c.post("/api/models/discovery", json={})

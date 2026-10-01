@@ -35,10 +35,12 @@ export function PromptView({ msg }: { msg: Message }) {
       )}
       {msg.attachments.length > 0 && (
         <ul role="list" class="ask-prompt-files xsmall muted" aria-label="Files">
-          {msg.attachments.map((a) => (
-            <li key={a.name}>
-              <Icon name={a.kind === 'image' ? 'image' : 'file'} size={12} /> {a.name} · {fileSize(a.size)} ·{' '}
-              {a.included ? 'text included' : a.note ?? 'not processed'}
+          {msg.attachments.map((a, i) => (
+            <li key={`${a.name}-${i}`}>
+              <Icon name={a.kind === 'image' ? 'image' : 'file'} size={12} /> {a.name} ·{' '}
+              {a.kind === 'image' && a.width && a.height ? `${a.width}×${a.height} · ` : ''}
+              {fileSize(a.size)} ·{' '}
+              {a.kind === 'image' ? (a.included ? 'sent to the vision model · image not kept' : a.note ?? 'not sent') : a.included ? 'text included' : a.note ?? 'not processed'}
             </li>
           ))}
         </ul>
