@@ -1,0 +1,115 @@
+# Alert and recording rules specific to this homelab.
+# Alerts appear on the Homelab Overview dashboard; there is no Alertmanager.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab
+spec:
+  groups:
+    - name: homelab.memory
+      rules:
+        # bnn gpusched keeps 8 GiB of unified memory free before admitting background GPU jobs
+        - record: homelab:gpu_reserve_headroom_bytes
+          expr: node_memory_MemAvailable_bytes{job="node-exporter"} - 8 * 1024^3
+        - alert: HomelabMemoryCritical
+          expr: node_memory_MemAvailable_bytes{job="node-exporter"} < 4 * 1024^3
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: Less than 4 GiB of unified memory available
+            description: >-
+              {{ $value | humanize1024 }}B available. Model servers and cluster workloads
+              are at risk of OOM kills.
+        - alert: HomelabGpuReserveBreached
+          expr: homelab:gpu_reserve_headroom_bytes < 0
+          for: 15m
+          labels: {severity: info}
+          annotations:
+            summary: Available memory is below the 8 GiB GPU scheduler reserve
+            description: >-
+              bnn gpusched will not admit background GPU jobs until
+              {{ $value | humanize1024 }}B more memory is free.
+
+    - name: homelab.storage
+      rules:
+        - alert: LonghornBackupTargetUnavailable
+          expr: longhorn_backup_target_status{condition="unavailable"} == 1
+          for: 10m
+          labels: {severity: warning}
+          annotations:
+            summary: Longhorn cannot reach its backup target
+            description: Backups to {{ $labels.backup_target }} are failing. Check MinIO and the minio-credentials secret.
+        - alert: LonghornVolumeDegraded
+          expr: longhorn_volume_robustness{state="degraded"} == 1
+          for: 10m
+          labels: {severity: warning}
+          annotations:
+            summary: Longhorn volume {{ $labels.volume }} is degraded
+        - alert: LonghornVolumeFaulted
+          expr: longhorn_volume_robustness{state="faulted"} == 1
+          for: 2m
+          labels: {severity: critical}
+          annotations:
+            summary: Longhorn volume {{ $labels.volume }} is faulted
+        - alert: LonghornDiskAlmostFull
+          expr: longhorn_disk_usage_bytes / longhorn_disk_capacity_bytes > 0.85
+          for: 30m
+          labels: {severity: warning}
+          annotations:
+            summary: Longhorn disk {{ $labels.disk }} is {{ $value | humanizePercentage }} full
+        - alert: LonghornBackupStale
+          expr: longhorn_volume_last_backup_at > 0 and (time() - longhorn_volume_last_backup_at) > 2 * 86400
+          for: 1h
+          labels: {severity: warning}
+          annotations:
+            summary: Volume {{ $labels.volume }} has not been backed up in over 2 days
+
+    - name: homelab.offsite
+      rules:
+        # Only evaluate once off-site sync has been set up (the metric exists)
+        - alert: OffsiteBackupStale
+          expr: time() - homelab_offsite_last_success_timestamp_seconds > 2 * 86400 and homelab_offsite_last_success_timestamp_seconds > 0
+          for: 1h
+          labels: {severity: warning}
+          annotations:
+            summary: Off-site backup copy is {{ $value | humanizeDuration }} old
+            description: The off-site target may be asleep, offline or out of space. See backup/offsite-sync.sh.
+        - alert: OffsiteBackupFailing
+          expr: homelab_offsite_last_run_failed == 1
+          for: 2h
+          labels: {severity: warning}
+          annotations:
+            summary: Off-site backup sync is failing
+            description: Run ~/labzilla/homelab/backup/offsite-sync.sh --force to see the error (a REFUSING message means the shrink guard fired).
+
+    - name: homelab.minio
+      rules:
+        - alert: MinIODown
+          expr: up{job="minio"} == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: MinIO is unreachable from the cluster
+            description: Longhorn backups will fail. Check the bnn-minio container and its 192.168.68.72:9000 binding.
+        - alert: MinIOUnhealthy
+          expr: minio_cluster_health_status == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: MinIO reports an unhealthy cluster
+
+    - name: homelab.gpu
+      rules:
+        - alert: GpuSchedulerDown
+          expr: up{job="gpusched"} == 0 or gpusched_up == 0
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: bnn gpusched is not reporting
+            description: GPU admission control is unavailable; background GPU jobs fail closed.
+        - alert: GpuSchedulerHolding
+          expr: gpusched_holds > 0
+          for: 15m
+          labels: {severity: info}
+          annotations:
+            summary: bnn gpusched has held new GPU admissions for 15 minutes

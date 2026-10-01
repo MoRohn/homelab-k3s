@@ -1,0 +1,18 @@
+# App of apps: Argo CD manages every Application in argocd/apps/.
+# Bootstrap once with scripts/install-monitoring.sh (or kubectl apply -f argocd/root.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/MoRohn/labzilla.git
+    targetRevision: main
+    path: homelab/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}

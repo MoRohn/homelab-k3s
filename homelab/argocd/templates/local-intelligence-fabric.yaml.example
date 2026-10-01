@@ -1,0 +1,27 @@
+# OPTIONAL — Argo CD Application for the Local Intelligence Fabric (LIF), which lives in lif/.
+# Not active: Argo CD only reads homelab/argocd/apps/. LIF is deployed by hand today
+# (see lif/docs/DEPLOYMENT.md).
+#
+# To enable:
+#   1. Replace IMAGE_TAG in lif/kustomization.yaml with a real tag in the local registry.
+#   2. Add the ignoreDifferences block from lif/docs/DEPLOYMENT.md (the memory guard owns
+#      tier0-small and embedding replicas; self-heal would fight it).
+#   3. cp homelab/argocd/templates/local-intelligence-fabric.yaml.example homelab/argocd/apps/local-intelligence-fabric.yaml
+#   4. Commit and push. A push to main is a production deploy.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-intelligence-fabric
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/MoRohn/labzilla.git
+    targetRevision: main
+    path: lif                    # LIF's top-level kustomization.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    # Manual sync to start: LIF's workloads compete with BNN for unified memory
+    syncOptions:
+      - ServerSideApply=true

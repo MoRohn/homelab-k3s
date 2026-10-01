@@ -1,0 +1,26 @@
+# Dashboards, extra scrape targets and homelab alert rules (monitoring/kustomization.yaml)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-extras
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/MoRohn/labzilla.git
+    targetRevision: main
+    path: homelab/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
+      # Dashboard ConfigMaps are too large for client-side apply
+      - ServerSideApply=true
+      # ScrapeConfig/PrometheusRule CRDs arrive with the monitoring app
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff: {duration: 30s, factor: 2, maxDuration: 5m}

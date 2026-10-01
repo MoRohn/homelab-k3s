@@ -1,0 +1,21 @@
+# Address pools, L2 advertisement, Traefik IP pin (networking/metallb/config)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb-config
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/MoRohn/labzilla.git
+    targetRevision: main
+    path: homelab/networking/metallb/config
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - SkipDryRunOnMissingResource=true   # MetalLB CRDs arrive with the metallb app
+    retry:
+      limit: 10
+      backoff: {duration: 30s, factor: 2, maxDuration: 5m}
