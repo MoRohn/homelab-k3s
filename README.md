@@ -16,6 +16,8 @@
   <img alt="Argo CD" src="https://img.shields.io/badge/GitOps-Argo%20CD-1fbf6a?logo=argo&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-1fbf6a?logo=python&logoColor=white">
   <img alt="arm64" src="https://img.shields.io/badge/arch-arm64-1fbf6a">
+  <img alt="Jev" src="https://img.shields.io/badge/decisions-Jev%20%2B%20Kimi%20K3-1fbf6a">
+  <img alt="MCP" src="https://img.shields.io/badge/agents-MCP-1fbf6a">
 </p>
 
 ---
@@ -26,7 +28,32 @@ local credentials:
 | Project | What it is | Start here |
 |---|---|---|
 | **[`homelab/`](homelab/)** | The k3s platform: Longhorn storage, MinIO backups (on- and off-site), Prometheus + Grafana, MetalLB, Tailscale, all GitOps-managed by Argo CD | [homelab/README.md](homelab/README.md) |
-| **[`lif/`](lif/)** | The **Local Intelligence Fabric**: an OpenAI-compatible gateway over local models, a Decision Fabric, model lifecycle, batch queue, and a Control Center UI. Runs on the platform | [lif/README.md](lif/README.md) |
+| **[`lif/`](lif/)** | The **Local Intelligence Fabric**: an OpenAI-compatible gateway over local models, Decision Engineering (typed Jev decisions with calibrated escalation), a persistent knowledge layer for agents, model lifecycle, batch queue, and a Control Center UI. Runs on the platform | [lif/README.md](lif/README.md) |
+
+## Inside LIF
+
+LIF has one rule: **don't generate when you only need to decide.** Every agent step goes to the cheapest
+executor that can do it correctly, and the platform keeps measuring whether that is still true.
+
+```text
+ agent step ──► CODE ──────► JEV ────────────► LOCAL MODEL ──► KIMI K3 ──► HUMAN / SAFE DEFAULT
+               exact        bounded judgment   generation or   hard        irreversible or
+               results      (confidence ≥ the   uncertain       cases       unresolved
+                            decision's calibrated cases          (opt-in)
+                            threshold)
+```
+
+| Capability | What it does | Docs |
+|---|---|---|
+| **Gateway** | One OpenAI-compatible endpoint with logical models (`local/default`, `local/auto`, …), fallbacks, and yielding to the primary workload | [lif/README.md](lif/README.md) |
+| **Decision Engineering** | Mines agent traces for decisions hidden in LLM calls. Turns them into versioned Jev questions that are linted, tested, shadowed, calibrated per decision and promoted only by a person. Escalates by confidence | [DECISION_ENGINEERING](lif/docs/DECISION_ENGINEERING.md) |
+| **Knowledge layer** | Typed Markdown repos of decisions, evidence, incidents and methods. A graph with context assembly, and an MCP server so agents resume work with provenance | [KNOWLEDGE](lif/docs/KNOWLEDGE.md) |
+| **Model lifecycle** | Hugging Face discovery → benchmark → canary → promotion, with rollback | [MODEL_LIFECYCLE](lif/docs/MODEL_LIFECYCLE.md) |
+| **Control Center** | Overview, models, decision engineering (opportunities, calibration, cascades, traces, review queue), knowledge | [OPERATIONS](lif/docs/OPERATIONS.md) |
+
+Measured 2026-10-01 on 267 labelled agent decisions: Jev was right 94.4% of the time, at a median of 167 ms.
+At a 0.9 threshold, 68% of cases resolved automatically, all correctly. The rest escalated
+([benchmark](lif/benchmarks/decision-engineering/README.md)).
 
 ## Repository map
 
@@ -40,7 +67,8 @@ labzilla/
 │   ├── scripts/        every setup step, repeatable
 │   └── docs/
 ├── lif/                Local Intelligence Fabric
-│   ├── lif/            Python package (gateway, controller, decision, batch, cli, …)
+│   ├── lif/            Python package (gateway, controller, decision, knowledge, batch, cli, …)
+│   ├── decision-packages/  versioned Jev questions + labelled tests (never edited in place)
 │   ├── deploy/k8s/     manifests (kustomization.yaml at lif/)
 │   ├── config/ evals/  apps/control-center/
 │   ├── benchmarks/     public, reproducible benchmarks
@@ -54,7 +82,7 @@ labzilla/
 ├── secrets/            🔒 credentials          (git-ignored, README only)
 ├── private/            🔒 sensitive docs/data  (git-ignored, README only)
 ├── personal/           🔒 your notes           (git-ignored, README only)
-└── .env.local          🔒 TYPE_SAFE_JEV_API_KEY (git-ignored)
+└── .env.local          🔒 TYPE_SAFE_JEV_API_KEY, optional MOONSHOT_API_KEY (git-ignored)
 ```
 
 ## Quickstart
@@ -69,6 +97,10 @@ Then follow the project you need:
 - **Platform from scratch:** [homelab/README.md → "The setup, in seven acts"](homelab/README.md#the-setup-in-seven-acts)
 - **Deploy or operate LIF:** [lif/docs/DEPLOYMENT.md](lif/docs/DEPLOYMENT.md) and [lif/docs/OPERATIONS.md](lif/docs/OPERATIONS.md)
 - **Call the AI gateway from an app:** [lif/README.md → Quickstart](lif/README.md#quickstart-for-application-developers)
+- **Make an agent decide instead of generate:** `local-ai agent audit` finds the decisions hidden in its LLM calls,
+  and the SDK gives you `decide()` vs `generate()` ([DECISION_ENGINEERING](lif/docs/DECISION_ENGINEERING.md))
+- **Use it from an AI coding agent:** `.mcp.json` registers two MCP servers: `lif-knowledge` (context, sessions)
+  and `lif-decisions` (`classify_operation`, `decide`, `decision_lint`, `agent_audit`)
 
 ## How changes reach the cluster
 
