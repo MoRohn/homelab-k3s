@@ -39,7 +39,8 @@ The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → 
 ## CPU tiers: why, and their cost
 
 - Today gpusched admits about **0.6–1.2 GiB**, so no LLM fits on the GPU.
-- The CPU tiers run llama.cpp on the **A725 cores only** (`--cpu-mask 7C1F`, CPUs 0–4 and 10–14), with `--no-repack`, a q8_0 KV cache, and a hard cgroup memory limit.
+- The CPU tiers run llama.cpp with a q8_0 KV cache and a hard cgroup memory limit. Writing a single answer runs on the **A725 cores** (`--cpu-mask 7C1F`, CPUs 0–4 and 10–14). Since 2026-10-01 (owner decision), prompt processing and batched decode run on the **X925 cores** (`--cpu-mask-batch F83E0`, CPUs 5–9 and 15–19), and chat servers repack their weights; embedding keeps `--no-repack`.
+- Measured (Qwen3-4B Q4_K_M, n=3, production idle): prompt processing 51.8 tok/s (A725, no repack) → 218.6 tok/s (X925, repack); writing 26.9 → 29.3 tok/s with the split (A725 decode, repack).
 - They create no CUDA context, so a GPU takeover can't evict them.
 
 ### The `--no-repack` lesson (measured 2026-09-30)
