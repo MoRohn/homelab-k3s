@@ -21,7 +21,7 @@ DRY=0
 EXPECT_FP=""
 CMD=""
 ROOT="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")/.." && pwd)"
-HOST_CA="$ROOT/secrets/labzilla-ca.crt"
+HOST_CA="${LABZILLA_HOST_CA:-$ROOT/secrets/labzilla-ca.crt}"     # the host's own copy, to verify a download
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

@@ -62,8 +62,9 @@ def console(cert: tuple[str, str]) -> Iterator[Console]:
     c.srv.shutdown()
 
 
-def run(*args: str, url: str | None = None) -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "LABZILLA_NO_CLUSTER": "1", "NO_COLOR": "1"}
+def run(*args: str, url: str | None = None, extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    # Hermetic: no cluster checks, and no host CA copy unless a test points at one.
+    env = {**os.environ, "LABZILLA_NO_CLUSTER": "1", "NO_COLOR": "1", "LABZILLA_HOST_CA": "/nonexistent", **(extra or {})}
     cmd = [str(SCRIPT), *args] + (["--url", url] if url else [])
     return subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=60, stdin=subprocess.DEVNULL)
 
@@ -109,3 +110,16 @@ def test_trust_refuses_anything_but_a_certificate(console: Console, cert: tuple[
 def test_doctor_reports_tools(console: Console) -> None:
     r = run("doctor", url=console.url)
     assert "curl" in r.stdout and "openssl" in r.stdout
+
+
+def test_trust_verifies_against_the_hosts_own_copy(console: Console, cert: tuple[str, str], tmp_path: Path) -> None:
+    """On the Labzilla host, secrets/labzilla-ca.crt is the reference: a download that differs is refused."""
+    host = tmp_path / "labzilla-ca.crt"
+    host.write_text(cert[0])
+    ok = run("trust", "--dry-run", url=console.url, extra={"LABZILLA_HOST_CA": str(host)})
+    assert ok.returncode == 0 and "matches secrets/labzilla-ca.crt" in ok.stdout
+    console.ca = subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256",
+                                 "-nodes", "-keyout", str(tmp_path / "k2"), "-days", "1", "-subj", "/CN=Impostor"],
+                                check=True, capture_output=True, text=True).stdout
+    bad = run("trust", "--dry-run", url=console.url, extra={"LABZILLA_HOST_CA": str(host)})
+    assert bad.returncode == 1 and "does NOT match secrets/labzilla-ca.crt" in bad.stdout

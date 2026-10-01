@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from lif.console import auth, db, errors, threads, upstream
 from lif.console.routes import home as home_routes
-from tests.test_console_sys import ADMIN, Fake, fake  # noqa: F401  (fixture)
+from test_console_sys import ADMIN, Fake, fake  # noqa: F401  (fixture; pytest puts tests/ on sys.path)
 
 SAVINGS = {"window": "24h",
            "measured": {"requests": 412, "local_tokens": {"input": 90000, "output": 31000}},
