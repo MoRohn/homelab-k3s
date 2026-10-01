@@ -30,7 +30,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from lif.common import config
-from lif.decision import autotune, calibration, experiments, fanout, pricing, shadow
+from lif.decision import autolabel, autotune, calibration, experiments, fanout, pricing, shadow
 from lif.decision.lint import lint, summarize
 from lif.decision.registry import RegistryError
 from lif.decision.types import DecisionDef
@@ -363,16 +363,16 @@ async def last_cycle():
 @router.post("/observe")
 async def observe(request: Request):
     """Shadow a real agent (spec §29, §92). The agent reports the decision it made with its
-    own logic; that answer is recorded as served (route=baseline), every shadow-stage version
-    of `decision` evaluates the same state, and disagreements, plus a sample of agreements,
-    go to the human review queue, whose answers become calibration outcomes.
+    own logic; that answer is recorded as served (route=baseline), and every shadow-stage version
+    of `decision` evaluates the same state. The correct answer (the calibration outcome) comes from
+    lif.decision.autolabel: the decision's criteria checked in code (observe.review: auto, the
+    default). observe.review: human restores the old review queue (disagreements + a sample).
 
     {decision, state, data_class?, agent, workflow?, baseline: {answer, executor?, confidence?,
      latency_ms?, cost_usd?}}
     """
     import hashlib
     from lif.decision.escalation import EscalationPackage
-    from lif.decision.instrument import TraceWriter
     from lif.decision.state_compiler import MissingState, compile_state
     b = await request.json()
     name, base = b.get("decision"), b.get("baseline") or {}
@@ -405,11 +405,23 @@ async def observe(request: Request):
                 shadows.append({"ref": c.ref, "answer": row[0]["candidate_answer"],
                                 "confidence": row[0]["candidate_confidence"], "provider": row[0]["candidate_provider"],
                                 "probabilities": json.loads(row[0]["candidate_probs"])})
-    # human evidence: every disagreement, plus a stable sample of agreements (unbiased labels)
-    pct = float((config.get("decision_engineering.observe") or {}).get("review_agreement_pct", 20))
+    obs = config.get("decision_engineering.observe") or {}
     disagree = any(s["answer"] != served.answer for s in shadows)
+    ticket, auto = None, None
+    if obs.get("review", "auto") == "auto":
+        # Measurable labels instead of a review queue: the decision's criteria checked in code, for every
+        # observed case. No labeller → no label (left out of calibration), never a person.
+        lab = autolabel.label(name, state)
+        if lab is not None:
+            shadow.record_outcome(RT.store, outcome=lab.answer, provenance_id=served.provenance_id,
+                                  source=f"auto:{lab.labeller}")
+            auto = {"answer": lab.answer, "labeller": lab.labeller, "why": lab.why}
+        return {"provenance_id": served.provenance_id, "served": served.answer, "shadow": shadows,
+                "disagreement": disagree, "review_ticket": None, "auto_label": auto,
+                **_trace(agent, workflow, name, served, shadows, disagree)}
+    # review: human — every disagreement, plus a stable sample of agreements (unbiased labels)
+    pct = float(obs.get("review_agreement_pct", 20))
     sampled = int(hashlib.sha256(provenance_hash(state).encode()).hexdigest()[:4], 16) / 0xFFFF * 100 < pct
-    ticket = None
     if shadows and (disagree or sampled) and RT.cascade.human is not None:
         top = shadows[-1]
         pkg = EscalationPackage.build(d, state, "shadow_disagreement" if disagree else "shadow_sample",
@@ -419,11 +431,16 @@ async def observe(request: Request):
                                       [{"tier": "agent", "executor": served.executor, "answer": served.answer}])
         hr = await RT.cascade.human.resolve(pkg, provenance_id=served.provenance_id)
         ticket = hr.ticket
+    return {"provenance_id": served.provenance_id, "served": served.answer, "shadow": shadows,
+            "disagreement": disagree, "review_ticket": ticket, **_trace(agent, workflow, name, served, shadows, disagree)}
+
+
+def _trace(agent, workflow, name, served, shadows, disagree) -> dict:
+    from lif.decision.instrument import TraceWriter
     TraceWriter(agent, workflow).step(kind="llm", name=name, purpose=name, output=served.answer,
                                       model=served.executor, latency_ms=served.latency_ms,
                                       features={"observed": True, "shadow_agree": not disagree if shadows else None})
-    return {"provenance_id": served.provenance_id, "served": served.answer, "shadow": shadows,
-            "disagreement": disagree, "review_ticket": ticket}
+    return {}
 
 
 def provenance_hash(state) -> str:

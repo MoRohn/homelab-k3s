@@ -12,4 +12,4 @@
 
 ## Ground truth
 
-Real outcomes are rare: few models reach a benchmark. Labels come from the human review queue. Every shadow disagreement with the agent goes to review, plus a sample of agreements, so calibration isn't biased toward the hard cases.
+Real outcomes are rare: few models reach a benchmark. Labels come from `lif/decision/autolabel.py` (`model-advance-rules-v1`): the criteria above checked in code for every observed case, scored 26/26 on `tests.jsonl`. No case goes to a human review queue (`observe.review: auto`).
