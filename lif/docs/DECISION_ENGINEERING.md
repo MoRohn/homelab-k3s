@@ -237,6 +237,38 @@ The executive dashboard (Control Center → Decision Engineering → Overview) i
 | Q | completion never relies only on Jev | `test_ready_Q_completion_needs_acceptance_checks_not_just_jev` |
 | R | irreversible stays human/policy | `test_ready_R_irreversible_decisions_stay_human`, `test_ready_R_tool_policy_is_deterministic` |
 
+## Real agent in shadow: model discovery (2026-10-01)
+
+`POST /de/observe` lets any agent report the decision it made with its own logic.
+
+- That answer is what serves (`route=baseline`).
+- Every version in `shadow` evaluates the same compiled state.
+- Every disagreement, plus 20% of agreements, goes to the **Review Queue**. Your answers become calibration outcomes.
+- The discovery agent (`lif/models/discovery.py`) reports each screened model (fire-and-forget, 20 s timeout).
+
+Its hidden decision was "advance this model?", encoded as a 4-way Jev distribution plus hand-tuned P(advance) thresholds. It is now `model-operations/model-advance/v1`:
+
+| Step | Evidence |
+|---|---|
+| Lint | clean |
+| Live test (Jev, n=26) | 96.2%. Its one miss is at confidence 0.65, so it would never act automatically |
+| designed → tested → shadow | via `/v1/de/transition` by `operator`, with evidence; activity-logged |
+| First real run (refresh, 1,558 listed → 32 screened) | 32/32 observed. Agreement 17/32. The agent said yes 14 times, the candidate 29 times. Jev p50 191 ms |
+| Review Queue | 20 tickets: 15 disagreements and 5 sampled agreements |
+
+**Finding (pending labels).** v1 looks too permissive. It advances community distills of closed models, a non-existent "Qwen3.8" release and a vision-language reranker for text reranking. "Official release or direct quantization" isn't observable from a repo id. If the labels confirm this, v2 should take `model.publisher_is_first_party` (computed in code from the agent's first-party list) instead of asking Jev to infer it. This is the move-to-code direction from §68.
+
+Calibration needs at least 200 labelled samples (§30). At about 32 observations per discovery run, that is roughly 7 runs plus labels. **Nothing is automated until then.** Promotion is the owner's.
+
+### v2 regression results (Jev, same cases, 2026-10-01)
+
+| Decision | v1 | v2 | Gate |
+|---|---|---|---|
+| goal-satisfied | 86.2% | 100% | pass |
+| change-satisfies-intent | 84.6% | 92.3% | pass |
+| result-keep | 92.3% | 92.3% | **fail**: the common slice fell from 94.1% to 88.2%; keep v1 |
+| model-shortlist | 92.3% | 92.3% | pass, but no gain |
+
 ## Benchmark (§100)
 
 See [`benchmarks/decision-engineering/`](../benchmarks/decision-engineering/).

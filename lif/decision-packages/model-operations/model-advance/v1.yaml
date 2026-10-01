@@ -1,0 +1,36 @@
+# The decision hidden in the discovery agent (lif/models/discovery.py): it asks Jev a 4-way
+# model-suitability question, distrusts the flat distribution, and advances a model when
+# P(benchmark)+P(candidate) ≥ 0.70 (or ≥ 0.50 plus a rule): hand-tuned, never calibrated.
+# This states the real question once, as a noul. Comparisons with the production model
+# are computed in code and passed as booleans (rule 6). Runs in shadow next to the agent's
+# current logic (POST /de/observe); disagreements go to the human review queue.
+name: model-advance
+version: v1
+primitive: noul
+stage: designed
+risk: low                       # reversible: advancing only queues a download + benchmark
+reversible: true
+owner: model-operations
+data_class: PUBLIC              # Hugging Face metadata
+instructions: >
+  Judge whether the model in `model.id` is worth downloading and benchmarking for the
+  category in `category.name`, given its metadata and the production model in `current.model_id`.
+criteria: >
+  `model.pipeline_tag` and `model.tags` show the model is built for the task of `category.name`;
+  `model.id` names an official release or a direct quantization of one, not a merge, a
+  roleplay or uncensored variant, a test or a toy; and `comparison.newer_than_current` or
+  `comparison.larger_than_current` is true, or `current.model_id` is "none".
+state_schema:
+  model.id: str
+  model.pipeline_tag: str
+  model.tags: list
+  category.name: str
+  current.model_id: str
+  comparison.newer_than_current: bool
+  comparison.larger_than_current: bool
+default: "no"
+fallback: [rules]
+policy:
+  mode: three_zone              # no `high` until calibrated: nothing is automatic
+  middle_route: []
+  low_route: [safe_default]

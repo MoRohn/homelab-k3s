@@ -358,3 +358,74 @@ async def providers():
 async def last_cycle():
     from lif.decision import jobs
     return jobs.LAST or {"note": "no improvement cycle has run yet"}
+
+
+@router.post("/observe")
+async def observe(request: Request):
+    """Shadow a real agent (spec §29, §92). The agent reports the decision it made with its
+    own logic; that answer is recorded as served (route=baseline), every shadow-stage version
+    of `decision` evaluates the same state, and disagreements, plus a sample of agreements,
+    go to the human review queue, whose answers become calibration outcomes.
+
+    {decision, state, data_class?, agent, workflow?, baseline: {answer, executor?, confidence?,
+     latency_ms?, cost_usd?}}
+    """
+    import hashlib
+    from lif.decision.escalation import EscalationPackage
+    from lif.decision.instrument import TraceWriter
+    from lif.decision.state_compiler import MissingState, compile_state
+    b = await request.json()
+    name, base = b.get("decision"), b.get("baseline") or {}
+    versions = RT.registry.versions(name or "")
+    if not versions:
+        return _err(404, f"unknown decision {name!r}")
+    cands = RT.registry.shadow_candidates(name)
+    d = cands[-1] if cands else versions[-1]
+    if base.get("answer") not in d.labels:
+        return _err(400, f"baseline.answer must be one of {d.labels}")
+    try:
+        state = compile_state(d, b.get("state") or {}).state
+    except MissingState as e:
+        return _err(400, str(e))
+    agent, workflow = b.get("agent", "unknown"), b.get("workflow", "")
+    served = await RT.cascade._baseline(name, state, lambda s: (base["answer"], {
+        "executor": base.get("executor", agent), "confidence": base.get("confidence", 1.0),
+        "cost_usd": base.get("cost_usd")}))
+    if base.get("latency_ms") is not None:
+        served.latency_ms = float(base["latency_ms"])
+    RT.cascade._provenance(name, state, served, agent, workflow)
+    shadows = []
+    if cands:
+        await shadow.record_shadow(RT.fabric, RT.store, cands, state, b.get("data_class"), served)
+        sh = provenance_hash(state)
+        for c in cands:
+            row = RT.store.q("SELECT * FROM shadow WHERE decision_ref=? AND state_hash=? ORDER BY id DESC LIMIT 1",
+                             (c.ref, sh))
+            if row:
+                shadows.append({"ref": c.ref, "answer": row[0]["candidate_answer"],
+                                "confidence": row[0]["candidate_confidence"], "provider": row[0]["candidate_provider"],
+                                "probabilities": json.loads(row[0]["candidate_probs"])})
+    # human evidence: every disagreement, plus a stable sample of agreements (unbiased labels)
+    pct = float((config.get("decision_engineering.observe") or {}).get("review_agreement_pct", 20))
+    disagree = any(s["answer"] != served.answer for s in shadows)
+    sampled = int(hashlib.sha256(provenance_hash(state).encode()).hexdigest()[:4], 16) / 0xFFFF * 100 < pct
+    ticket = None
+    if shadows and (disagree or sampled) and RT.cascade.human is not None:
+        top = shadows[-1]
+        pkg = EscalationPackage.build(d, state, "shadow_disagreement" if disagree else "shadow_sample",
+                                      b.get("data_class") or d.data_class,
+                                      {"answer": top["answer"], "confidence": round(top["confidence"], 4),
+                                       "probabilities": top["probabilities"], "version": top["ref"]},
+                                      [{"tier": "agent", "executor": served.executor, "answer": served.answer}])
+        hr = await RT.cascade.human.resolve(pkg, provenance_id=served.provenance_id)
+        ticket = hr.ticket
+    TraceWriter(agent, workflow).step(kind="llm", name=name, purpose=name, output=served.answer,
+                                      model=served.executor, latency_ms=served.latency_ms,
+                                      features={"observed": True, "shadow_agree": not disagree if shadows else None})
+    return {"provenance_id": served.provenance_id, "served": served.answer, "shadow": shadows,
+            "disagreement": disagree, "review_ticket": ticket}
+
+
+def provenance_hash(state) -> str:
+    from lif.decision.provenance import state_hash
+    return state_hash(state)

@@ -1,0 +1,42 @@
+# v2 (2026-10-01): 'uncertain' vs 'not_done' when nothing is evidenced was ambiguous (4 of 4 misses).
+# v1 is unchanged; benchmarks/decision-engineering found the ambiguity.
+name: goal-satisfied
+version: v2
+primitive: choice
+stage: designed
+risk: medium
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: 'Judge the status of the goal in `goal.text` from `progress.artifacts`, `progress.checks`, `progress.remaining_requirements`
+  and `progress.last_result_summary`.
+
+  '
+criteria:
+  done: every requirement of `goal.text` is met by an item in `progress.artifacts`, `progress.remaining_requirements`
+    is empty, and `progress.checks` lists no failing check
+  not_done: '`progress.remaining_requirements` names at least one open requirement, or `progress.checks` lists a
+    failing check, and `progress.last_result_summary` shows no obstacle that stops the agent'
+  blocked: an open requirement needs something the agent cannot obtain itself, such as a missing permission, a human
+    answer or a service that `progress.last_result_summary` reports as unavailable
+  uncertain: 'for at least one requirement of `goal.text` there is no evidence either way: it is not listed as open,
+    and no item in `progress.artifacts` or `progress.checks` shows it met'
+exits:
+- uncertain
+state_schema:
+  goal.text: str
+  progress.artifacts: list
+  progress.checks: list
+  progress.remaining_requirements: list
+  progress.last_result_summary: str
+default: uncertain
+fallback:
+- rules
+- local_llm
+policy:
+  mode: three_zone
+  middle_route:
+  - local_reasoning
+  - kimi
+  low_route:
+  - safe_default
