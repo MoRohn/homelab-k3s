@@ -56,7 +56,13 @@ The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → 
 - tier0's anon grew from the ~670–850 MiB above to **1,409 MiB** after hours of chat (KV pages are touched lazily). With weights at 2,381 MiB, the 3,584 Mi limit sat full. The kernel evicted weight pages that the next token needed, so tier0 decoded from disk *(private/lif/perf/2026-10-01-tier0-latency.md, local only)*.
 - Fix: `limit = (weights + anon) × 1.15`, rounded up to 256 MiB (`hardware_fit.memory_limit_mib`). The controller refuses a smaller limit, and `tests/test_serving_memory.py` checks every manifest.
 - After the fix, the same pod decoded 19.7 / 21.0 tok/s and processed prompts at 84 tok/s, with no cgroup limit hits or refaults (n = 2 requests).
-- tier0 also runs `--mlock`: under host-wide reclaim its weights would be evicted and re-read at once. Locking needs k3s's `LimitMEMLOCK` raised (`homelab/host/prep-memlock.sh`, sudo, restarts k3s). Until then llama.cpp logs a warning and runs unlocked.
+- tier0 also runs `--load-mode mmap+mlock` (the pinned llama.cpp exits on `--mlock`): under host-wide reclaim its weights would be evicted and re-read at once. Locking needs k3s's `LimitMEMLOCK` raised (`homelab/host/prep-memlock.sh`, sudo, restarts k3s). Until then llama.cpp logs a warning and runs unlocked.
+
+### Prompt cache and speculation (2026-10-01)
+
+- llama-server's `--cache-ram` (the host-RAM prompt cache for idle slots) **defaults to 8 GiB of anonymous memory**. Text servers set 256 MiB, which is counted in `anon_mib`; embedding servers set 0.
+- `--cache-reuse 256` keeps the cached prefix when the console's context window drops the oldest turn, so a long conversation doesn't re-process its whole history.
+- n-gram speculation (`--spec-type ngram-simple`, no draft model) was measured on tier0's settings and is **off**. Prose was unchanged at 21 tok/s, because nothing was drafted. Rewriting ~300 tokens of code fell from 19.8 to 9.2 tok/s: 28 % of drafted tokens were accepted, and verifying 48-token drafts on A725 cores costs more than it saves (n = 2 per arm). Profiles can still opt in with `spec_type`.
 
 ### Bandwidth yield
 
@@ -76,7 +82,7 @@ LIF hands memory back **before** gpusched's 8 GiB headroom is crossed, whatever 
 
 | Group | Deployments | Shed below | Restore above |
 |---|---|---|---|
-| optional | `tier0-small` | 9216 MiB MemAvailable | 12800 MiB |
+| optional | `tier0-small` | 9216 MiB MemAvailable | 13056 MiB |
 | secondary | `embedding` | 6144 MiB | 8704 MiB |
 | hot fallback | `tier0` | never shed by the guard | — |
 

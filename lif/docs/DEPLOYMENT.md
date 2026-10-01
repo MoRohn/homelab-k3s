@@ -40,6 +40,9 @@ cd ~/labzilla/lif
 .venv/bin/python -m pytest tests -q                       # 54 tests
 TAG=$(date +%Y%m%d-%H%M)
 docker build -t 127.0.0.1:5000/lif/fabric:$TAG . && docker push 127.0.0.1:5000/lif/fabric:$TAG
+for m in deploy/k8s/serving/{tier0,tier0-small,embedding}.yaml; do   # a rejected flag = no chat (Recreate)
+  .venv/bin/python scripts/smoke-server-args.py $m || break
+done
 kubectl kustomize . | sed "s/IMAGE_TAG/$TAG/g" | kubectl diff -f -   # review first
 kubectl kustomize . | sed "s/IMAGE_TAG/$TAG/g" | kubectl apply -f -
 for d in controller gateway decision-fabric batch console; do kubectl -n ai-system rollout status deploy/$d; done

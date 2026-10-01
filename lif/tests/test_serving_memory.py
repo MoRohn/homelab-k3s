@@ -54,7 +54,11 @@ def test_manifest_limit_matches_profile_and_fits(name, dep):
     assert req == lim == p["memory_budget_mb"], f"{name}: request/limit/profile budget disagree"
     assert int(_arg(c["args"], "--ctx-size")) == p["context"]
     assert int(_arg(c["args"], "--parallel")) == p["concurrency"]
-    assert ("--mlock" in c["args"]) == bool(p.get("mlock")), f"{name}: --mlock disagrees with the profile"
+    locked = "--load-mode" in c["args"] and _arg(c["args"], "--load-mode") == "mmap+mlock"
+    assert locked == bool(p.get("mlock")), f"{name}: mlock disagrees with the profile"
+    assert "--mlock" not in c["args"], "the pinned llama.cpp exits on --mlock; use --load-mode mmap+mlock"
+    # an unset --cache-ram is an 8 GiB anonymous prompt cache: always explicit, always in the budget
+    assert int(_arg(c["args"], "--cache-ram")) == p["cache_ram_mib"]
     need = hardware_fit.memory_limit_mib(p["weights_mib"], p["anon_mib"])
     assert lim >= need, f"{name}: {lim} Mi < weights + anon + headroom = {need} Mi"
 
@@ -65,7 +69,7 @@ def test_formula_tracks_the_tier0_measurement():
     meta = {"gguf_pick": {"size": 2_497_281_120}, "num_layers": 36, "num_kv_heads": 8, "head_dim": 128,
             "vocab_size": 151_936, "params_b": 4.0}
     r = hardware_fit.estimate(meta, context=p["context"], device="cpu")
-    assert r.weights_mib == p["weights_mib"]
+    assert r.weights_mib == p["weights_mib"] and p["cache_ram_mib"] == hardware_fit.PROMPT_CACHE_MIB
     assert abs(r.anon_mib - p["anon_mib"]) / p["anon_mib"] < 0.05
     assert hardware_fit.memory_limit_mib(r.weights_mib, r.anon_mib) > 3584      # the limit that thrashed
 
@@ -93,4 +97,15 @@ def test_controller_refuses_an_undersized_limit():
         templates.model_server("tier0", "qwen3-4b-instruct-2507-q4km-cpu", p)
     dep, _ = templates.model_server("tier0", "qwen3-4b-instruct-2507-q4km-cpu",
                                     MODELS["profiles"]["qwen3-4b-instruct-2507-q4km-cpu"])
-    assert dep["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"] == "4608Mi"
+    assert dep["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"] == "4864Mi"
+
+
+def test_controller_renders_cache_and_speculation_flags():
+    p = dict(MODELS["profiles"]["qwen3-4b-instruct-2507-q4km-cpu"])
+    args = templates.llama_args(p)
+    assert _arg(args, "--cache-ram") == "256" and _arg(args, "--cache-reuse") == "256" and "--spec-type" not in args
+    assert _arg(templates.llama_args({**p, "spec_type": "ngram-simple"}), "--spec-type") == "ngram-simple"
+    emb = MODELS["profiles"]["qwen3-embedding-0.6b-q8-cpu"]
+    assert _arg(templates.llama_args(emb), "--cache-ram") == "0"
+    with pytest.raises(ValueError, match="spec_type"):
+        templates.validate_profile({**p, "spec_type": "draft-simple --model-draft /etc/passwd"})

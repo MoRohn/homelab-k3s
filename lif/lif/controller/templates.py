@@ -16,6 +16,7 @@ _REPO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{
 _FILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,250}\.gguf$")
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+SPEC_TYPES = {"ngram-simple", "ngram-mod", "ngram-map-k", "ngram-cache"}     # draft-free only
 
 
 def validate_profile(p: dict) -> None:
@@ -35,6 +36,8 @@ def validate_profile(p: dict) -> None:
             raise ValueError("mmproj must be a different file from the weights")
         if mm.get("sha256") is not None and not _SHA256.match(mm["sha256"]):
             raise ValueError("mmproj sha256 must be 64 hex chars")
+    if p.get("spec_type") is not None and p["spec_type"] not in SPEC_TYPES:
+        raise ValueError(f"spec_type must be one of {sorted(SPEC_TYPES)}")
 
 
 def artifacts(p: dict) -> list[tuple[str, str | None]]:
@@ -68,13 +71,17 @@ def llama_args(p: dict) -> list[str]:
     if p.get("mmproj"):
         # explicit projector path from the pinned profile; never let llama.cpp go looking for one
         args += ["--mmproj", model_path(p, p["mmproj"]["file"]), "--no-mmproj-auto"]
-    if p.get("mlock"):
-        args += ["--mlock"]
+    if p.get("mlock"):         # this llama.cpp build has no --mlock flag (it exits on it)
+        args += ["--load-mode", "mmap+mlock"]
     if p.get("category") in ("embedding", "reranking"):
         args += ["--embedding", "--pooling", "rank" if p["category"] == "reranking" else "last",
-                 "--ubatch-size", "512", "--batch-size", "512"]
+                 "--ubatch-size", "512", "--batch-size", "512", "--cache-ram", "0"]
     else:
-        args += ["--jinja"]
+        # --cache-ram defaults to 8 GiB; --cache-reuse keeps the prefix when the console drops the oldest turn.
+        args += ["--jinja", "--cache-ram", str(p.get("cache_ram_mib", hardware_fit.PROMPT_CACHE_MIB)),
+                 "--cache-reuse", "256"]
+        if (spec := p.get("spec_type")):        # draft-free n-gram speculation (no extra model, no memory)
+            args += ["--spec-type", str(spec)]
     return args
 
 
