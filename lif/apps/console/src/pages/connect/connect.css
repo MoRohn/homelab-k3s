@@ -15,3 +15,5 @@
 .lz-trust-list li > .lz-icon { flex-shrink: 0; margin-top: 2px; }
 .lz-trust-steps { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: var(--space-2); }
 .lz-trust-install { margin-top: var(--space-4); }
+
+.lz-trust-fp { font-size: var(--fs-xs); word-break: break-all; }

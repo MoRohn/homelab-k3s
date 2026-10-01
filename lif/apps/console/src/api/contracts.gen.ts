@@ -1050,6 +1050,10 @@ export interface AccessInfo {
   secure: boolean;
   trusted_hint: string;
   mdns: "published" | "not_published" | "unknown";
+  /** GET /api/trust/ca.crt serves the Labzilla Local CA certificate */
+  ca_available: boolean;
+  /** its SHA-256 fingerprint ("AB:CD:…"), to check after downloading */
+  ca_sha256?: string | null;
 }
 
 /** Generic acknowledgement for mutations that return nothing richer. */
