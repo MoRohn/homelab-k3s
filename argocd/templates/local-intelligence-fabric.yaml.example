@@ -1,0 +1,25 @@
+# OPTIONAL — Argo CD Application for the Local Intelligence Fabric (LIF).
+# Not active: Argo CD only reads argocd/apps/. See docs/local-intelligence-fabric.md.
+#
+# To enable once LIF has its own git repository:
+#   1. Replace REPO_URL below (and add repo credentials to Argo CD if it is private).
+#   2. Replace IMAGE_TAG in LIF's kustomization.yaml with a real tag in the local registry.
+#   3. cp argocd/templates/local-intelligence-fabric.yaml.example argocd/apps/local-intelligence-fabric.yaml
+#   4. git add argocd/apps/local-intelligence-fabric.yaml && git commit && git push
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-intelligence-fabric
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: REPO_URL            # e.g. https://github.com/MoRohn/local-intelligence-fabric.git
+    targetRevision: main
+    path: .                      # LIF's top-level kustomization.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    # Manual sync to start: LIF's workloads compete with BNN for unified memory
+    syncOptions:
+      - ServerSideApply=true
