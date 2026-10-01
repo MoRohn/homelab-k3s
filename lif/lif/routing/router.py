@@ -230,7 +230,10 @@ class Router:
             if degraded and not reason:
                 reason = (f"{alias} expects >= {self.min_params[alias]:g}B; largest resident model is "
                           f"{p.params_b:g}B (GPU reserved for the primary workload)")
-            return Route(alias=alias, requested=requested, profile=p, fallback=i > 0 or requested != alias,
+            # local/auto choosing an alias is routing, not a fallback: only a later model in the chain
+            # (or a different alias asked for by name) is one.
+            return Route(alias=alias, requested=requested, profile=p,
+                         fallback=i > 0 or (requested != alias and requested != AUTO_ALIAS),
                          reason=reason, degraded=degraded, candidates_tried=tried, route_decision=route_decision)
         raise NoRoute(alias, f"all models for {alias} are unavailable: " +
                       "; ".join(f"{n}: {self.health[n].last_error or 'unhealthy'}" for n in chain))

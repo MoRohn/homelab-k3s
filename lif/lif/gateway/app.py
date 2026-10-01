@@ -413,6 +413,7 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
         try:
             alt = S.router.resolve("local/instant", requested=route.requested, blerbz_imminent=True)
             alt.reason = "latency budget during primary-workload production"
+            alt.fallback = True        # a deliberate downgrade, even when local/auto chose the original
             route = alt
         except NoRoute:
             pass
