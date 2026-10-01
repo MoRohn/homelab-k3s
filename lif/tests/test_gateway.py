@@ -38,16 +38,17 @@ def client(monkeypatch):
     monkeypatch.delenv("LIF_CONTROLLER_URL", raising=False)
     from lif.gateway import app as gw
     with TestClient(gw.app) as c:
+        # Stop the gateway's background loops (gpusched watcher, prober, table refresh) on their
+        # own event loop first: an in-flight real gpusched poll would otherwise land after the
+        # fixture and fail safe to IMMINENT mid-test.
+        for t in gw.S.tasks:
+            t.get_loop().call_soon_threadsafe(t.cancel)
+        __import__("time").sleep(0.2)
         gw.S.http = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
-        gw.S.router.client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))   # background prober too
+        gw.S.router.client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
         for n in gw.S.router.health:
             gw.S.router.health[n].ok = True
         gw.S.gpu._snap = Snapshot(ts=__import__("time").time(), reachable=True, state=BlerbzState.LOW, reason="test")
-
-        async def _frozen():          # the real watcher would poll gpusched, fail (no token) and
-            gw.S.gpu._snap.ts = __import__("time").time()   # fail safe to IMMINENT mid-test
-            return gw.S.gpu._snap
-        gw.S.gpu.refresh = _frozen
         seen.clear()
         broken.clear()
         yield c, gw
