@@ -1,6 +1,10 @@
+# labzilla is a PUBLIC repo. Anything sensitive lives in one of three git-ignored roots
+# (each keeps only its README). See README.md → "What stays private".
+# The pre-commit guard (.githooks/pre-commit) enforces the same rules on staged files.
+
 # ---- Credentials: never leave this machine ----
-secrets/*
-!secrets/README.md
+/secrets/*
+!/secrets/README.md
 *.env
 .env*
 !*.env.example
@@ -12,9 +16,30 @@ secrets/*
 kubeconfig*
 k3s.yaml
 
-# ---- Personal notes and drafts (see personal/README.md) ----
-personal/*
-!personal/README.md
+# ---- Your notes, drafts, scratch, AI memory/thinking exports ----
+/personal/*
+!/personal/README.md
+
+# ---- Sensitive project docs and production data (audit, security, BLERBZ, live observations) ----
+/private/*
+!/private/README.md
+# Compatibility links into private/ (e.g. for a long-running observer that writes there)
+/lif/benchmarks/blerbz-takeover
+
+# ---- AI assistant local state (CLAUDE.md is public and tracked; these are not) ----
+CLAUDE.local.md
+.claude/*
+!.claude/settings.json
+.claude/settings.local.json
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # ---- Backups, scratch, editor/OS clutter ----
 *.bak
@@ -25,9 +50,3 @@ personal/*
 .vscode/
 .idea/
 tmp/
-
-# ---- Python ----
-**/__pycache__/
-
-# ---- Separate projects symlinked in for path compatibility (see docs/local-intelligence-fabric.md) ----
-/local-intelligence-fabric
