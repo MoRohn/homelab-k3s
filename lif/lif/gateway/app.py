@@ -37,7 +37,7 @@ from lif.decision.rules import rules
 from lif.decision.types import load_definitions
 from lif.gpu.state import BlerbzState, GpuStateWatcher
 from lif.policy import engine as policy
-from lif.routing.router import AUTO_ALIAS, ROUTE_TO_ALIAS, NoRoute, Route, Router
+from lif.routing.router import AUTO_ALIAS, ROUTE_TO_ALIAS, VISION_ALIAS, NoRoute, NotSupported, Route, Router
 
 LOG = log.get("lif.gateway")
 
@@ -275,7 +275,7 @@ async def capabilities():
     snap = S.gpu.current()
     return {"aliases": S.router.alias_status(_imminent()),
             "profiles": {n: {"endpoint_healthy": S.router.healthy(n), "params_b": p.params_b, "device": p.device,
-                             "category": p.category, "context": p.context,
+                             "category": p.category, "context": p.context, "vision": p.vision,
                              "model": f"{p.hf_repo}@{p.revision}", "last_error": S.router.health[n].last_error}
                          for n, p in S.router.profiles.items()},
             "blerbz": snap.to_dict(),
@@ -316,10 +316,29 @@ def _last_user(body: dict) -> str:
     return body.get("prompt", "") if isinstance(body.get("prompt"), str) else ""
 
 
+_IMAGE_PARTS = {"image_url", "input_image", "image"}
+
+
+def _has_image(body: dict) -> bool:
+    """Any message carries an image part (OpenAI `{"type": "image_url", "image_url": {"url": ...}}`)."""
+    for m in body.get("messages") or []:
+        c = m.get("content") if isinstance(m, dict) else None
+        if isinstance(c, list) and any(isinstance(p, dict) and p.get("type") in _IMAGE_PARTS for p in c):
+            return True
+    return False
+
+
 async def _route(body: dict, request: Request) -> Route:
     requested = body.get("model") or "local/default"
+    vision = _has_image(body)
     if requested != AUTO_ALIAS:
-        return S.router.resolve(requested, blerbz_imminent=_imminent())
+        return S.router.resolve(requested, blerbz_imminent=_imminent(), need_vision=vision)
+    if vision:
+        # Deterministic: images can only go to a model with an image projector. Never ask the
+        # route decision (and never send image-bearing prompts to Jev).
+        return S.router.resolve(VISION_ALIAS, requested=AUTO_ALIAS, blerbz_imminent=_imminent(), need_vision=True,
+                                route_decision={"decision": "vision", "confidence": 1.0, "provider": "rules",
+                                                "action": "auto", "why": "request contains images"})
     text = _last_user(body)
     d = await S.fabric.evaluate("request-route",
                                 {"last_user": text[:6000], "prompt_tokens": len(text) // 4,
@@ -374,15 +393,20 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
     requested = body.get("model") or "local/default"
     t0 = time.perf_counter()
     snap = S.gpu.current()
+    vision = _has_image(body)
     try:
         route = await _route(body, request)
+    except NotSupported as e:
+        metrics.requests.labels(endpoint_name, requested, "422").inc()
+        return _err(422, e.reason, "not_supported", code="images_not_supported",
+                    lif={"requested": requested, "use": VISION_ALIAS})
     except NoRoute as e:
         metrics.requests.labels(endpoint_name, requested, "503").inc()
         metrics.tasks.labels(workload, "rejected").inc()
         return _err(503, e.reason, "capacity", lif={"requested": requested, "blerbz": snap.state.name})
 
     budget = policy.Budget.from_request((body.get("lif") or {}).get("budget"))
-    if budget.max_latency_ms and snap.state == BlerbzState.IMMINENT and route.profile.params_b >= 4:
+    if budget.max_latency_ms and snap.state == BlerbzState.IMMINENT and route.profile.params_b >= 4 and not vision:
         # production is running and the caller is latency-sensitive: prefer the smaller model
         try:
             alt = S.router.resolve("local/instant", requested=route.requested, blerbz_imminent=True)
@@ -419,7 +443,7 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
             exclude.add(route.profile.name)
             try:
                 nxt = S.router.resolve(route.alias, requested=route.requested, exclude=exclude,
-                                       blerbz_imminent=_imminent())
+                                       blerbz_imminent=_imminent(), need_vision=vision)
                 nxt.fallback, nxt.reason = True, f"upstream_error on {route.profile.name}: {str(e)[:120]}"
                 route = nxt
                 continue

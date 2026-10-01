@@ -36,6 +36,13 @@ CATEGORY_ALIAS = {"fast": "local/fast", "general": "local/default", "coding": "l
 HEADROOM_MIB = 8192 + 1024       # gpusched safety headroom + margin
 
 
+def suite_for(category: str | None) -> str:
+    """Benchmark suite per category: vision models are graded on images, embedders on sanity."""
+    if category in ("embedding", "reranking"):
+        return "embedding"
+    return "vision" if category == "vision" else "core"
+
+
 class OpError(Exception):
     pass
 
@@ -115,6 +122,8 @@ class Lifecycle:
         templates.validate_profile(m["profile"])
         if not m["profile"].get("sha256"):
             raise OpError("no sha256 for the artifact; refusing to download unverifiable weights")
+        if m["profile"].get("mmproj") and not m["profile"]["mmproj"].get("sha256"):
+            raise OpError("no sha256 for the image projector; refusing to download unverifiable files")
         return self._spawn(f"download:{mid}", self._download(mid, actor))
 
     async def _download(self, mid: str, actor: str) -> None:
@@ -124,7 +133,9 @@ class Lifecycle:
         try:
             if not await self.k8s.job("ai-serving", name):
                 await self.k8s.create_job("ai-serving", templates.download_job(name, m["profile"]))
-            self.reg.event("download_started", mid, actor, job=name, size=m["profile"].get("size"))
+            self.reg.event("download_started", mid, actor, job=name,
+                           size=int(m["profile"].get("size") or 0) + int((m["profile"].get("mmproj") or {}).get("size") or 0),
+                           files=[f for f, _ in templates.artifacts(m["profile"])])
             while True:
                 await asyncio.sleep(10)
                 j = await self.k8s.job("ai-serving", name) or {}
@@ -196,15 +207,16 @@ class Lifecycle:
                 self.reg.transition(mid, "BENCHMARKING", "functional + quality benchmark", actor)
             stop = lambda: self.gpu.current().state == BlerbzState.IMMINENT     # live or candidate
             extra = {"chat_template_kwargs": p["chat_template_kwargs"]} if p.get("chat_template_kwargs") else {}
-            if p.get("category") in ("embedding", "reranking"):
+            suite = suite_for(p.get("category"))
+            if suite == "embedding":
                 results, summary = await embed_benchmark(url)
             else:
-                results, summary = await evaluator.run_suite(url, model=mid, concurrency=2, extra=extra,
-                                                             should_stop=stop)
+                results, summary = await evaluator.run_suite(url, model=mid, suite=suite, concurrency=2,
+                                                             extra=extra, should_stop=stop)
             if summary.get("aborted"):
                 self.reg.transition(mid, "STAGED", "benchmark aborted: the primary workload reclaimed capacity", actor)
                 return summary
-            self.reg.add_benchmark(mid, "core" if "quality" in summary else "embedding", results, summary)
+            self.reg.add_benchmark(mid, suite, results, summary)
             if live:
                 return summary
             report = await self.compare(mid, summary)
@@ -231,7 +243,7 @@ class Lifecycle:
         alias = CATEGORY_ALIAS.get(m["category"], "local/default")
         cur_alias = self.reg.alias(alias)
         incumbent = cur_alias["chain"][0] if cur_alias and cur_alias["chain"] else None
-        inc_b = self.reg.latest_benchmark(incumbent) if incumbent else None
+        inc_b = self.reg.latest_benchmark(incumbent, suite_for(m["category"])) if incumbent else None
         inc_m = self.reg.get(incumbent) if incumbent else None
         if "quality" not in summary:      # embedding: latency/sanity only
             ok = summary.get("sanity_pass") and not summary.get("errors")
@@ -375,7 +387,8 @@ class Lifecycle:
         groups: dict[str, dict[str, Any]] = {}
         crit = self.reg._rollback_critical()
         for m in self.reg.list():
-            size = int((m["profile"] or {}).get("size") or (m["fit"] or {}).get("weights_mib", 0) * 2**20)
+            size = int((m["profile"] or {}).get("size") or (m["fit"] or {}).get("weights_mib", 0) * 2**20) + \
+                int(((m["profile"] or {}).get("mmproj") or {}).get("size") or 0)
             g = ("production" if m["state"] in ("PRODUCTION", "CANARY") else
                  "rollback" if m["id"] in crit else
                  "candidate" if m["state"] in ("STAGED", "APPROVED", "STANDBY", "DOWNLOADING", "VALIDATING",
@@ -402,7 +415,7 @@ class Lifecycle:
             if (m["profile"] or {}).get("gc_done"):
                 continue
             p = m["profile"]
-            paths.append(f"{p['hf_repo']}/{p['revision']}/{p['file']}")
+            paths += [f"{p['hf_repo']}/{p['revision']}/{f}" for f, _ in templates.artifacts(p)]
             ids.append(m["id"])
         if not paths:
             return {"removed": 0}

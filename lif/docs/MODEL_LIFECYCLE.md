@@ -58,8 +58,9 @@ Check for Better Models (UI button · local-ai models refresh · POST /v1/models
 | reasoning | "thinking" / "reason", gguf | 3–35 | local/reasoning |
 | embedding | feature-extraction / "embedding", gguf | 0.05–8 | local/embedding |
 | reranking | "reranker", gguf | 0.05–8 | local/rerank |
+| vision | image-text-to-text + "GGUF"; "VL", gguf; "vision", gguf. Name must say VL/vision/omni, or the repo is tagged image-text-to-text | 1–9 | local/vision |
 
-Vision has no discovery category yet.
+Vision has one extra gate: a sibling `*mmproj*.gguf` image projector with a size and an LFS sha256. The picker takes Q8_0, then F16, then BF16. F32 and projectors with no precision in the name are never picked. A repo without one is rejected as `no image projector`. The listing stage already applies this when the search listing includes file names. The profile carries `mmproj: {file, sha256, size}`.
 
 ### Measured funnel (live run, 2026-09-30)
 
@@ -76,11 +77,11 @@ The four categories took about 4.4 s in total. Jev screening took about 0.2–0.
 
 | Gate | Rule |
 |---|---|
-| Download | State CANDIDATE. Repo, file and revision pass `templates.validate_profile`. A sha256 is required. The operator, or the `automatic_download` setting, must ask |
+| Download | State CANDIDATE. Repo, file and revision pass `templates.validate_profile`, and so does the mmproj file name for vision. A sha256 is required for every file. The Job fetches the weights and then the projector: each file resumable, verified and atomically renamed. Any mismatch quarantines the model. The operator, or the `automatic_download` setting, must ask |
 | Benchmark (candidate) | Primary workload LOW/MODERATE. Not in maintenance. `MemAvailable − candidate anon ≥ 9216 MiB` (gpusched's 8 GiB + 1 GiB). Aborts when the primary workload becomes IMMINENT (state goes back to STAGED) |
 | Benchmark (live model) | Runs against its existing endpoint; no temporary server |
 | GPU-tier benchmark/load | Refused. It needs a gpusched command-job window (GPU_SCHEDULING.md) |
-| Approve | `evaluator.compare` against the incumbent: quality regression ≤ 0.01, TTFT regression ≤ 10 %, memory increase ≤ 20 %, structured-output ≥ min(0.98, incumbent's), errors ≤ 0. CANARY only if it is also better (quality up, or equal quality with decode +10 %); HOLD if merely safe; otherwise REJECT |
+| Approve | `evaluator.compare` against the incumbent: quality regression ≤ 0.01, TTFT regression ≤ 10 %, memory increase ≤ 20 %, structured-output ≥ min(0.98, incumbent's), errors ≤ 0. CANARY only if it is also better (quality up, or equal quality with decode +10 %); HOLD if merely safe; otherwise REJECT. With no incumbent (an empty alias, e.g. the first vision model): errors ≤ 0, structured-output ≥ 0.9 × 0.98 when the suite has structured items, and quality ≥ `min_quality_no_incumbent` (0.5) |
 | Promote | State CANARY/APPROVED/STANDBY **and** a local benchmark exists. Automatic promotion is off unless enabled |
 
 Jev's `candidate-vs-incumbent` verdict is stored in the comparison report, but it never decides.
@@ -91,6 +92,7 @@ Jev's `candidate-vs-incumbent` verdict is stored in the comparison report, but i
 - All checkers are deterministic (contains / regex / choice / number / json).
 - Latency is measured over streaming: TTFT, decode tok/s from llama.cpp timings, plus a 2–4-way load pass.
 - Embedding models get a latency check and a paraphrase-versus-unrelated sanity check instead.
+- Vision models get `evals/vision.yaml`: 6 items covering colour, a split image, two block-drawn digits and counting squares. The PNGs (256–384 px) are generated at run time with stdlib `zlib`/`struct` and sent as `image_url` data URIs. The suite reports `structured_ok: null` (it has no JSON items), plus the same latency summary. Its benchmarks are stored under the suite `vision`.
 
 | Profile | Quality | TTFT p50 | Decode p50 | Aggregate @4 | Errors |
 |---|---|---|---|---|---|

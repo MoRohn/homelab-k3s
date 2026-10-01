@@ -142,7 +142,7 @@ def cmd_doctor(api: Api, args) -> int:
             lvl = "WARN" if v.get("fallback") or v.get("degraded") else "PASS"
             checks.append((lvl, f"alias {a}", f"{v.get('served_by')} {v.get('reason') or ''}".strip()))
         else:
-            # vision/rerank have no local model by design → WARN, not FAIL
+            # vision/rerank are optional (installed only after discovery + benchmark + promotion) → WARN, not FAIL
             lvl = "FAIL" if a in ("local/fast", "local/default", "local/embedding") else "WARN"
             checks.append((lvl, f"alias {a}", v.get("reason", "unavailable")))
     b = o.get("blerbz") or {}

@@ -19,6 +19,7 @@ from lif.common import config, log
 LOG = log.get("lif.router")
 
 AUTO_ALIAS = "local/auto"
+VISION_ALIAS = "local/vision"
 ROUTE_TO_ALIAS = {"instant": "local/instant", "fast": "local/fast", "default": "local/default",
                   "reasoning": "local/reasoning", "code": "local/code"}
 
@@ -38,6 +39,7 @@ class Profile:
     embedding_dim: int | None = None
     auth_secret: str | None = None        # secret name sent as Bearer to this upstream
     yield_on_blerbz: bool = False         # shared primary-workload engine: skipped while it is IMMINENT
+    vision: bool = False                  # accepts image_url parts (llama.cpp loaded with --mmproj)
 
     @classmethod
     def from_cfg(cls, name: str, c: dict) -> "Profile":
@@ -47,7 +49,8 @@ class Profile:
                    hf_repo=c.get("hf_repo", ""), revision=c.get("revision", ""),
                    chat_template_kwargs=c.get("chat_template_kwargs") or {},
                    embedding_dim=c.get("embedding_dim"), auth_secret=c.get("auth_secret"),
-                   yield_on_blerbz=bool(c.get("yield_on_blerbz", False)))
+                   yield_on_blerbz=bool(c.get("yield_on_blerbz", False)),
+                   vision=bool(c.get("mmproj") or c.get("vision")))
 
 
 @dataclass
@@ -85,6 +88,14 @@ class Route:
 
 
 class NoRoute(Exception):
+    def __init__(self, alias: str, reason: str):
+        super().__init__(reason)
+        self.alias, self.reason = alias, reason
+
+
+class NotSupported(Exception):
+    """The request needs a capability (images) that no model behind this alias has. A 422 for
+    the caller, never an upstream error or a silent swap to another alias."""
     def __init__(self, alias: str, reason: str):
         super().__init__(reason)
         self.alias, self.reason = alias, reason
@@ -171,13 +182,24 @@ class Router:
     # ── resolve ──────────────────────────────────────────────────────────────
 
     def resolve(self, alias: str, requested: str | None = None, exclude: set[str] | None = None,
-                route_decision: dict | None = None, blerbz_imminent: bool = False) -> Route:
+                route_decision: dict | None = None, blerbz_imminent: bool = False,
+                need_vision: bool = False) -> Route:
+        """`need_vision`: the request carries images, so only profiles loaded with an image
+        projector qualify. An unhealthy vision model never falls through to a text one."""
         requested = requested or alias
         yielded = {n for n, p in self.profiles.items() if p.yield_on_blerbz} if blerbz_imminent else set()
         if alias not in self.aliases:
             raise NoRoute(alias, f"unknown model alias '{alias}'. Use GET /v1/models")
         chain = self.aliases[alias]
+        if need_vision:
+            text_only = [n for n in chain if not self.profiles[n].vision]
+            chain = [n for n in chain if self.profiles[n].vision]
+            if not chain and text_only:
+                raise NotSupported(alias, f"{alias} cannot read images: its models have no image projector. "
+                                          f"Send images to {VISION_ALIAS} (or local/auto)")
         can = self.canaries.get(alias)
+        if can and need_vision and not self.profiles[can["profile"]].vision:
+            can = None
         if can and not exclude and can["profile"] not in yielded and self.healthy(can["profile"]) and random.random() * 100 < float(can.get("percent", 0)):
             p = self.profiles[can["profile"]]
             return Route(alias=alias, requested=requested, profile=p, fallback=False,
@@ -185,6 +207,9 @@ class Router:
                          degraded=p.params_b < self.min_params.get(alias, 0), candidates_tried=[],
                          route_decision=route_decision, canary=True)
         if not chain:
+            if alias == VISION_ALIAS:
+                raise NoRoute(alias, f"no local model is deployed for {alias}: no vision model is installed yet. "
+                                     "Use Models → Check for better models (vision) to find one")
             raise NoRoute(alias, f"no local model is deployed for {alias} (capacity; see /v1/capabilities)")
         tried = []
         for i, name in enumerate(chain):
@@ -215,7 +240,8 @@ class Router:
             try:
                 r = self.resolve(a, blerbz_imminent=blerbz_imminent)
                 out[a] = {"available": True, "served_by": r.profile.name, "fallback": r.fallback,
-                          "degraded": r.degraded, "reason": r.reason}
+                          "degraded": r.degraded, "reason": r.reason,
+                          "vision": any(self.profiles[n].vision for n in chain)}
             except NoRoute as e:
                 out[a] = {"available": False, "reason": e.reason}
         out[AUTO_ALIAS] = {"available": any(v["available"] for v in out.values()),

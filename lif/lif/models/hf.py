@@ -16,7 +16,8 @@ from lif.common import log
 LOG = log.get("lif.hf")
 API = "https://huggingface.co/api"
 
-_PARAMS_IN_NAME = re.compile(r"(?i)(?<![\d.])(\d+(?:\.\d+)?)\s*([bm])(?![a-z])")
+# "35B-A3B": the A-prefixed figure is ACTIVE params of an MoE, never the model size
+_PARAMS_IN_NAME = re.compile(r"(?i)(?<![\d.])(?<![-_.]a)(\d+(?:\.\d+)?)\s*([bm])(?![a-z])")
 _QUANT_IN_FILE = re.compile(r"(?i)(IQ\d_[A-Z]+|Q\d_K(?:_[SML])?|Q\d_\d|Q\d_K|BF16|F16|F32|MXFP4|Q8_0)")
 
 
@@ -63,7 +64,9 @@ def params_b(info: dict) -> float | None:
     if st.get("total"):
         return round(st["total"] / 1e9, 2)
     gg = info.get("gguf") or {}
-    if gg.get("total"):
+    # In a vision repo the Hub's GGUF summary can describe the image projector (architecture
+    # "clip"), not the language model: its parameter count is not the model's.
+    if gg.get("total") and str(gg.get("architecture") or "").lower() != "clip":
         return round(gg["total"] / 1e9, 2)
     m = _PARAMS_IN_NAME.findall(info.get("id", "").split("/")[-1])
     if m:
@@ -95,6 +98,34 @@ def gguf_files(info: dict) -> list[dict]:
     return out
 
 
+_MMPROJ_QUANT = re.compile(r"(?i)(?:^|[-_.])(Q8_0|BF16|F16|F32)(?:[-_.]|$)")
+MMPROJ_PREFER = ("Q8_0", "F16", "BF16")       # never F32: 2x the memory of F16 for no CPU benefit
+
+
+def mmproj_files(info: dict) -> list[dict]:
+    """Image projector GGUFs (`*mmproj*.gguf`) shipped next to the language-model weights.
+
+    Names vary by converter: mmproj-<Model>-Q8_0.gguf, mmproj-F16.gguf, <name>.mmproj-Q8_0.gguf,
+    <name>-mmproj.gguf (no precision in the name → quant None, which the picker never chooses)."""
+    out = []
+    for s in info.get("siblings") or []:
+        f = s.get("rfilename", "")
+        if f.endswith(".gguf") and "mmproj" in f.lower():
+            q = _MMPROJ_QUANT.search(f.rsplit("/", 1)[-1][:-5])
+            out.append({"file": f, "size": s.get("size"), "sha256": (s.get("lfs") or {}).get("sha256"),
+                        "quant": q.group(1).upper() if q else None})
+    return out
+
+
+def pick_mmproj(files: list[dict], prefer=MMPROJ_PREFER) -> dict | None:
+    """Q8_0 → F16 → BF16, each only with a size and an LFS sha256. F32 and unlabeled are never picked."""
+    for q in prefer:
+        for f in files:
+            if f.get("quant") == q and f.get("size") and f.get("sha256"):
+                return dict(f)
+    return None
+
+
 def pick_gguf(files: list[dict], prefer=("Q4_K_M", "Q5_K_M", "Q8_0", "Q4_K_S", "Q6_K")) -> dict | None:
     by = {f["quant"]: f for f in files if f.get("quant")}
     for q in prefer:
@@ -112,16 +143,26 @@ def context_length(info: dict) -> int | None:
     return gg.get("context_length")
 
 
+def _gguf_arch(info: dict) -> str | None:
+    a = (info.get("gguf") or {}).get("architecture")
+    return None if str(a or "").lower() == "clip" else a
+
+
 def normalize(info: dict, category: str) -> dict:
     cfg = info.get("config") or {}
     files = gguf_files(info)
     pick = pick_gguf(files)
+    if pick is not None and category == "vision":
+        pick = dict(pick)
+        mm = pick_mmproj(mmproj_files(info))
+        if mm:
+            pick["mmproj"] = mm
     return {
         "model_id": info["id"],
         "revision": info.get("sha"),
         "category": category,
-        "architecture": (cfg.get("architectures") or [None])[0] or (info.get("gguf") or {}).get("architecture"),
-        "family": cfg.get("model_type") or (info.get("gguf") or {}).get("architecture"),
+        "architecture": (cfg.get("architectures") or [None])[0] or _gguf_arch(info),
+        "family": cfg.get("model_type") or _gguf_arch(info),
         "params_b": params_b(info),
         "pipeline_tag": info.get("pipeline_tag"),
         "library": info.get("library_name"),
@@ -131,6 +172,10 @@ def normalize(info: dict, category: str) -> dict:
         "safetensors": bool(info.get("safetensors")),
         "gguf": bool(files),
         "gguf_pick": pick,
+        # listing-stage hint: a `*mmproj*.gguf` sibling exists (None = siblings not in the listing)
+        "mmproj_listed": (any("mmproj" in (x.get("rfilename") or "").lower() and
+                              (x.get("rfilename") or "").endswith(".gguf") for x in info["siblings"])
+                          if info.get("siblings") else None),
         "context_length": context_length(info),
         "downloads": info.get("downloads") or 0,
         "likes": info.get("likes") or 0,

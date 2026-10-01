@@ -1,0 +1,26 @@
+# Vision evaluation suite. Images are synthetic and generated at run time with the stdlib
+# (lif.models.evaluator.render_image: zlib + struct PNGs, no Pillow), sent as image_url data URIs.
+# Every answer is checkable without a judge model.
+# image kinds: solid {color} | split {left, right} | digit {digit, ink, bg} | squares {count, color}
+# colors: red green blue yellow black white. size defaults to 256 px.
+suite: vision
+version: v1
+items:
+  - {id: vis-color-01, cat: vision_color, checker: choice, labels: [red, green, blue, yellow, black, white], expect: red,
+     image: {kind: solid, color: red},
+     prompt: "What color is this image? Answer with one word from: red, green, blue, yellow, black, white."}
+  - {id: vis-color-02, cat: vision_color, checker: choice, labels: [red, green, blue, yellow, black, white], expect: blue,
+     image: {kind: solid, color: blue},
+     prompt: "What color is this image? Answer with one word from: red, green, blue, yellow, black, white."}
+  - {id: vis-split-01, cat: vision_layout, checker: choice, labels: [red, green, blue, yellow, black, white], expect: green,
+     image: {kind: split, left: yellow, right: green},
+     prompt: "The image has two halves. What color is the RIGHT half? Answer with one word from: red, green, blue, yellow, black, white."}
+  - {id: vis-digit-01, cat: vision_ocr, checker: number, expect: 7, tol: 0,
+     image: {kind: digit, digit: 7, size: 288},
+     prompt: "What single digit is shown in this image? Answer with the digit only."}
+  - {id: vis-digit-02, cat: vision_ocr, checker: number, expect: 4, tol: 0,
+     image: {kind: digit, digit: 4, size: 288},
+     prompt: "What single digit is shown in this image? Answer with the digit only."}
+  - {id: vis-count-01, cat: vision_count, checker: number, expect: 3, tol: 0,
+     image: {kind: squares, count: 3, color: blue, size: 384},
+     prompt: "How many blue squares are in this image? Answer with the number only."}

@@ -46,6 +46,15 @@ CATEGORIES: dict[str, dict[str, Any]] = {
                                                                      "text-generation", None}, "name_re": r"(?i)embed"},
     "reranking": {"queries": [{"search": "reranker", "library": "gguf"}], "max_params_b": 8, "min_params_b": 0.05,
                   "tasks": {"text-ranking", "text-classification", "text-generation", None}, "name_re": r"(?i)rerank"},
+    # Vision GGUFs live in conversion repos (Qwen/*-GGUF, unsloth/*-GGUF tag image-text-to-text;
+    # ggml-org/* often carry no pipeline_tag). The reliable gate is a sha-pinned `*mmproj*.gguf`
+    # sibling (see requires_mmproj), not the tag. 1–9B keeps CPU decode useful on the A725 cores.
+    "vision":    {"queries": [{"pipeline_tag": "image-text-to-text", "search": "GGUF"},
+                              {"search": "VL", "library": "gguf"},
+                              {"search": "vision", "library": "gguf"}],
+                  "max_params_b": 9, "min_params_b": 1, "tasks": {"image-text-to-text", "text-generation", None},
+                  "name_re": r"(?i)(?:\bvl|vl\b|vlm|vision|omni|llava|pixtral|minicpm-v|internvl|gemma-3)",
+                  "name_re_bypass_tags": {"image-text-to-text"}, "requires_mmproj": True},
 }
 
 # Category-specific priority weights (spec §21). Inputs are normalized to 0..1.
@@ -56,6 +65,7 @@ WEIGHTS = {
     "reasoning": {"suitability": 0.35, "improvement": 0.30, "speed": 0.05, "memory": 0.10, "reliability": 0.20},
     "embedding": {"suitability": 0.30, "improvement": 0.20, "speed": 0.20, "memory": 0.15, "reliability": 0.15},
     "reranking": {"suitability": 0.30, "improvement": 0.20, "speed": 0.20, "memory": 0.15, "reliability": 0.15},
+    "vision":    {"suitability": 0.35, "improvement": 0.25, "speed": 0.10, "memory": 0.15, "reliability": 0.15},
 }
 
 ADVANCE_SHORTLIST = 0.70      # P(benchmark)+P(candidate) that shortlists on Jev alone
@@ -91,7 +101,8 @@ def metadata_filter(meta: dict, category: str, blocked: set[str], stage: str = "
         return "blocked by operator"
     if _TOY.search(mid):
         return "toy/test/merge/adapter"
-    if spec.get("name_re") and not re.search(spec["name_re"], mid):
+    if spec.get("name_re") and not re.search(spec["name_re"], mid) and \
+            meta.get("pipeline_tag") not in spec.get("name_re_bypass_tags", ()):
         return "name does not match category"
     if meta.get("pipeline_tag") not in spec["tasks"]:
         return f"pipeline_tag {meta.get('pipeline_tag')} not in category"
@@ -112,10 +123,22 @@ def metadata_filter(meta: dict, category: str, blocked: set[str], stage: str = "
     if not (spec["min_params_b"] <= pb <= spec["max_params_b"]):
         return f"{pb}B outside category range {spec['min_params_b']}–{spec['max_params_b']}B"
     if stage == "listing":
+        if spec.get("requires_mmproj") and meta.get("mmproj_listed") is False:
+            return NO_PROJECTOR
         return None
     if not meta.get("gguf_pick"):
         return "no usable GGUF quant (Q4_K_M/Q5_K_M/Q8_0) with checksum"
+    if spec.get("requires_mmproj") and not _mmproj_ok(meta["gguf_pick"].get("mmproj")):
+        return NO_PROJECTOR
     return None
+
+
+NO_PROJECTOR = "no image projector"      # no Q8_0/F16/BF16 *mmproj*.gguf with size + sha256
+
+
+def _mmproj_ok(mm: dict | None) -> bool:
+    return bool(mm and mm.get("file") and mm.get("size") and
+                re.match(r"^[0-9a-f]{64}$", str(mm.get("sha256") or "")))
 
 
 # ── DAG node functions ───────────────────────────────────────────────────────
@@ -380,6 +403,9 @@ class Discovery:
                 "sha256": pick["sha256"], "size": pick["size"], "precision": (pick.get("quant") or "").lower(),
                 "params_b": meta["params_b"], "context": 8192, "concurrency": 4,
                 "memory_budget_mb": int(fit["weights_mib"] + fit["anon_mib"] + 512), "license": meta["license"]}
+        if pick.get("mmproj"):
+            mm = pick["mmproj"]
+            prof["mmproj"] = {"file": mm["file"], "sha256": mm["sha256"], "size": mm["size"]}
         mid = profile_id(meta, device)
         self.reg.upsert(mid, meta["model_id"], meta["revision"], meta["category"], "DISCOVERED",
                         meta=meta, profile=prof, fit=fit, screening=screening, actor=actor,
@@ -389,8 +415,10 @@ class Discovery:
 
 
 def _base_key(model_id: str) -> str:
-    """'bartowski/Qwen2.5-Coder-7B-Instruct-GGUF' → 'qwen2.5-coder-7b-instruct'."""
+    """'bartowski/Qwen2.5-Coder-7B-Instruct-GGUF' → 'qwen2.5-coder-7b-instruct';
+    'bartowski/Qwen_Qwen3.5-4B-GGUF' and 'unsloth/Qwen3.5-4B-GGUF' → 'qwen3.5-4b'."""
     name = model_id.split("/")[-1].lower()
+    name = re.sub(r"^[^_/-]+_(?=.)", "", name)    # bartowski-style 'Qwen_Qwen3.5-4B' → 'qwen3.5-4b'
     return re.sub(r"(-gguf|-q\d.*|-i?q\d_.*|-qat.*|-gguf-.*)$", "", name)
 
 

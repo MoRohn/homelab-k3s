@@ -65,8 +65,10 @@ aliases:
   local/code:      [qwen3-4b-instruct-2507-q4km-cpu]
   local/batch:     [qwen3-4b-instruct-2507-q4km-cpu, qwen3-1.7b-q8-cpu]
   local/embedding: [qwen3-embedding-0.6b-q8-cpu]
-  # No local vision or rerank model fits today (see docs/GPU_SCHEDULING.md). These
-  # aliases exist so callers get a clear 503 rather than an unknown-model 404.
+  # local/vision is filled by Check for Better Models (category "vision": a CPU-sized GGUF plus a
+  # sha-pinned *mmproj*.gguf image projector), then download → vision benchmark → promote. Until a
+  # model is promoted the alias exists so callers get a clear 503 ("no vision model is installed
+  # yet") rather than an unknown-model 404. No local reranker is deployed yet either.
   local/vision:    []
   local/rerank:    []
 
@@ -76,3 +78,4 @@ alias_min_params_b:
   local/default: 4.0
   local/reasoning: 30.0
   local/code: 14.0
+  local/vision: 1.5      # 2B-class VLMs (Qwen3-VL-2B = 1.72B) are full service; smaller ones are labelled degraded

@@ -48,6 +48,7 @@ The P0–P8 levels map to gpusched classes as P0–1 → production, P2–3 → 
 - The 4B model held 3.1 GB anonymous. Three models dropped MemAvailable from ~10 to 3.9 GiB, PSI reached 4.2, swap grew, and gpusched admissible went to 0.
 - With `--no-repack` the weights stay file-backed (reclaimable). 4B anon dropped to **~670 MiB**, at a cost of only **−5 % decode** (22.3 → 21.1 tok/s).
 - Measured anon today: 4B ~670–850 MiB, 1.7B ~530–680 MiB, and embedding ~296 MiB after cutting its context to 4096 tokens over 2 slots.
+- Vision models (CPU tier, `--mmproj`) also hold the image projector in **anonymous** memory, because llama.cpp reads it into buffers and doesn't mmap it. Sizing adds the projector plus 512 MiB of image-encoder headroom to total and anon. The 512 MiB is an **estimate, not yet measured**. The text-side anon budget (1,536 MiB) is unchanged, and the projector plus headroom gets its own 2,048 MiB cap. Estimated by `hardware_fit`, not measured (Qwen3-VL-4B Q4_K_M + Q8_0 projector, 8192 ctx): ~1.7 GiB anon and ~4.0 GiB total.
 
 ### Bandwidth yield
 

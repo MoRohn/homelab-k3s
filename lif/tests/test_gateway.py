@@ -163,3 +163,79 @@ def test_engine_key_sent_to_shared_gpu_profile(client, monkeypatch):
     r = c.post("/v1/chat/completions", headers=H, json={"model": "local/reasoning", "messages": [{"role": "user", "content": "x"}]})
     assert r.status_code == 200 and r.json()["lif"]["served_by"] == "gpu32", r.json()["lif"]
     assert auth_seen[-1] == ("http://bridge.test:18102/v1/chat/completions", "Bearer engine-secret")
+
+
+# ── vision: images route deterministically, never to a text-only model ──────
+
+IMG = {"role": "user", "content": [{"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgo="}},
+                                   {"type": "text", "text": "What colour is this?"}]}
+
+
+def _add_vision(gw, healthy=True):
+    from lif.routing.router import Health, Profile
+    gw.S.router.profiles["vl"] = Profile.from_cfg("vl", {"endpoint": "http://vl.test:8080", "category": "vision",
+                                                         "params_b": 4, "mmproj": {"file": "mmproj-Q8_0.gguf"}})
+    gw.S.router.health["vl"] = Health(ok=healthy)
+    gw.S.router.aliases["local/vision"] = ["vl"]
+
+
+def test_auto_with_image_goes_to_vision_without_route_decision(client, monkeypatch):
+    c, gw = client
+    _add_vision(gw)
+    calls = []
+    orig = gw.S.fabric.evaluate
+
+    async def spy(name, *a, **kw):
+        calls.append(name)
+        return await orig(name, *a, **kw)
+    monkeypatch.setattr(gw.S.fabric, "evaluate", spy)
+    r = c.post("/v1/chat/completions", headers=H, json={"model": "local/auto", "messages": [IMG]})
+    assert r.status_code == 200, r.json()
+    lif = r.json()["lif"]
+    assert lif["served_by"] == "vl" and lif["alias"] == "local/vision" and lif["requested"] == "local/auto"
+    assert lif["route_decision"]["decision"] == "vision" and lif["route_decision"]["provider"] == "rules"
+    assert "request-route" not in calls                                # never through the Jev route decision
+    assert seen[-1]["host"] == "vl.test" and seen[-1]["messages"][0]["content"][0]["type"] == "image_url"
+    assert gw.S.router.alias_status()["local/vision"]["vision"] is True
+    assert c.get("/v1/capabilities", headers=H).json()["profiles"]["vl"]["vision"] is True
+
+
+def test_image_to_text_alias_is_422_not_supported(client):
+    c, _ = client
+    r = c.post("/v1/chat/completions", headers=H, json={"model": "local/default", "messages": [IMG]})
+    assert r.status_code == 422
+    e = r.json()["error"]
+    assert e["type"] == "not_supported" and e["code"] == "images_not_supported"
+    assert "local/vision" in e["message"] and e["lif"]["use"] == "local/vision"
+    assert not seen                                                   # nothing reached an upstream
+
+
+def test_image_without_vision_model_is_503_with_clear_reason(client):
+    c, _ = client
+    for model in ("local/vision", "local/auto"):
+        r = c.post("/v1/chat/completions", headers=H, json={"model": model, "messages": [IMG]})
+        assert r.status_code == 503
+        msg = r.json()["error"]["message"]
+        assert msg.startswith("no local model is deployed for local/vision") and "no vision model is installed yet" in msg
+
+
+def test_unhealthy_vision_never_falls_back_to_text(client):
+    c, gw = client
+    _add_vision(gw, healthy=False)
+    gw.S.router.aliases["local/vision"] = ["vl", "qwen3-4b-instruct-2507-q4km-cpu"]   # a mis-built chain
+    r = c.post("/v1/chat/completions", headers=H, json={"model": "local/vision", "messages": [IMG]})
+    assert r.status_code == 503 and not seen
+    # text-only requests to that alias may still use the text model in its chain
+    r = c.post("/v1/chat/completions", headers=H, json={"model": "local/vision",
+                                                        "messages": [{"role": "user", "content": "x"}]})
+    assert r.status_code == 200 and r.json()["lif"]["served_by"] == "qwen3-4b-instruct-2507-q4km-cpu"
+
+
+def test_latency_budget_never_reroutes_images(client):
+    c, gw = client
+    _add_vision(gw)
+    gw.S.gpu._snap = Snapshot(ts=time.time(), reachable=True, production_live=True,
+                              state=BlerbzState.IMMINENT, reason="production lease live")
+    r = c.post("/v1/chat/completions", headers=H, json={"model": "local/vision", "messages": [IMG],
+                                                        "lif": {"budget": {"max_latency_ms": 500}}})
+    assert r.status_code == 200 and r.json()["lif"]["served_by"] == "vl"

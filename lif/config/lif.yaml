@@ -138,6 +138,7 @@ models:
     max_latency_regression_pct: 10
     max_memory_increase_pct: 20
     structured_output_min: 0.98
+    min_quality_no_incumbent: 0.5   # absolute floor when the alias is empty (e.g. the first vision model)
     crash_rate_max: 0
     canary_percent: 10
 
