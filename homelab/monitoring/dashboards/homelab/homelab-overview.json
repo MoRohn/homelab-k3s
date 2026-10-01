@@ -1856,7 +1856,7 @@
     {
       "id": 27,
       "type": "row",
-      "title": "Network and disk",
+      "title": "Local AI chat speed",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1869,6 +1869,278 @@
     {
       "id": 28,
       "type": "timeseries",
+      "title": "Decode speed per model server",
+      "description": "Tokens per second while generating (llama.cpp's own timing). Healthy 4B on the CPU tier: ~20",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (pod) (rate(llamacpp:tokens_predicted_total[$__rate_interval])) / sum by (pod) (rate(llamacpp:tokens_predicted_seconds_total[$__rate_interval]))",
+          "legendFormat": "{{pod}}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#73BF69",
+                "value": 8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Time to first token",
+      "description": "Gateway: request in \u2192 first streamed token (queue + prompt processing)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, profile) (rate(lif_ttft_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "p50 {{profile}}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.9, sum by (le, profile) (rate(lif_ttft_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "p90 {{profile}}",
+          "refId": "B",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Model-server major page faults",
+      "description": "Weights re-read from disk. Near 0 when healthy; thousands/s means the pod's memory limit is too small",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (pod) (rate(container_memory_failures_total{namespace=\"ai-serving\",container=\"llama\",failure_type=\"pgmajfault\",scope=\"container\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#F2495C",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "row",
+      "title": "Network and disk",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
       "title": "Network throughput",
       "description": "Inbound above the axis, outbound below.",
       "datasource": {
@@ -1877,7 +2149,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 40,
+        "y": 49,
         "w": 12,
         "h": 8
       },
@@ -1952,7 +2224,7 @@
       }
     },
     {
-      "id": 29,
+      "id": 33,
       "type": "timeseries",
       "title": "Disk I/O",
       "description": "Reads above the axis, writes below.",
@@ -1962,7 +2234,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 40,
+        "y": 49,
         "w": 12,
         "h": 8
       },
@@ -2037,20 +2309,20 @@
       }
     },
     {
-      "id": 30,
+      "id": 34,
       "type": "row",
       "title": "Storage and backups",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 57,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 31,
+      "id": 35,
       "type": "stat",
       "title": "Backup target",
       "description": "Longhorn \u2192 s3://longhorn-backups",
@@ -2060,7 +2332,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 49,
+        "y": 58,
         "w": 4,
         "h": 4
       },
@@ -2135,7 +2407,7 @@
       }
     },
     {
-      "id": 32,
+      "id": 36,
       "type": "stat",
       "title": "Last backup",
       "description": "",
@@ -2145,7 +2417,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 49,
+        "y": 58,
         "w": 4,
         "h": 4
       },
@@ -2209,7 +2481,7 @@
       }
     },
     {
-      "id": 33,
+      "id": 37,
       "type": "stat",
       "title": "Longhorn volumes",
       "description": "",
@@ -2219,7 +2491,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 49,
+        "y": 58,
         "w": 4,
         "h": 4
       },
@@ -2274,7 +2546,7 @@
       }
     },
     {
-      "id": 34,
+      "id": 38,
       "type": "stat",
       "title": "Volumes degraded / faulted",
       "description": "",
@@ -2284,7 +2556,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 49,
+        "y": 58,
         "w": 4,
         "h": 4
       },
@@ -2343,7 +2615,7 @@
       }
     },
     {
-      "id": 35,
+      "id": 39,
       "type": "stat",
       "title": "MinIO",
       "description": "bnn-minio (Docker, outside the cluster)",
@@ -2353,7 +2625,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 49,
+        "y": 58,
         "w": 4,
         "h": 4
       },
@@ -2428,7 +2700,7 @@
       }
     },
     {
-      "id": 36,
+      "id": 40,
       "type": "stat",
       "title": "Off-site copy age",
       "description": "Time since the last successful sync of longhorn-backups to the off-site machine (backup/offsite-sync.sh)",
@@ -2438,7 +2710,7 @@
       },
       "gridPos": {
         "x": 20,
-        "y": 49,
+        "y": 58,
         "w": 4,
         "h": 4
       },
@@ -2502,7 +2774,7 @@
       }
     },
     {
-      "id": 37,
+      "id": 41,
       "type": "bargauge",
       "title": "Longhorn volume usage",
       "description": "Actual data written as a share of each volume's size",
@@ -2512,7 +2784,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 62,
         "w": 8,
         "h": 8
       },
@@ -2581,7 +2853,7 @@
       }
     },
     {
-      "id": 38,
+      "id": 42,
       "type": "timeseries",
       "title": "Longhorn throughput",
       "description": "Reads above the axis, writes below.",
@@ -2591,7 +2863,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 53,
+        "y": 62,
         "w": 8,
         "h": 8
       },
@@ -2666,7 +2938,7 @@
       }
     },
     {
-      "id": 39,
+      "id": 43,
       "type": "timeseries",
       "title": "MinIO S3 traffic",
       "description": "Backups written above the axis, restores below.",
@@ -2676,7 +2948,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 53,
+        "y": 62,
         "w": 8,
         "h": 8
       },
@@ -2751,20 +3023,20 @@
       }
     },
     {
-      "id": 40,
+      "id": 44,
       "type": "row",
       "title": "Alerts and scrape health",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 61,
+        "y": 70,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 41,
+      "id": 45,
       "type": "table",
       "title": "Active alerts",
       "datasource": {
@@ -2774,7 +3046,7 @@
       "description": "Firing and pending Prometheus alerts (Watchdog excluded). Empty means all clear.",
       "gridPos": {
         "x": 0,
-        "y": 62,
+        "y": 71,
         "w": 12,
         "h": 8
       },
@@ -2885,7 +3157,7 @@
       }
     },
     {
-      "id": 42,
+      "id": 46,
       "type": "table",
       "title": "Scrape targets",
       "datasource": {
@@ -2894,7 +3166,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 62,
+        "y": 71,
         "w": 12,
         "h": 8
       },

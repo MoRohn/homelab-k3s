@@ -106,4 +106,6 @@ LIF hands memory back **before** gpusched's 8 GiB headroom is crossed, whatever 
    - It must keep the `:8100` contract (including the `adapter` field) and pass a primary-workload quality evaluation before cutover.
 3. Any vLLM start needs an explicit memory size and a lease `mem_mb` that covers the load peak. Never use the default `gpu_memory_utilization`.
 
+**For chat speed:** the shared production LLM (32B bf16, ~3 tok/s) behind `gpu-engine-bridge` would be slower than the CPU tier (~21 tok/s for the 4B once its memory limit fits), so it is a quality path, not a latency path. A faster-than-CPU GPU tier needs path 1 or 2 above.
+
 **Status: not implemented or validated.** A live primary-workload GPU takeover of a LIF GPU model has not been tested, because no LIF GPU model exists.

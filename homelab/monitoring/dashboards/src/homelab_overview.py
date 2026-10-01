@@ -259,6 +259,31 @@ panels.append(bargauge(
     "{{namespace}}/{{pod}}", 16, y, w=8, h=8, unit="bytes"))
 y += 8
 
+# ---- Local AI (LIF) chat speed ---------------------------------------------------------
+# A model server whose cgroup can't hold its weights re-reads them from disk: decode collapses and major
+# faults climb (tier0, 2026-10-01). These three panels show it at a glance.
+panels.append(row("Local AI chat speed", y)); y += 1
+panels.append(timeseries(
+    "Decode speed per model server",
+    [target('sum by (pod) (rate(llamacpp:tokens_predicted_total[$__rate_interval]))'
+            ' / sum by (pod) (rate(llamacpp:tokens_predicted_seconds_total[$__rate_interval]))', "{{pod}}")],
+    0, y, w=8, h=8, unit="none", steps=((None, RED), (8, GREEN)), threshold_style="line",
+    description="Tokens per second while generating (llama.cpp's own timing). Healthy 4B on the CPU tier: ~20"))
+panels.append(timeseries(
+    "Time to first token",
+    [target('histogram_quantile(0.5, sum by (le, profile) (rate(lif_ttft_seconds_bucket[$__rate_interval])))',
+            "p50 {{profile}}"),
+     target('histogram_quantile(0.9, sum by (le, profile) (rate(lif_ttft_seconds_bucket[$__rate_interval])))',
+            "p90 {{profile}}", ref="B")],
+    8, y, w=8, h=8, unit="s", description="Gateway: request in → first streamed token (queue + prompt processing)"))
+panels.append(timeseries(
+    "Model-server major page faults",
+    [target('sum by (pod) (rate(container_memory_failures_total{namespace="ai-serving",container="llama",'
+            'failure_type="pgmajfault",scope="container"}[$__rate_interval]))', "{{pod}}")],
+    16, y, w=8, h=8, unit="none", steps=((None, GREEN), (100, RED)), threshold_style="line",
+    description="Weights re-read from disk. Near 0 when healthy; thousands/s means the pod's memory limit is too small"))
+y += 8
+
 # ---- Network & disk -------------------------------------------------------------------
 panels.append(row("Network and disk", y)); y += 1
 panels.append(timeseries(

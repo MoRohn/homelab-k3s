@@ -44,6 +44,28 @@ spec:
           for: 10m
           labels: {severity: warning}
           annotations: {summary: "Host MemAvailable below gpusched's 8 GiB headroom — check LIF CPU tiers (anon memory)."}
+    # ── Chat speed (docs/GPU_SCHEDULING.md → The cgroup-fit lesson) ──
+    - name: lif-serving
+      rules:
+        - alert: LIFModelServerThrashing
+          # tier0 at a too-small limit: median ~1,700 major faults/s (2026-10-01); healthy ≈ 0
+          expr: sum by (pod) (rate(container_memory_failures_total{namespace="ai-serving",container="llama",failure_type="pgmajfault",scope="container"}[5m])) > 100
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: "{{ $labels.pod }} is re-reading model weights from disk ({{ $value | humanize }} major faults/s). Its memory limit is below weights + anon, or the host is reclaiming its page cache."}
+        - alert: LIFDecodeSlow
+          expr: |
+            (sum by (pod) (increase(llamacpp:tokens_predicted_total[30m])) > 200)
+            and (sum by (pod) (increase(llamacpp:tokens_predicted_total[30m]))
+                 / sum by (pod) (increase(llamacpp:tokens_predicted_seconds_total[30m]))) < 8
+          for: 15m
+          labels: {severity: warning}
+          annotations: {summary: "{{ $labels.pod }} is generating below 8 tok/s (healthy 4B: ~20). Check LIFModelServerThrashing and host MemAvailable."}
+        - alert: LIFFirstTokenSlow
+          expr: histogram_quantile(0.9, sum by (le, profile) (rate(lif_ttft_seconds_bucket[30m]))) > 10
+          for: 30m
+          labels: {severity: warning}
+          annotations: {summary: "p90 time to first token for {{ $labels.profile }} is {{ $value | humanizeDuration }} (queueing or slow prompt processing)."}
     # ── Decision Engineering (docs/DECISION_ENGINEERING.md) ──
     - name: lif-decision-engineering
       rules:
