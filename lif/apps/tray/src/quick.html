@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ask Labzilla</title>
+  <link rel="stylesheet" href="quick.css" />
+</head>
+<body>
+  <main class="card">
+    <header>
+      <img src="mark.png" alt="" width="20" height="20" />
+      <strong>Ask Labzilla</strong>
+      <span id="status" class="status" role="status">Checking…</span>
+    </header>
+    <form id="ask">
+      <textarea id="q" rows="2" placeholder="Ask anything — Enter to send, Shift+Enter for a new line"
+                aria-label="Your question" autofocus></textarea>
+    </form>
+    <footer>
+      <button type="button" id="open" class="link">Open Labzilla</button>
+      <button type="button" id="server" class="link" title="Change server"></button>
+      <span class="hint">Esc to close</span>
+    </footer>
+    <form id="server-form" hidden>
+      <input id="server-url" type="url" placeholder="https://labzilla.local" aria-label="Server address" />
+      <button type="submit">Save</button>
+      <span id="server-error" class="error" role="alert"></span>
+    </form>
+  </main>
+  <script src="quick.js"></script>
+</body>
+</html>
