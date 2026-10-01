@@ -402,7 +402,9 @@ class Discovery:
                 "hf_repo": meta["model_id"], "revision": meta["revision"], "file": pick["file"],
                 "sha256": pick["sha256"], "size": pick["size"], "precision": (pick.get("quant") or "").lower(),
                 "params_b": meta["params_b"], "context": 8192, "concurrency": 4,
-                "memory_budget_mb": int(fit["weights_mib"] + fit["anon_mib"] + 512), "license": meta["license"]}
+                "weights_mib": fit["weights_mib"], "anon_mib": fit["anon_mib"],
+                "memory_budget_mb": hardware_fit.memory_limit_mib(fit["weights_mib"], fit["anon_mib"]),
+                "license": meta["license"]}
         if pick.get("mmproj"):
             mm = pick["mmproj"]
             prof["mmproj"] = {"file": mm["file"], "sha256": mm["sha256"], "size": mm["size"]}

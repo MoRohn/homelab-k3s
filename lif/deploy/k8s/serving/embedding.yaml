@@ -66,8 +66,9 @@ spec:
           ports: [{name: http, containerPort: 8080}]
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
           resources:
-            requests: {cpu: 500m, memory: 1536Mi}
-            limits: {cpu: "4", memory: 1536Mi}
+            # weights 609 MiB + anon ~736 MiB (hardware_fit estimate) + 15 %
+            requests: {cpu: 500m, memory: 1792Mi}
+            limits: {cpu: "4", memory: 1792Mi}
           startupProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5, failureThreshold: 60}
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10, failureThreshold: 3}
           livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 30, timeoutSeconds: 10, failureThreshold: 4}

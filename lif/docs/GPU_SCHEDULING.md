@@ -68,7 +68,7 @@ LIF hands memory back **before** gpusched's 8 GiB headroom is crossed, whatever 
 
 | Group | Deployments | Shed below | Restore above |
 |---|---|---|---|
-| optional | `tier0-small` | 9216 MiB MemAvailable | 10240 MiB |
+| optional | `tier0-small` | 9216 MiB MemAvailable | 12800 MiB |
 | secondary | `embedding` | 6144 MiB | 8704 MiB |
 | hot fallback | `tier0` | never shed by the guard | — |
 

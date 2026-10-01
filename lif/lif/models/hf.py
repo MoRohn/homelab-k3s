@@ -187,5 +187,6 @@ def normalize(info: dict, category: str) -> dict:
         "num_kv_heads": cfg.get("num_key_value_heads") or cfg.get("num_attention_heads"),
         "head_dim": cfg.get("head_dim") or ((cfg.get("hidden_size") // cfg["num_attention_heads"])
                                             if cfg.get("hidden_size") and cfg.get("num_attention_heads") else None),
+        "vocab_size": cfg.get("vocab_size"),
         "source": "huggingface",
     }

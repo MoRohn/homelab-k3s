@@ -59,8 +59,10 @@ spec:
           ports: [{name: http, containerPort: 8080}]
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
           resources:
-            requests: {cpu: 500m, memory: 3584Mi}
-            limits: {cpu: "8", memory: 3584Mi}
+            # weights (2,381 MiB, page cache charged here) + measured anon 1,409 MiB + 15 % (hardware_fit).
+            # 3584Mi made the cgroup evict weights every token (2026-10-01).
+            requests: {cpu: 500m, memory: 4608Mi}
+            limits: {cpu: "8", memory: 4608Mi}
           startupProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5, failureThreshold: 60}
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10, failureThreshold: 3}
           livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 30, timeoutSeconds: 10, failureThreshold: 4}

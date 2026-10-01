@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from lif.common import config
 
 GRAMZ_UNLOAD_MIB = 34_600          # measured 2026-09-30 (gpusched live unload)
-CPU_ANON_BUDGET_MIB = 1_536        # per CPU model: KV + compute buffers (anon) — measured 0.3–0.7 GiB
+CPU_ANON_BUDGET_MIB = 1_536        # per CPU model: KV + compute buffers (anon) — tier0 4B measured 1.38 GiB
 CPU_MAX_WEIGHTS_MIB = 6_144        # beyond this, CPU decode on A725 cores drops below ~8 tok/s
 # Vision (llama.cpp mtmd): the mmproj is read into anonymous buffers (not mmap'd), and encoding an
 # image needs a compute buffer for the vision tower. ESTIMATE, not yet measured on this host:
@@ -27,6 +27,20 @@ CPU_MAX_WEIGHTS_MIB = 6_144        # beyond this, CPU decode on A725 cores drops
 VISION_IMAGE_HEADROOM_MIB = 512
 CPU_VISION_EXTRA_MAX_MIB = 2_048   # projector + image headroom allowed on top of the text anon budget
 CPU_DECODE_GBPS = 50.0             # effective weight-streaming rate measured on the A725 set (2.4 GB × 21 tok/s)
+
+# Runtime memory beyond KV, calibrated on tier0 (Qwen3-4B Q4_K_M, ctx 8192, 2 slots, 2026-10-01, n=1):
+# 1,409 MiB anonymous = 576 KV + ~833 other. The other part is llama-server itself (process, tokenizer,
+# per-thread arenas) plus the compute buffer, whose largest tensor is the logits of one ubatch
+# (vocab × ubatch × fp32): 297 MiB for Qwen3's 151,936-token vocabulary.
+RUNTIME_BASE_MIB = 512
+UBATCH = 512
+DEFAULT_VOCAB = 152_064            # unknown vocabulary → size as for a large one (Qwen/Llama-3 class)
+# The pod's cgroup is charged for the mmap'd weights it touches (page cache) as well as its anonymous
+# memory. A limit below weights + anon makes the kernel evict weights the next token needs: tier0 at
+# 3,584 Mi re-read weights from disk on every token (2026-10-01; private/lif/perf, local only). So every
+# limit gets this headroom on top.
+CGROUP_HEADROOM = 1.15
+LIMIT_STEP_MIB = 256
 
 BYTES_PER_PARAM = {"F32": 4.0, "F16": 2.0, "BF16": 2.0, "Q8_0": 1.07, "Q6_K": 0.82, "Q5_K_M": 0.71,
                    "Q4_K_M": 0.60, "Q4_K_S": 0.57, "MXFP4": 0.53, "FP8": 1.0, "INT4": 0.55}
@@ -59,6 +73,22 @@ def kv_cache_mib(meta: dict, context: int, concurrency: int, kv_bytes: float = 1
     return int((meta.get("params_b") or 8) * 0.1 * tokens * kv_bytes / 8)
 
 
+def runtime_overhead_mib(meta: dict, *, embedding: bool = False) -> int:
+    """llama-server memory beyond weights and KV. Embedding servers pool hidden states, so they never
+    allocate a vocabulary-sized logits buffer."""
+    if embedding:
+        return RUNTIME_BASE_MIB
+    vocab = int(meta.get("vocab_size") or DEFAULT_VOCAB)
+    return RUNTIME_BASE_MIB + int(vocab * UBATCH * 4 / 2**20)
+
+
+def memory_limit_mib(weights_mib: float, anon_mib: float) -> int:
+    """The container memory limit (= request) for a CPU model server: weights + anonymous memory +
+    CGROUP_HEADROOM, rounded up to LIMIT_STEP_MIB."""
+    need = (weights_mib + anon_mib) * CGROUP_HEADROOM
+    return int(-(-need // LIMIT_STEP_MIB) * LIMIT_STEP_MIB)
+
+
 def estimate(meta: dict, *, device: str = "auto", context: int = 8192, concurrency: int = 4,
              admissible_mib: float | None = None) -> FitReport:
     reasons: list[str] = []
@@ -72,7 +102,7 @@ def estimate(meta: dict, *, device: str = "auto", context: int = 8192, concurren
     else:
         return FitReport("no_fit", 0, 0, 0, 0, 0, None, ["parameter count unknown — cannot size safely"])
     kv = kv_cache_mib(meta, context, concurrency)
-    overhead = 256 + int(weights * 0.05)
+    overhead = runtime_overhead_mib(meta, embedding=meta.get("category") in ("embedding", "reranking"))
     mm = pick.get("mmproj") or {}
     mmproj = int(mm["size"] / 2**20) if mm.get("size") else 0
     img = VISION_IMAGE_HEADROOM_MIB if mmproj else 0

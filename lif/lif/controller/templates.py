@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import re
 
+from lif.models import hardware_fit
+
 LLAMA_IMAGE = "ghcr.io/ggml-org/llama.cpp@sha256:6d607629e3dd5e85f45c43d1494648126cb3f93f2122c9cd53f43242c94cde14"
 CURL_IMAGE = "curlimages/curl:8.10.1"
 A725_MASK = "7C1F"          # CPUs 0-4,10-14 (Cortex-A725). X925 cores stay free for the primary workload.
@@ -77,7 +79,12 @@ def llama_args(p: dict) -> list[str]:
 def model_server(name: str, profile_name: str, p: dict, *, priority: str = "ai-critical",
                  role: str = "model-server") -> tuple[dict, dict]:
     validate_profile(p)
-    mem = f"{int(p.get('memory_budget_mb', 4096))}Mi"
+    budget = int(p.get('memory_budget_mb', 4096))
+    if p.get("weights_mib") and p.get("anon_mib"):
+        need = hardware_fit.memory_limit_mib(p["weights_mib"], p["anon_mib"])
+        if budget < need:       # the cgroup would evict mmap'd weights on every token (tier0, 2026-10-01)
+            raise ValueError(f"memory_budget_mb {budget} < {need} MiB (weights + anon + headroom)")
+    mem = f"{budget}Mi"
     labels = {"app": name, "lif.dev/profile": profile_name, "lif.dev/role": role}
     dep = {
         "apiVersion": "apps/v1", "kind": "Deployment",
