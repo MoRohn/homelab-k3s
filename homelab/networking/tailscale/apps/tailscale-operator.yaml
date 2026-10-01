@@ -14,7 +14,7 @@ spec:
       helm:
         releaseName: tailscale-operator
         valueFiles:
-          - $values/networking/tailscale/values.yaml
+          - $values/homelab/networking/tailscale/values.yaml
     - repoURL: https://github.com/MoRohn/labzilla.git
       targetRevision: main
       ref: values

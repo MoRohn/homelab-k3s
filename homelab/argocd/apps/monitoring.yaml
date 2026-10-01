@@ -13,7 +13,7 @@ spec:
       helm:
         releaseName: monitoring
         valueFiles:
-          - $values/monitoring/values.yaml
+          - $values/homelab/monitoring/values.yaml
     - repoURL: https://github.com/MoRohn/labzilla.git
       targetRevision: main
       ref: values

@@ -43,6 +43,11 @@ def client(monkeypatch):
         for n in gw.S.router.health:
             gw.S.router.health[n].ok = True
         gw.S.gpu._snap = Snapshot(ts=__import__("time").time(), reachable=True, state=BlerbzState.LOW, reason="test")
+
+        async def _frozen():          # the real watcher would poll gpusched, fail (no token) and
+            gw.S.gpu._snap.ts = __import__("time").time()   # fail safe to IMMINENT mid-test
+            return gw.S.gpu._snap
+        gw.S.gpu.refresh = _frozen
         seen.clear()
         broken.clear()
         yield c, gw
@@ -155,5 +160,5 @@ def test_engine_key_sent_to_shared_gpu_profile(client, monkeypatch):
         return await orig_post(url, json=json, headers=headers, **kw)
     monkeypatch.setattr(gw.S.http, "post", post)
     r = c.post("/v1/chat/completions", headers=H, json={"model": "local/reasoning", "messages": [{"role": "user", "content": "x"}]})
-    assert r.status_code == 200 and r.json()["lif"]["served_by"] == "gpu32"
+    assert r.status_code == 200 and r.json()["lif"]["served_by"] == "gpu32", r.json()["lif"]
     assert auth_seen[-1] == ("http://bridge.test:18102/v1/chat/completions", "Bearer engine-secret")

@@ -12,7 +12,7 @@ spec:
       helm:
         releaseName: metallb
         valueFiles:
-          - $values/networking/metallb/values.yaml
+          - $values/homelab/networking/metallb/values.yaml
     - repoURL: https://github.com/MoRohn/labzilla.git
       targetRevision: main
       ref: values
