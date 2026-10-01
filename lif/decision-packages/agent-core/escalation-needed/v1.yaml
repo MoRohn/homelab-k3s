@@ -1,0 +1,23 @@
+name: escalation-needed
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: >
+  Judge whether `task.text` requires a reasoning model rather than a fast model to be
+  answered correctly.
+criteria: >
+  `task.text` asks for a proof, a multi-step derivation, a plan with dependencies between
+  steps, a comparison across several sources named in `task.text`, or a judgment that
+  depends on combining three or more separate facts.
+state_schema:
+  task.text: str
+default: "yes"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

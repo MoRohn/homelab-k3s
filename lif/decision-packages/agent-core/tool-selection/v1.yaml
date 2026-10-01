@@ -1,0 +1,32 @@
+# Model/tool routing (spec §39–§40). The criteria below are the catalogue; at run time the
+# agent loop passes only the tools that exist, are permitted and are usable now (dynamic
+# choices). "May it run?" is a separate, deterministic ToolPolicy check (spec §41).
+name: tool-selection
+version: v1
+primitive: choice
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: >
+  Choose the tool that should run next to make progress on `goal.text`, given
+  `progress.last_step` and `progress.last_result_summary`. Only the listed options exist.
+criteria:
+  search: find information that is not yet in the state, such as documentation, a fact or a source
+  read: open a specific file or record already named in `progress.last_result_summary`
+  code: run, edit or test code in the workspace
+  knowledge: look up stored team knowledge, decisions or runbooks about the topic of `goal.text`
+  none: no tool is needed; the next step is to write the answer or to stop
+exits: [none]
+state_schema:
+  goal.text: str
+  progress.last_step: str
+  progress.last_result_summary: str
+default: none
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  min_margin: 0.15                # flat distributions escalate instead of taking the argmax (spec §45)
+  middle_route: [local_reasoning, kimi]
+  low_route: [safe_default]

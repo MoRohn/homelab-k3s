@@ -1,0 +1,127 @@
+# Provider catalogue for Decision Engineering: endpoints, pricing, limits, privacy class.
+# Prices and limits are DATA, not code (spec §76–§77). Update this file when a provider
+# changes them; cost reports pick the change up without a code change. Every external
+# fact carries `source` and `as_of`. Values marked `verified: false` were not confirmed.
+#
+# Privacy: every external provider is gated by policy.may_send(<class>, <privacy_destination>).
+# config/lif.yaml privacy.external_llm_allowed is [] today, so NO state reaches an external
+# LLM until the owner lists a class there — even with a key present.
+
+providers:
+
+  typesafe-jev:
+    kind: decision                        # bounded decisions (choice / score / noul)
+    privacy_destination: jev
+    model_inventory: [jev-1.13.0]         # pinned in lif.yaml decision_fabric.jev.model
+    pricing:
+      currency: USD
+      input_per_mtok: 0.42                # as configured since the LIF bring-up; output is free
+      output_per_mtok: 0.0
+      source: config/lif.yaml decision_fabric.jev.price_usd_per_mtok_input (owner-provided)
+      as_of: "2026-10-01"
+      verified: false
+    rate_limit: {requests_per_sec: 20, burst: 40, max_concurrency: 16}   # local guard, not a provider quota
+    circuit_breaker: {failures: 5, reset_sec: 60}
+
+  kimi-k3:
+    kind: reasoning                        # heavy escalation (spec §18)
+    adapter: openai_chat
+    enabled: true                          # still inert: no MOONSHOT_API_KEY secret, and privacy blocks
+    privacy_destination: external_llm
+    base_url: https://api.moonshot.ai/v1
+    model: kimi-k3
+    api_key_secret: MOONSHOT_API_KEY
+    context_window_tokens: 1048576
+    request:
+      # K3 fixes temperature/top_p/penalties and always thinks; do not send sampling params.
+      send_sampling_params: false
+      reasoning_effort: low                # low | high | max
+      max_output_tokens: 2048
+      timeout_sec: 120
+    capabilities: {json_schema: true, tools: true, vision: true, logprobs: unverified, swarm_api: false}
+    pricing:
+      currency: USD
+      input_cache_hit_per_mtok: 0.30
+      input_per_mtok: 3.00                 # cache miss
+      output_per_mtok: 15.00
+      note: >-
+        The pricing page also lists $6.00 alongside the 1-hour cache TTL (likely a
+        cache-write price). Unconfirmed; recheck before relying on cost reports.
+      source: https://platform.kimi.ai/docs/pricing/chat
+      as_of: "2026-10-01"
+      verified: true
+    rate_limit:
+      # Account tier is unknown until a key exists. These are Tier 1 ($10 cumulative recharge):
+      # concurrency 15, 100 RPM, 2M TPM. Tier 0 is 1 / 3 RPM / 500K TPM / 1.5M TPD.
+      # source: https://platform.kimi.ai/docs/pricing/limits (2026-10-01)
+      requests_per_min: 100
+      tokens_per_min: 2000000
+      max_concurrency: 15
+      # 429s carry X-RateLimit-Reset; Retry-After is not documented, so honour either.
+      reset_headers: [retry-after, x-ratelimit-reset]
+    circuit_breaker: {failures: 3, reset_sec: 120}
+
+  local-fast:
+    kind: generative
+    adapter: lif_gateway
+    alias: local/fast
+    privacy_destination: local
+    pricing: {currency: USD, energy_estimate: true}     # from lif.yaml cost.* (ESTIMATE)
+    rate_limit: {max_concurrency: 4}
+
+  local-reasoning:
+    kind: reasoning
+    adapter: lif_gateway
+    alias: local/reasoning
+    privacy_destination: local
+    # Today local/reasoning resolves to the 4B CPU model and is flagged degraded by the
+    # gateway. The cascade records degraded=true on every answer it gives.
+    pricing: {currency: USD, energy_estimate: true}
+    rate_limit: {max_concurrency: 2}
+    request: {max_output_tokens: 512, timeout_sec: 90}
+
+  frontier:
+    kind: reasoning
+    adapter: openai_chat
+    enabled: false                          # placeholder for another approved heavy model
+    privacy_destination: external_llm
+    base_url: ""
+    model: ""
+    api_key_secret: FRONTIER_API_KEY
+    pricing: {currency: USD, input_per_mtok: null, output_per_mtok: null, source: "", as_of: ""}
+    rate_limit: {requests_per_min: 30, max_concurrency: 4}
+    circuit_breaker: {failures: 3, reset_sec: 120}
+
+  anthropic-opus:
+    kind: generative
+    privacy_destination: external_llm
+    pricing: {currency: USD, input_per_mtok: null, output_per_mtok: null, source: "", as_of: ""}
+  anthropic-sonnet:
+    kind: generative
+    privacy_destination: external_llm
+    pricing: {currency: USD, input_per_mtok: null, output_per_mtok: null, source: "", as_of: ""}
+  anthropic-haiku:
+    kind: generative
+    privacy_destination: external_llm
+    pricing: {currency: USD, input_per_mtok: null, output_per_mtok: null, source: "", as_of: ""}
+
+  human-review:
+    kind: human
+    privacy_destination: local
+    # Loaded cost of one human review, set by the owner. null = report human cost as unknown.
+    pricing: {currency: USD, per_review: null}
+    sla_minutes: 1440
+
+# Current executors seen in agent traces → provider entry used to price them.
+# Longest matching model-id prefix wins. A provider with null pricing reports cost as
+# unknown (token counts are still exact). Claude Code sessions on this host run on a
+# subscription, so their API-equivalent price is left for the owner to set.
+executors:
+  claude-opus: anthropic-opus
+  claude-sonnet: anthropic-sonnet
+  claude-haiku: anthropic-haiku
+  kimi-k3: kimi-k3
+  "local/": local-fast
+  qwen3: local-fast
+  jev: typesafe-jev
+

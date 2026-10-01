@@ -44,3 +44,40 @@ spec:
           for: 10m
           labels: {severity: warning}
           annotations: {summary: "Host MemAvailable below gpusched's 8 GiB headroom — check LIF CPU tiers (anon memory)."}
+    # ── Decision Engineering (docs/DECISION_ENGINEERING.md) ──
+    - name: lif-decision-engineering
+      rules:
+        - record: lif:decision_offload_rate:1h
+          expr: >-
+            sum(rate(lif_cascade_resolutions_total{tier=~"jev|code"}[1h]))
+            / sum(rate(lif_cascade_resolutions_total{tier!="baseline"}[1h]))
+        - record: lif:frontier_generation_avoidance_rate:1h
+          expr: >-
+            1 - sum(rate(lif_cascade_resolutions_total{tier=~"kimi|frontier"}[1h]))
+            / sum(rate(lif_cascade_resolutions_total{tier!="baseline"}[1h]))
+        - record: lif:decision_safe_default_rate:1h
+          expr: >-
+            sum by (decision) (rate(lif_cascade_resolutions_total{tier="safe_default"}[1h]))
+            / sum by (decision) (rate(lif_cascade_resolutions_total[1h]))
+        - alert: LIFEscalationProviderCircuitOpen
+          expr: max by (provider) (lif_provider_circuit_open) == 1
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: "Escalation provider {{ $labels.provider }} breaker open; middle-zone decisions fall to the next tier or the safe default."}
+        - alert: LIFDecisionSafeDefaultsHigh
+          expr: lif:decision_safe_default_rate:1h > 0.25 and on(decision) sum by (decision) (rate(lif_cascade_resolutions_total[1h])) > 0.01
+          for: 30m
+          labels: {severity: warning}
+          annotations: {summary: "{{ $labels.decision }}: over 25% of decisions end on the safe default (no tier could resolve them)."}
+        - alert: LIFHumanReviewBacklog
+          expr: max(lif_human_review_queue) > 50
+          for: 1h
+          labels: {severity: info}
+          annotations: {summary: "More than 50 decisions are waiting for human review (Control Center → Decision Engineering → Review Queue)."}
+        - alert: LIFDecisionOutcomeErrors
+          expr: >-
+            sum by (decision) (increase(lif_decision_outcomes_total{route="auto",outcome="incorrect"}[24h]))
+            / sum by (decision) (increase(lif_decision_outcomes_total{route="auto"}[24h])) > 0.1
+            and on(decision) sum by (decision) (increase(lif_decision_outcomes_total{route="auto"}[24h])) >= 20
+          labels: {severity: warning}
+          annotations: {summary: "{{ $labels.decision }}: over 10% of automatic decisions with known outcomes were wrong in 24 h; consider `local-ai decision rollback`."}

@@ -66,6 +66,48 @@ decision_fabric:
     ttl_sec: 86400
     max_entries: 50000
 
+# ── Decision Engineering (docs/DECISION_ENGINEERING.md) ────────────────────────
+# Every number below is a POLICY input. Production thresholds are not here: they are
+# chosen per decision from calibration and pinned by a release (lif/decision/registry.py).
+decision_engineering:
+  state_compiler_version: sc-1
+  # Tolerated rate of WRONG automatic decisions (95% upper bound) by consequence.
+  # critical has no entry: it is never automated (human / hard policy only).
+  max_error_by_risk: {low: 0.05, medium: 0.02, high: 0.005}
+  calibration:
+    min_samples: 200
+    min_auto: 30
+    required_slices: [common, edge]
+    min_per_slice: 20
+    min_low_confidence: 20
+    min_high_confidence: 50
+    min_failures: 5
+    low_band: 0.8
+    high_band: 0.9
+  promotion:
+    min_tests: 20
+    min_test_accuracy: 0.9
+    max_regression: 0.01            # accuracy drop vs the previous version that still passes CI
+    max_coverage_drop: 0.05
+  cascade:
+    # Default escalation order for the MIDDLE zone. Local first: Kimi is optional
+    # infrastructure, never the foundation of local availability (spec §78).
+    middle_route: [local_reasoning, kimi]
+    defaults: {accept: 0.7, code_min: 0.99, min_margin: 0.0}
+  shadow:
+    sample_pct: 100                 # share of eligible requests that also run shadow candidates
+  traces:
+    claude_code_dirs: [~/.claude/projects]
+    # Never mined by default: primary-workload sessions (spec: primary-workload integration
+    # internals are private). Pass --source explicitly to override, and keep results in private/.
+    exclude: ["*-home-tiny-bnn*"]
+    retention_days: 90
+  heavy_executors: [kimi-k3, frontier, local-reasoning, claude, gpt, opus, sonnet]
+  # Estimates used ONLY until shadow telemetry exists for a decision (then measured values win).
+  jev_state_tokens_estimate: 400
+  jev_latency_ms_estimate: 300
+  cycle: {enabled: true, interval_sec: 21600, initial_delay_sec: 300}
+
 # ── Privacy ───────────────────────────────────────────────────────────────────
 privacy:
   default_class: CONFIDENTIAL   # unlabelled application data never leaves the box

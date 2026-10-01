@@ -1,0 +1,24 @@
+# Coding agent (spec §95): tests are CODE (exit code); this judges intent coverage, which
+# tests cannot, and low confidence escalates to a reviewer model.
+name: change-satisfies-intent
+version: v1
+primitive: noul
+stage: designed
+risk: medium
+reversible: true
+owner: coding
+data_class: CONFIDENTIAL
+instructions: >
+  Judge whether the change summarized in `change.summary` does what `task.text` asks.
+criteria: >
+  Every behaviour that `task.text` asks for appears in `change.summary`, and
+  `change.summary` lists no change to behaviour that `task.text` did not ask for.
+state_schema:
+  task.text: str
+  change.summary: str
+default: "no"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning, kimi]
+  low_route: [safe_default]

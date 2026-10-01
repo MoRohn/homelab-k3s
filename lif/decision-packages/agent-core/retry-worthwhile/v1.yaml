@@ -1,0 +1,25 @@
+# The retry BUDGET (attempts, backoff) is code; this only judges whether the error is transient.
+name: retry-worthwhile
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: >
+  Judge whether repeating the same call could succeed, given the error in `error.message`
+  from the operation in `error.operation`.
+criteria: >
+  `error.message` reports a timeout, a rate limit, a temporary network failure, a
+  "try again" or 5xx status, or a resource that is still starting; and it does not report
+  invalid input, a missing permission, a missing file or a syntax error.
+state_schema:
+  error.operation: str
+  error.message: str
+default: "no"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

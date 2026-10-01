@@ -1,0 +1,32 @@
+# v2 (2026-10-01): v1 declared `human` and `none` as exits, but they are real routes: the cascade
+# escalated those answers instead of acting on them (found by benchmarks/decision-engineering).
+# v2 adds a true exit, `insufficient_information`. v1 stays as it was.
+name: model-route
+version: v2
+primitive: choice
+stage: designed
+risk: low
+reversible: true
+owner: model-operations
+data_class: CONFIDENTIAL
+instructions: >
+  Choose the model class that should handle the request in `request.text`, given
+  `request.modality` and `request.output_kind`.
+criteria:
+  local_fast: a short lookup, reformatting, extraction or single-label classification that a small model answers reliably
+  local_reasoning: a task needing several reasoning steps, longer writing or code within one file
+  kimi: a task needing long multi-hop reasoning, synthesis across many sources, image or scanned-document understanding, or code changes across several files
+  human: "`request.text` asks for an action with legal, financial or security consequences, or for approval"
+  none: "`request.text` is empty, a greeting, or needs no model at all"
+  insufficient_information: "`request.text` is cut off or refers to material that is not in the state, so the task cannot be sized"
+exits: [insufficient_information]
+state_schema:
+  request.text: str
+  request.modality: str
+  request.output_kind: str
+default: local_reasoning
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

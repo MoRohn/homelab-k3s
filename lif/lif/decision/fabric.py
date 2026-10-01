@@ -203,9 +203,18 @@ class DecisionFabric:
     def _jev_allowed(self, d: DecisionDef, state: Any, declared: str | None) -> bool:
         if not self._jev_enabled() or not self.jev.available():
             return False
+        pin = d.pins.get("jev_model")
+        if pin and pin != self.jev.model:
+            # Calibrated against another Jev version: its thresholds mean nothing here (§33).
+            self._note_escalation(d, "jev", "pinned_model_unavailable")
+            return False
         # The caller's declaration wins over the definition's default class; content
         # detectors can only raise it (a declared-PUBLIC state containing a key is RESTRICTED).
         base = policy.DataClass.parse(declared, d.data_class_enum())
+        from lif.decision.state_compiler import embedded_class
+        marked = embedded_class(state)                 # e.g. knowledge items from a private repo
+        if marked is not None:
+            base = max(base, policy.DataClass[marked])
         text = state if isinstance(state, str) else json.dumps(state, default=str)
         cls = policy.classify(text, base.name).data_class
         return policy.may_send(cls, "jev")

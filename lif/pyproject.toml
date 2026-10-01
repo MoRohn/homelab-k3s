@@ -17,6 +17,7 @@ test = ["pytest==8.4.2", "pytest-asyncio==1.2.0"]
 
 [project.scripts]
 local-ai = "lif.cli.main:main"
+lif-decisions-mcp = "lif.decision.mcp:main"
 knowledge = "lif.knowledge.cli:main"
 
 [build-system]

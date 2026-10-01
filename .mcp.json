@@ -9,6 +9,10 @@
         "--agent",
         "claude-code"
       ]
+    },
+    "lif-decisions": {
+      "command": "lif/.venv/bin/lif-decisions-mcp",
+      "args": []
     }
   }
 }

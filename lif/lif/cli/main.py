@@ -22,6 +22,8 @@ from typing import Any
 
 import httpx
 
+from lif.cli import decision_cmds
+
 
 class CliError(Exception):
     pass
@@ -258,6 +260,8 @@ def cmd_models(api: Api, args) -> int:
 
 
 def cmd_decision(api: Api, args) -> int:
+    if args.action not in ("status", "workflows", "metrics"):
+        return decision_cmds.cmd(api, args)
     if args.action == "workflows":
         out(args, api.dec("GET", "/decision/workflows"), lambda d: json.dumps(d, indent=2, default=str))
         return 0
@@ -327,7 +331,8 @@ def build_parser() -> argparse.ArgumentParser:
     m.add_argument("--percent", type=float)
     m.add_argument("--to-version", type=int, dest="to_version")
     d = sub.add_parser("decision")
-    d.add_argument("action", choices=["status", "workflows", "metrics"])
+    d.add_argument("action", choices=decision_cmds.DE_ACTIONS)
+    decision_cmds.add_parsers(sub, d)
     b = sub.add_parser("batch")
     b.add_argument("action", choices=["list", "pause", "resume"])
     mt = sub.add_parser("maintenance")
@@ -340,7 +345,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 HANDLERS = {"status": cmd_status, "doctor": cmd_doctor, "gpu": cmd_gpu, "models": cmd_models,
-            "decision": cmd_decision, "batch": cmd_batch, "maintenance": cmd_maintenance, "activity": cmd_activity}
+            "decision": cmd_decision, "batch": cmd_batch, "maintenance": cmd_maintenance, "activity": cmd_activity,
+            "agent": decision_cmds.cmd_agent, "workflow": decision_cmds.cmd_workflow}
 
 
 def main(argv: list[str] | None = None, api: Api | None = None) -> int:

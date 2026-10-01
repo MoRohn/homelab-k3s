@@ -1,0 +1,29 @@
+# Model discovery stage 2 (spec §93): code has already filtered license, architecture and
+# size; this judges suitability per candidate in parallel; code checks hardware fit after.
+name: model-shortlist
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: model-operations
+data_class: PUBLIC                # Hugging Face metadata is public
+instructions: >
+  Judge whether the model described by `model.id`, `model.pipeline_tag` and `model.summary`
+  is built for the task category named in `category.name`.
+criteria: >
+  `model.pipeline_tag` or `model.summary` names the same task as `category.name`
+  (for example text generation for a chat category, sentence embeddings for an
+  embedding category), and `model.summary` does not describe it as a test, toy, merge of
+  unclear origin, or a model for a different task.
+state_schema:
+  model.id: str
+  model.pipeline_tag: str
+  model.summary: str
+  category.name: str
+default: "no"
+fallback: [rules]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

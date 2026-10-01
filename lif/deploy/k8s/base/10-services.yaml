@@ -203,6 +203,12 @@ spec:
           value: http://batch.ai-system.svc:8080
         - name: LIF_DECISIONS_DB
           value: /data/decisions.db
+        - name: LIF_DE_DB                     # Decision Engineering: releases, shadow, provenance, queue
+          value: /data/decision-eng.db
+        - name: LIF_CALIBRATION_DIR
+          value: /data/calibration
+        - name: LIF_TRACE_DIR                 # in-cluster agents write LIF traces here (instrument.py)
+          value: /data/traces
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -215,7 +221,7 @@ spec:
             memory: 128Mi
           limits:
             cpu: '1'
-            memory: 256Mi
+            memory: 384Mi                     # + Decision Engineering runtime (CPU only, no GPU)
         startupProbe:
           httpGet:
             path: /healthz

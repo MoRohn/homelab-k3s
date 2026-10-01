@@ -251,7 +251,8 @@ class LocalLLMProvider:
             score = probs.get("yes", 0.0)
         return DecisionResult(decision=label, confidence=conf, probabilities=probs, provider="local_llm",
                               decision_ref=d.ref, score=score, latency_ms=(time.perf_counter() - t0) * 1000,
-                              provider_version=data.get("model", self.version))
+                              provider_version=data.get("model", self.version),
+                              input_tokens=int((data.get("usage") or {}).get("prompt_tokens", 0)))
 
 
 Evaluator = Callable[[DecisionDef, Any], Awaitable[DecisionResult]]

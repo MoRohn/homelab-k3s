@@ -1,0 +1,26 @@
+# Shared by research (source relevance), knowledge-work (context relevance) and the swarm
+# reducer: one schema with domain state, not five unrelated ones (spec §87).
+name: context-relevance
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL          # callers declare PUBLIC for public sources
+instructions: >
+  Judge whether `item.text` contains information that helps answer `task.question`.
+  The title in `item.title` alone does not count; judge the text.
+criteria: >
+  `item.text` states a fact, figure, definition, procedure, example or claim that would
+  appear in, support, or contradict a correct answer to `task.question`.
+state_schema:
+  task.question: str
+  item.title: str
+  item.text: str
+default: "no"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone                # high/low come from calibration; until then nothing is automatic
+  middle_route: [local_reasoning, kimi]
+  low_route: [safe_default]

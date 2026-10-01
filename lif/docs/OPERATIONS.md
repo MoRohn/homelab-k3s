@@ -32,6 +32,7 @@ export LIF_ADMIN_KEY=$(cat ~/labzilla/secrets/lif-admin.key) LIF_API_KEY=$(cat ~
 | Pin / block | `local-ai models pin ID` · `local-ai models block ID` (plus `unpin`/`unblock`) |
 | Load / unload | `local-ai models load ID [--force]` · `local-ai models unload ID [--force]` (unload refuses if an alias depends on it unless forced) |
 | Decision fabric | `local-ai decision status` · `workflows` · `metrics` |
+| Decision Engineering | `local-ai agent audit [AGENT]` · `local-ai workflow optimize` · `local-ai decision lint decision-packages` · `decision test NAME/V` · `decision calibrate NAME/V` · `decision shadow NAME/V` · `decision promote NAME/V --to STAGE --threshold T --actor ME` · `decision rollback NAME --reason …` (see [DECISION_ENGINEERING](DECISION_ENGINEERING.md)) |
 | Batch | `local-ai batch list` · `local-ai batch pause` · `local-ai batch resume` |
 | Maintenance | `local-ai maintenance on` (pauses batch, refuses candidate benchmarks) · `off` |
 | Audit trail | `local-ai activity --limit 100` |

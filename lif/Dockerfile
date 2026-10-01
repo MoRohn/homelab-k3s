@@ -9,6 +9,7 @@ COPY lif ./lif
 COPY config ./config
 COPY evals ./evals
 COPY apps ./apps
+COPY decision-packages ./decision-packages
 # Run from /app (not site-packages) so lif/ finds its bundled config/ and evals/.
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin lif \
     && mkdir -p /data && chown lif /data

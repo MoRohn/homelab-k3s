@@ -84,3 +84,15 @@ All four Python services run from **one image** (`127.0.0.1:5000/lif/fabric:<tag
 - The primary workload is **not** migrated.
 - PriorityClasses: `blerbz-critical` (reserved), `ai-critical`, `ai-interactive`, `ai-batch`, `ai-maintenance`, `ai-experimental`.
 - These govern only CPU and RAM inside K3s. The GPU is gpusched's.
+
+## Decision Engineering
+
+The decision-fabric service also hosts the Decision Engineering runtime. It runs in-process, CPU only, and adds no pod. See [DECISION_ENGINEERING.md](DECISION_ENGINEERING.md).
+
+| Piece | Where |
+|---|---|
+| Registry, releases, shadow, provenance, human queue | `decision-eng.db` on the decision-fabric PVC |
+| Cascade: code → Jev → local reasoning → Kimi K3 → human/safe default | `lif/decision/cascade.py` |
+| API `/de/*`, UI via the controller at `/v1/de/*` | `lif/decision/de_api.py`, Control Center → Decision Engineering |
+| Improvement cycle every 6 h: mine → calibrate → recommend | `lif/decision/jobs.py` |
+

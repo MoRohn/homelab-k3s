@@ -85,3 +85,8 @@ Alertmanager routing is whatever the monitoring stack already has. No LIF-specif
 - **Decisions:** `decisions.db` (30 days; `/decision/recent`, UI Decision Inspector).
 
 **Pending:** Grafana dashboard panels for LIF metrics have not been built.
+
+## Decision Engineering
+
+Metrics, KPIs (decision offload rate, frontier generation avoidance rate) and four alerts are listed in [DECISION_ENGINEERING.md § Observability](DECISION_ENGINEERING.md#observability). The recording rules and alerts are in the `lif-decision-engineering` group of `deploy/k8s/base/14-monitoring.yaml`.
+

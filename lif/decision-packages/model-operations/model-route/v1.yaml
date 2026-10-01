@@ -1,0 +1,30 @@
+# "Which model class should handle this?" (spec §6, §21). Privacy, GPU state and budgets
+# are applied in code AFTER this answer; this only judges task difficulty and modality.
+name: model-route
+version: v1
+primitive: choice
+stage: designed
+risk: low
+reversible: true
+owner: model-operations
+data_class: CONFIDENTIAL
+instructions: >
+  Choose the model class that should handle the request in `request.text`, given
+  `request.modality` and `request.output_kind`.
+criteria:
+  local_fast: a short lookup, reformatting, extraction or single-label classification that a small model answers reliably
+  local_reasoning: a task needing several reasoning steps, longer writing or code within one file
+  kimi: a task needing long multi-hop reasoning, synthesis across many sources, image or scanned-document understanding, or code changes across several files
+  human: "`request.text` asks for an action with legal, financial or security consequences, or for approval"
+  none: "`request.text` is empty, a greeting, or needs no model at all"
+exits: [none, human]
+state_schema:
+  request.text: str
+  request.modality: str
+  request.output_kind: str
+default: local_reasoning
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

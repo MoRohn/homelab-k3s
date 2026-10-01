@@ -20,6 +20,7 @@ configMapGenerator:
     files:
       - lif.yaml=config/lif.yaml
       - models.yaml=config/models.yaml
+      - providers.yaml=config/providers.yaml
       - core-decisions.yaml=config/decisions/core.yaml
       - candidate-model-analysis.yaml=config/workflows/candidate-model-analysis.yaml
       - core-evals.yaml=evals/core.yaml

@@ -1,0 +1,25 @@
+# Parallel result reduction for swarms (spec §49): many worker results in, a small kept set out.
+name: result-keep
+version: v1
+primitive: choice
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: >
+  Decide what to do with the worker result in `result.summary` for the goal in `goal.text`.
+criteria:
+  keep: "`result.summary` contains evidence, data or a partial solution that a final answer to `goal.text` would use"
+  drop: "`result.summary` is off-topic for `goal.text`, empty, an error message, or repeats nothing but the task"
+  insufficient_information: "`result.summary` is cut off or too short to tell whether it serves `goal.text`"
+exits: [insufficient_information]
+state_schema:
+  goal.text: str
+  result.summary: str
+default: insufficient_information
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

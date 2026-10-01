@@ -1,0 +1,4894 @@
+{
+ "date": "2026-10-01",
+ "started": 1790861152.9598231,
+ "jev_model": "jev-1.13.0",
+ "baseline_model": "local/fast",
+ "escalation_model": "local/reasoning",
+ "sweep": [
+  0.7,
+  0.8,
+  0.9,
+  0.95,
+  0.98
+ ],
+ "accept": 0.7,
+ "kimi": "not configured",
+ "arms": [
+  "jev"
+ ],
+ "decisions": {
+  "context-relevance/v1": {
+   "n": 26,
+   "labels": [
+    "no",
+    "yes"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 1.0,
+    "p50_ms": 171.7,
+    "p95_ms": 222.3,
+    "mean_confidence": 0.9542,
+    "jev_input_tokens": 10549,
+    "jev_cost_usd": 0.004431,
+    "accuracy_by_slice": {
+     "common": 1.0,
+     "edge": 1.0
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 1.0,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.0385,
+     "auto_accuracy": 1.0,
+     "auto_n": 25,
+     "local_llm_calls": 0,
+     "p50_ms": 171.7,
+     "p95_ms": 222.3
+    },
+    "0.8": {
+     "accuracy": 1.0,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.0385,
+     "auto_accuracy": 1.0,
+     "auto_n": 25,
+     "local_llm_calls": 0,
+     "p50_ms": 171.7,
+     "p95_ms": 222.3
+    },
+    "0.9": {
+     "accuracy": 1.0,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.0385,
+     "auto_accuracy": 1.0,
+     "auto_n": 25,
+     "local_llm_calls": 0,
+     "p50_ms": 171.7,
+     "p95_ms": 222.3
+    },
+    "0.95": {
+     "accuracy": 0.9231,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1923,
+     "auto_accuracy": 1.0,
+     "auto_n": 21,
+     "local_llm_calls": 0,
+     "p50_ms": 171.7,
+     "p95_ms": 222.3
+    },
+    "0.98": {
+     "accuracy": 0.7692,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4615,
+     "auto_accuracy": 1.0,
+     "auto_n": 14,
+     "local_llm_calls": 0,
+     "p50_ms": 171.7,
+     "p95_ms": 222.3
+    }
+   },
+   "rows": [
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 73,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 535.8520760200918,
+     "jev_tokens": 422,
+     "jev_cost": 0.00017723999999999998,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 64,
+     "jev": "yes",
+     "jev_conf": 0.97,
+     "jev_ms": 154.99157598242164,
+     "jev_tokens": 414,
+     "jev_cost": 0.00017388,
+     "jev_probs": {
+      "yes": 0.97,
+      "no": 0.030000000000000027
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 57,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 160.67556897178292,
+     "jev_tokens": 408,
+     "jev_cost": 0.00017135999999999999,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 57,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 136.39095798134804,
+     "jev_tokens": 407,
+     "jev_cost": 0.00017093999999999999,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 64,
+     "jev": "yes",
+     "jev_conf": 0.94,
+     "jev_ms": 179.27504982799292,
+     "jev_tokens": 408,
+     "jev_cost": 0.00017135999999999999,
+     "jev_probs": {
+      "yes": 0.94,
+      "no": 0.06000000000000005
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 55,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 198.97640496492386,
+     "jev_tokens": 403,
+     "jev_cost": 0.00016926,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 66,
+     "jev": "yes",
+     "jev_conf": 0.91,
+     "jev_ms": 175.33650062978268,
+     "jev_tokens": 409,
+     "jev_cost": 0.00017178,
+     "jev_probs": {
+      "yes": 0.91,
+      "no": 0.08999999999999997
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 61,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 222.27834211662412,
+     "jev_tokens": 416,
+     "jev_cost": 0.00017472,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 58,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 153.42512587085366,
+     "jev_tokens": 408,
+     "jev_cost": 0.00017135999999999999,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 57,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 167.96204214915633,
+     "jev_tokens": 404,
+     "jev_cost": 0.00016968000000000002,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 52,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 171.67811235412955,
+     "jev_tokens": 408,
+     "jev_cost": 0.00017135999999999999,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 56,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 155.51685681566596,
+     "jev_tokens": 407,
+     "jev_cost": 0.00017093999999999999,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 30,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 177.60536819696426,
+     "jev_tokens": 380,
+     "jev_cost": 0.0001596,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 48,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 167.32218489050865,
+     "jev_tokens": 405,
+     "jev_cost": 0.0001701,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 51,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 166.5307921357453,
+     "jev_tokens": 399,
+     "jev_cost": 0.00016758,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 62,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 210.91984631493688,
+     "jev_tokens": 415,
+     "jev_cost": 0.00017429999999999998,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 57,
+     "jev": "no",
+     "jev_conf": 0.96,
+     "jev_ms": 176.91256711259484,
+     "jev_tokens": 402,
+     "jev_cost": 0.00016884000000000002,
+     "jev_probs": {
+      "yes": 0.04,
+      "no": 0.96
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 57,
+     "jev": "yes",
+     "jev_conf": 0.97,
+     "jev_ms": 172.99945699051023,
+     "jev_tokens": 402,
+     "jev_cost": 0.00016884000000000002,
+     "jev_probs": {
+      "yes": 0.97,
+      "no": 0.030000000000000027
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 57,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 154.76335166022182,
+     "jev_tokens": 408,
+     "jev_cost": 0.00017135999999999999,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 53,
+     "jev": "no",
+     "jev_conf": 0.5800000000000001,
+     "jev_ms": 181.8088940344751,
+     "jev_tokens": 401,
+     "jev_cost": 0.00016842,
+     "jev_probs": {
+      "yes": 0.42,
+      "no": 0.5800000000000001
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 61,
+     "jev": "yes",
+     "jev_conf": 0.95,
+     "jev_ms": 161.71681741252542,
+     "jev_tokens": 412,
+     "jev_cost": 0.00017303999999999998,
+     "jev_probs": {
+      "yes": 0.95,
+      "no": 0.050000000000000044
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 51,
+     "jev": "no",
+     "jev_conf": 0.92,
+     "jev_ms": 149.39884934574366,
+     "jev_tokens": 404,
+     "jev_cost": 0.00016968000000000002,
+     "jev_probs": {
+      "yes": 0.08,
+      "no": 0.92
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 61,
+     "jev": "yes",
+     "jev_conf": 0.99,
+     "jev_ms": 194.80087980628014,
+     "jev_tokens": 412,
+     "jev_cost": 0.00017303999999999998,
+     "jev_probs": {
+      "yes": 0.99,
+      "no": 0.010000000000000009
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 49,
+     "jev": "no",
+     "jev_conf": 0.92,
+     "jev_ms": 162.97616297379136,
+     "jev_tokens": 395,
+     "jev_cost": 0.0001659,
+     "jev_probs": {
+      "yes": 0.08,
+      "no": 0.92
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 54,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 157.90873300284147,
+     "jev_tokens": 398,
+     "jev_cost": 0.00016716,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 56,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 172.18084819614887,
+     "jev_tokens": 402,
+     "jev_cost": 0.00016884000000000002,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    }
+   ]
+  },
+  "escalation-needed/v1": {
+   "n": 26,
+   "labels": [
+    "no",
+    "yes"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.9615,
+    "p50_ms": 168.5,
+    "p95_ms": 208.8,
+    "mean_confidence": 0.8715,
+    "jev_input_tokens": 9645,
+    "jev_cost_usd": 0.004051,
+    "accuracy_by_slice": {
+     "common": 0.9444,
+     "edge": 1.0
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 1.0,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1154,
+     "auto_accuracy": 1.0,
+     "auto_n": 23,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 208.8
+    },
+    "0.8": {
+     "accuracy": 0.9615,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1538,
+     "auto_accuracy": 1.0,
+     "auto_n": 22,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 208.8
+    },
+    "0.9": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3462,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 208.8
+    },
+    "0.95": {
+     "accuracy": 0.6154,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.8462,
+     "auto_accuracy": 1.0,
+     "auto_n": 4,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 208.8
+    },
+    "0.98": {
+     "accuracy": 0.4615,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 1.0,
+     "auto_accuracy": null,
+     "auto_n": 0,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 208.8
+    }
+   },
+   "rows": [
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 21,
+     "jev": "yes",
+     "jev_conf": 0.92,
+     "jev_ms": 193.97495780140162,
+     "jev_tokens": 369,
+     "jev_cost": 0.00015497999999999998,
+     "jev_probs": {
+      "yes": 0.92,
+      "no": 0.07999999999999996
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "yes",
+     "jev_conf": 0.94,
+     "jev_ms": 175.76730204746127,
+     "jev_tokens": 373,
+     "jev_cost": 0.00015666,
+     "jev_probs": {
+      "yes": 0.94,
+      "no": 0.06000000000000005
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 34,
+     "jev": "yes",
+     "jev_conf": 0.92,
+     "jev_ms": 146.13986806944013,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.92,
+      "no": 0.07999999999999996
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 36,
+     "jev": "yes",
+     "jev_conf": 0.93,
+     "jev_ms": 163.83736487478018,
+     "jev_tokens": 375,
+     "jev_cost": 0.0001575,
+     "jev_probs": {
+      "yes": 0.93,
+      "no": 0.06999999999999995
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "no",
+     "jev_conf": 0.5700000000000001,
+     "jev_ms": 167.07284096628428,
+     "jev_tokens": 397,
+     "jev_cost": 0.00016674,
+     "jev_probs": {
+      "yes": 0.43,
+      "no": 0.5700000000000001
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "yes",
+     "jev_conf": 0.87,
+     "jev_ms": 166.05059895664454,
+     "jev_tokens": 372,
+     "jev_cost": 0.00015623999999999998,
+     "jev_probs": {
+      "yes": 0.87,
+      "no": 0.13
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "yes",
+     "jev_conf": 0.62,
+     "jev_ms": 143.25474295765162,
+     "jev_tokens": 381,
+     "jev_cost": 0.00016001999999999998,
+     "jev_probs": {
+      "yes": 0.62,
+      "no": 0.38
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "yes",
+     "jev_conf": 0.85,
+     "jev_ms": 241.34246539324522,
+     "jev_tokens": 374,
+     "jev_cost": 0.00015707999999999998,
+     "jev_probs": {
+      "yes": 0.85,
+      "no": 0.15000000000000002
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "yes",
+     "jev_conf": 0.94,
+     "jev_ms": 142.14227767661214,
+     "jev_tokens": 371,
+     "jev_cost": 0.00015581999999999998,
+     "jev_probs": {
+      "yes": 0.94,
+      "no": 0.06000000000000005
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 13,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 168.6846991069615,
+     "jev_tokens": 357,
+     "jev_cost": 0.00014994,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 11,
+     "jev": "no",
+     "jev_conf": 0.94,
+     "jev_ms": 164.8407899774611,
+     "jev_tokens": 361,
+     "jev_cost": 0.00015162000000000002,
+     "jev_probs": {
+      "yes": 0.06,
+      "no": 0.94
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 16,
+     "jev": "no",
+     "jev_conf": 0.96,
+     "jev_ms": 161.55902575701475,
+     "jev_tokens": 360,
+     "jev_cost": 0.0001512,
+     "jev_probs": {
+      "yes": 0.04,
+      "no": 0.96
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 21,
+     "jev": "no",
+     "jev_conf": 0.94,
+     "jev_ms": 168.4805229306221,
+     "jev_tokens": 370,
+     "jev_cost": 0.0001554,
+     "jev_probs": {
+      "yes": 0.06,
+      "no": 0.94
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 22,
+     "jev": "no",
+     "jev_conf": 0.92,
+     "jev_ms": 147.72523008286953,
+     "jev_tokens": 372,
+     "jev_cost": 0.00015623999999999998,
+     "jev_probs": {
+      "yes": 0.08,
+      "no": 0.92
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 23,
+     "jev": "no",
+     "jev_conf": 0.94,
+     "jev_ms": 197.5375870242715,
+     "jev_tokens": 368,
+     "jev_cost": 0.00015456,
+     "jev_probs": {
+      "yes": 0.06,
+      "no": 0.94
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 17,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 178.57728898525238,
+     "jev_tokens": 364,
+     "jev_cost": 0.00015287999999999999,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 15,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 191.82270020246506,
+     "jev_tokens": 357,
+     "jev_cost": 0.00014994,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 27,
+     "jev": "no",
+     "jev_conf": 0.92,
+     "jev_ms": 185.08645007386804,
+     "jev_tokens": 371,
+     "jev_cost": 0.00015581999999999998,
+     "jev_probs": {
+      "yes": 0.08,
+      "no": 0.92
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 27,
+     "jev": "no",
+     "jev_conf": 0.89,
+     "jev_ms": 208.84054712951183,
+     "jev_tokens": 374,
+     "jev_cost": 0.00015707999999999998,
+     "jev_probs": {
+      "yes": 0.11,
+      "no": 0.89
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 18,
+     "jev": "no",
+     "jev_conf": 0.7,
+     "jev_ms": 183.96638380363584,
+     "jev_tokens": 363,
+     "jev_cost": 0.00015246000000000001,
+     "jev_probs": {
+      "yes": 0.3,
+      "no": 0.7
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 16,
+     "jev": "no",
+     "jev_conf": 0.81,
+     "jev_ms": 168.87177107855678,
+     "jev_tokens": 368,
+     "jev_cost": 0.00015456,
+     "jev_probs": {
+      "yes": 0.19,
+      "no": 0.81
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 30,
+     "jev": "yes",
+     "jev_conf": 0.93,
+     "jev_ms": 156.15469822660089,
+     "jev_tokens": 377,
+     "jev_cost": 0.00015834,
+     "jev_probs": {
+      "yes": 0.93,
+      "no": 0.06999999999999995
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 34,
+     "jev": "yes",
+     "jev_conf": 0.62,
+     "jev_ms": 149.94459273293614,
+     "jev_tokens": 383,
+     "jev_cost": 0.00016085999999999997,
+     "jev_probs": {
+      "yes": 0.62,
+      "no": 0.38
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 25,
+     "jev": "no",
+     "jev_conf": 0.91,
+     "jev_ms": 142.66019873321056,
+     "jev_tokens": 369,
+     "jev_cost": 0.00015497999999999998,
+     "jev_probs": {
+      "yes": 0.09,
+      "no": 0.91
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 19,
+     "jev": "no",
+     "jev_conf": 0.92,
+     "jev_ms": 206.81932801380754,
+     "jev_tokens": 364,
+     "jev_cost": 0.00015287999999999999,
+     "jev_probs": {
+      "yes": 0.08,
+      "no": 0.92
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 42,
+     "jev": "yes",
+     "jev_conf": 0.83,
+     "jev_ms": 163.32568414509296,
+     "jev_tokens": 377,
+     "jev_cost": 0.00015834,
+     "jev_probs": {
+      "yes": 0.83,
+      "no": 0.17000000000000004
+     }
+    }
+   ]
+  },
+  "goal-satisfied/v1": {
+   "n": 29,
+   "labels": [
+    "blocked",
+    "done",
+    "not_done",
+    "uncertain"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 29,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.8621,
+    "p50_ms": 171.5,
+    "p95_ms": 210.6,
+    "mean_confidence": 0.8831,
+    "jev_input_tokens": 16500,
+    "jev_cost_usd": 0.00693,
+    "accuracy_by_slice": {
+     "common": 0.8421,
+     "edge": 0.9
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.8621,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1034,
+     "auto_accuracy": 0.8846,
+     "auto_n": 26,
+     "local_llm_calls": 0,
+     "p50_ms": 171.5,
+     "p95_ms": 210.6
+    },
+    "0.8": {
+     "accuracy": 0.8966,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.2069,
+     "auto_accuracy": 0.9565,
+     "auto_n": 23,
+     "local_llm_calls": 0,
+     "p50_ms": 171.5,
+     "p95_ms": 210.6
+    },
+    "0.9": {
+     "accuracy": 0.8621,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3103,
+     "auto_accuracy": 1.0,
+     "auto_n": 20,
+     "local_llm_calls": 0,
+     "p50_ms": 171.5,
+     "p95_ms": 210.6
+    },
+    "0.95": {
+     "accuracy": 0.7586,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4138,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 171.5,
+     "p95_ms": 210.6
+    },
+    "0.98": {
+     "accuracy": 0.7586,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4138,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 171.5,
+     "p95_ms": 210.6
+    }
+   },
+   "rows": [
+    {
+     "expected": "done",
+     "slice": "common",
+     "state_tokens": 81,
+     "jev": "done",
+     "jev_conf": 1.0,
+     "jev_ms": 202.27036299183965,
+     "jev_tokens": 576,
+     "jev_cost": 0.00024192,
+     "jev_probs": {
+      "uncertain": 0.0,
+      "done": 1.0,
+      "blocked": 0.0,
+      "not_done": 0.0
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "common",
+     "state_tokens": 73,
+     "jev": "done",
+     "jev_conf": 1.0,
+     "jev_ms": 150.68894578143954,
+     "jev_tokens": 583,
+     "jev_cost": 0.00024486,
+     "jev_probs": {
+      "done": 1.0,
+      "uncertain": 0.0,
+      "not_done": 0.0,
+      "blocked": 0.0
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "common",
+     "state_tokens": 65,
+     "jev": "done",
+     "jev_conf": 1.0,
+     "jev_ms": 157.2641390375793,
+     "jev_tokens": 567,
+     "jev_cost": 0.00023814,
+     "jev_probs": {
+      "not_done": 0.0,
+      "uncertain": 0.0,
+      "done": 1.0,
+      "blocked": 0.0
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "common",
+     "state_tokens": 80,
+     "jev": "done",
+     "jev_conf": 0.88,
+     "jev_ms": 151.07238618656993,
+     "jev_tokens": 583,
+     "jev_cost": 0.00024486,
+     "jev_probs": {
+      "done": 0.91,
+      "not_done": 0.01,
+      "blocked": 0.0,
+      "uncertain": 0.08
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "common",
+     "state_tokens": 79,
+     "jev": "done",
+     "jev_conf": 0.99,
+     "jev_ms": 186.4282595925033,
+     "jev_tokens": 581,
+     "jev_cost": 0.00024401999999999998,
+     "jev_probs": {
+      "blocked": 0.0,
+      "uncertain": 0.0,
+      "not_done": 0.0,
+      "done": 1.0
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "common",
+     "state_tokens": 72,
+     "jev": "not_done",
+     "jev_conf": 1.0,
+     "jev_ms": 159.8197747953236,
+     "jev_tokens": 582,
+     "jev_cost": 0.00024444,
+     "jev_probs": {
+      "uncertain": 0.0,
+      "not_done": 1.0,
+      "done": 0.0,
+      "blocked": 0.0
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "common",
+     "state_tokens": 75,
+     "jev": "not_done",
+     "jev_conf": 1.0,
+     "jev_ms": 139.07821010798216,
+     "jev_tokens": 580,
+     "jev_cost": 0.00024359999999999999,
+     "jev_probs": {
+      "uncertain": 0.0,
+      "done": 0.0,
+      "not_done": 1.0,
+      "blocked": 0.0
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "common",
+     "state_tokens": 76,
+     "jev": "not_done",
+     "jev_conf": 1.0,
+     "jev_ms": 181.16892501711845,
+     "jev_tokens": 583,
+     "jev_cost": 0.00024486,
+     "jev_probs": {
+      "blocked": 0.0,
+      "not_done": 1.0,
+      "uncertain": 0.0,
+      "done": 0.0
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "common",
+     "state_tokens": 54,
+     "jev": "not_done",
+     "jev_conf": 1.0,
+     "jev_ms": 200.08106296882033,
+     "jev_tokens": 553,
+     "jev_cost": 0.00023226,
+     "jev_probs": {
+      "blocked": 0.0,
+      "not_done": 1.0,
+      "uncertain": 0.0,
+      "done": 0.0
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "common",
+     "state_tokens": 86,
+     "jev": "blocked",
+     "jev_conf": 1.0,
+     "jev_ms": 162.19969792291522,
+     "jev_tokens": 581,
+     "jev_cost": 0.00024401999999999998,
+     "jev_probs": {
+      "blocked": 1.0,
+      "done": 0.0,
+      "uncertain": 0.0,
+      "not_done": 0.0
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "common",
+     "state_tokens": 72,
+     "jev": "blocked",
+     "jev_conf": 0.9,
+     "jev_ms": 153.9028538390994,
+     "jev_tokens": 564,
+     "jev_cost": 0.00023688,
+     "jev_probs": {
+      "uncertain": 0.0,
+      "blocked": 0.93,
+      "not_done": 0.07,
+      "done": 0.0
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "common",
+     "state_tokens": 70,
+     "jev": "blocked",
+     "jev_conf": 1.0,
+     "jev_ms": 144.22397688031197,
+     "jev_tokens": 569,
+     "jev_cost": 0.00023898,
+     "jev_probs": {
+      "uncertain": 0.0,
+      "done": 0.0,
+      "blocked": 1.0,
+      "not_done": 0.0
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "common",
+     "state_tokens": 79,
+     "jev": "blocked",
+     "jev_conf": 0.98,
+     "jev_ms": 174.34574710205197,
+     "jev_tokens": 579,
+     "jev_cost": 0.00024317999999999999,
+     "jev_probs": {
+      "not_done": 0.01,
+      "uncertain": 0.0,
+      "blocked": 0.99,
+      "done": 0.0
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "common",
+     "state_tokens": 76,
+     "jev": "blocked",
+     "jev_conf": 1.0,
+     "jev_ms": 146.45279571413994,
+     "jev_tokens": 571,
+     "jev_cost": 0.00023982,
+     "jev_probs": {
+      "not_done": 0.0,
+      "done": 0.0,
+      "blocked": 1.0,
+      "uncertain": 0.0
+     }
+    },
+    {
+     "expected": "uncertain",
+     "slice": "common",
+     "state_tokens": 44,
+     "jev": "not_done",
+     "jev_conf": 0.71,
+     "jev_ms": 180.34644378349185,
+     "jev_tokens": 544,
+     "jev_cost": 0.00022847999999999998,
+     "jev_probs": {
+      "blocked": 0.0,
+      "done": 0.06,
+      "uncertain": 0.16,
+      "not_done": 0.78
+     }
+    },
+    {
+     "expected": "uncertain",
+     "slice": "common",
+     "state_tokens": 43,
+     "jev": "not_done",
+     "jev_conf": 0.72,
+     "jev_ms": 210.63615009188652,
+     "jev_tokens": 541,
+     "jev_cost": 0.00022722,
+     "jev_probs": {
+      "uncertain": 0.19,
+      "not_done": 0.79,
+      "done": 0.02,
+      "blocked": 0.0
+     }
+    },
+    {
+     "expected": "uncertain",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "not_done",
+     "jev_conf": 0.82,
+     "jev_ms": 180.00511499121785,
+     "jev_tokens": 549,
+     "jev_cost": 0.00023057999999999998,
+     "jev_probs": {
+      "uncertain": 0.09,
+      "not_done": 0.87,
+      "done": 0.04,
+      "blocked": 0.0
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "common",
+     "state_tokens": 67,
+     "jev": "done",
+     "jev_conf": 0.99,
+     "jev_ms": 148.43288017436862,
+     "jev_tokens": 582,
+     "jev_cost": 0.00024444,
+     "jev_probs": {
+      "not_done": 0.01,
+      "done": 0.99,
+      "blocked": 0.0,
+      "uncertain": 0.0
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "common",
+     "state_tokens": 60,
+     "jev": "not_done",
+     "jev_conf": 1.0,
+     "jev_ms": 188.43000568449497,
+     "jev_tokens": 563,
+     "jev_cost": 0.00023645999999999997,
+     "jev_probs": {
+      "uncertain": 0.0,
+      "blocked": 0.0,
+      "not_done": 1.0,
+      "done": 0.0
+     }
+    },
+    {
+     "expected": "uncertain",
+     "slice": "edge",
+     "state_tokens": 59,
+     "jev": "not_done",
+     "jev_conf": 0.15,
+     "jev_ms": 171.47964611649513,
+     "jev_tokens": 558,
+     "jev_cost": 0.00023435999999999997,
+     "jev_probs": {
+      "blocked": 0.0,
+      "uncertain": 0.34,
+      "not_done": 0.37,
+      "done": 0.29
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "edge",
+     "state_tokens": 55,
+     "jev": "not_done",
+     "jev_conf": 0.9,
+     "jev_ms": 146.48362807929516,
+     "jev_tokens": 555,
+     "jev_cost": 0.0002331,
+     "jev_probs": {
+      "not_done": 0.92,
+      "blocked": 0.01,
+      "done": 0.06,
+      "uncertain": 0.01
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "edge",
+     "state_tokens": 62,
+     "jev": "done",
+     "jev_conf": 0.84,
+     "jev_ms": 173.34563378244638,
+     "jev_tokens": 571,
+     "jev_cost": 0.00023982,
+     "jev_probs": {
+      "blocked": 0.11,
+      "not_done": 0.01,
+      "done": 0.87,
+      "uncertain": 0.01
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "edge",
+     "state_tokens": 81,
+     "jev": "blocked",
+     "jev_conf": 0.93,
+     "jev_ms": 219.02246586978436,
+     "jev_tokens": 586,
+     "jev_cost": 0.00024612,
+     "jev_probs": {
+      "not_done": 0.05,
+      "done": 0.0,
+      "uncertain": 0.0,
+      "blocked": 0.95
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "edge",
+     "state_tokens": 61,
+     "jev": "not_done",
+     "jev_conf": 1.0,
+     "jev_ms": 187.08651699125767,
+     "jev_tokens": 563,
+     "jev_cost": 0.00023645999999999997,
+     "jev_probs": {
+      "not_done": 1.0,
+      "blocked": 0.0,
+      "done": 0.0,
+      "uncertain": 0.0
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "edge",
+     "state_tokens": 63,
+     "jev": "done",
+     "jev_conf": 0.78,
+     "jev_ms": 154.2083751410246,
+     "jev_tokens": 563,
+     "jev_cost": 0.00023645999999999997,
+     "jev_probs": {
+      "done": 0.84,
+      "blocked": 0.0,
+      "not_done": 0.15,
+      "uncertain": 0.01
+     }
+    },
+    {
+     "expected": "not_done",
+     "slice": "edge",
+     "state_tokens": 72,
+     "jev": "not_done",
+     "jev_conf": 0.51,
+     "jev_ms": 182.89814330637455,
+     "jev_tokens": 582,
+     "jev_cost": 0.00024444,
+     "jev_probs": {
+      "blocked": 0.34,
+      "uncertain": 0.03,
+      "not_done": 0.62,
+      "done": 0.01
+     }
+    },
+    {
+     "expected": "uncertain",
+     "slice": "edge",
+     "state_tokens": 61,
+     "jev": "uncertain",
+     "jev_conf": 0.52,
+     "jev_ms": 174.18369930237532,
+     "jev_tokens": 559,
+     "jev_cost": 0.00023478,
+     "jev_probs": {
+      "uncertain": 0.64,
+      "done": 0.0,
+      "not_done": 0.24,
+      "blocked": 0.12
+     }
+    },
+    {
+     "expected": "blocked",
+     "slice": "edge",
+     "state_tokens": 80,
+     "jev": "blocked",
+     "jev_conf": 0.99,
+     "jev_ms": 167.98642603680491,
+     "jev_tokens": 580,
+     "jev_cost": 0.00024359999999999999,
+     "jev_probs": {
+      "done": 0.0,
+      "uncertain": 0.0,
+      "blocked": 0.99,
+      "not_done": 0.01
+     }
+    },
+    {
+     "expected": "done",
+     "slice": "edge",
+     "state_tokens": 50,
+     "jev": "done",
+     "jev_conf": 1.0,
+     "jev_ms": 169.98761286959052,
+     "jev_tokens": 552,
+     "jev_cost": 0.00023184,
+     "jev_probs": {
+      "done": 1.0,
+      "blocked": 0.0,
+      "not_done": 0.0,
+      "uncertain": 0.0
+     }
+    }
+   ]
+  },
+  "result-keep/v1": {
+   "n": 26,
+   "labels": [
+    "drop",
+    "insufficient_information",
+    "keep"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.9231,
+    "p50_ms": 171.6,
+    "p95_ms": 196.2,
+    "mean_confidence": 0.8812,
+    "jev_input_tokens": 11936,
+    "jev_cost_usd": 0.005013,
+    "accuracy_by_slice": {
+     "common": 0.9412,
+     "edge": 0.8889
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.2692,
+     "auto_accuracy": 0.9474,
+     "auto_n": 19,
+     "local_llm_calls": 0,
+     "p50_ms": 171.6,
+     "p95_ms": 196.2
+    },
+    "0.8": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.2692,
+     "auto_accuracy": 0.9474,
+     "auto_n": 19,
+     "local_llm_calls": 0,
+     "p50_ms": 171.6,
+     "p95_ms": 196.2
+    },
+    "0.9": {
+     "accuracy": 0.9231,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3077,
+     "auto_accuracy": 1.0,
+     "auto_n": 18,
+     "local_llm_calls": 0,
+     "p50_ms": 171.6,
+     "p95_ms": 196.2
+    },
+    "0.95": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3462,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 171.6,
+     "p95_ms": 196.2
+    },
+    "0.98": {
+     "accuracy": 0.8462,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3846,
+     "auto_accuracy": 1.0,
+     "auto_n": 16,
+     "local_llm_calls": 0,
+     "p50_ms": 171.6,
+     "p95_ms": 196.2
+    }
+   },
+   "rows": [
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 47,
+     "jev": "keep",
+     "jev_conf": 1.0,
+     "jev_ms": 196.1709768511355,
+     "jev_tokens": 477,
+     "jev_cost": 0.00020034,
+     "jev_probs": {
+      "keep": 1.0,
+      "drop": 0.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 47,
+     "jev": "keep",
+     "jev_conf": 1.0,
+     "jev_ms": 193.25655791908503,
+     "jev_tokens": 465,
+     "jev_cost": 0.00019529999999999998,
+     "jev_probs": {
+      "keep": 1.0,
+      "drop": 0.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "keep",
+     "jev_conf": 0.96,
+     "jev_ms": 174.30241871625185,
+     "jev_tokens": 468,
+     "jev_cost": 0.00019656,
+     "jev_probs": {
+      "drop": 0.01,
+      "keep": 0.97,
+      "insufficient_information": 0.02
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 52,
+     "jev": "keep",
+     "jev_conf": 0.99,
+     "jev_ms": 171.14929389208555,
+     "jev_tokens": 479,
+     "jev_cost": 0.00020117999999999997,
+     "jev_probs": {
+      "keep": 1.0,
+      "insufficient_information": 0.0,
+      "drop": 0.0
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 42,
+     "jev": "keep",
+     "jev_conf": 1.0,
+     "jev_ms": 147.03569374978542,
+     "jev_tokens": 466,
+     "jev_cost": 0.00019572,
+     "jev_probs": {
+      "insufficient_information": 0.0,
+      "keep": 1.0,
+      "drop": 0.0
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 54,
+     "jev": "keep",
+     "jev_conf": 1.0,
+     "jev_ms": 170.3774370253086,
+     "jev_tokens": 480,
+     "jev_cost": 0.0002016,
+     "jev_probs": {
+      "keep": 1.0,
+      "insufficient_information": 0.0,
+      "drop": 0.0
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "keep",
+     "jev_conf": 1.0,
+     "jev_ms": 153.25797395780683,
+     "jev_tokens": 473,
+     "jev_cost": 0.00019866,
+     "jev_probs": {
+      "insufficient_information": 0.0,
+      "keep": 1.0,
+      "drop": 0.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "common",
+     "state_tokens": 46,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 173.93621103838086,
+     "jev_tokens": 456,
+     "jev_cost": 0.00019151999999999998,
+     "jev_probs": {
+      "keep": 0.0,
+      "drop": 1.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "common",
+     "state_tokens": 25,
+     "jev": "drop",
+     "jev_conf": 0.99,
+     "jev_ms": 168.8724118284881,
+     "jev_tokens": 442,
+     "jev_cost": 0.00018564,
+     "jev_probs": {
+      "keep": 0.0,
+      "drop": 1.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 180.1969399675727,
+     "jev_tokens": 453,
+     "jev_cost": 0.00019025999999999998,
+     "jev_probs": {
+      "keep": 0.0,
+      "drop": 1.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "common",
+     "state_tokens": 34,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 157.16191567480564,
+     "jev_tokens": 446,
+     "jev_cost": 0.00018732,
+     "jev_probs": {
+      "insufficient_information": 0.0,
+      "drop": 1.0,
+      "keep": 0.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "common",
+     "state_tokens": 43,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 174.1095227189362,
+     "jev_tokens": 466,
+     "jev_cost": 0.00019572,
+     "jev_probs": {
+      "keep": 0.0,
+      "drop": 1.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 177.9320719651878,
+     "jev_tokens": 463,
+     "jev_cost": 0.00019445999999999998,
+     "jev_probs": {
+      "drop": 1.0,
+      "insufficient_information": 0.0,
+      "keep": 0.0
+     }
+    },
+    {
+     "expected": "insufficient_information",
+     "slice": "common",
+     "state_tokens": 31,
+     "jev": "insufficient_information",
+     "jev_conf": 0.39,
+     "jev_ms": 194.0692299976945,
+     "jev_tokens": 448,
+     "jev_cost": 0.00018816,
+     "jev_probs": {
+      "drop": 0.01,
+      "insufficient_information": 0.59,
+      "keep": 0.4
+     }
+    },
+    {
+     "expected": "insufficient_information",
+     "slice": "common",
+     "state_tokens": 28,
+     "jev": "insufficient_information",
+     "jev_conf": 0.82,
+     "jev_ms": 197.5338920019567,
+     "jev_tokens": 445,
+     "jev_cost": 0.00018690000000000002,
+     "jev_probs": {
+      "insufficient_information": 0.88,
+      "keep": 0.06,
+      "drop": 0.06
+     }
+    },
+    {
+     "expected": "insufficient_information",
+     "slice": "common",
+     "state_tokens": 24,
+     "jev": "drop",
+     "jev_conf": 0.85,
+     "jev_ms": 194.23628691583872,
+     "jev_tokens": 439,
+     "jev_cost": 0.00018438,
+     "jev_probs": {
+      "keep": 0.0,
+      "drop": 0.9,
+      "insufficient_information": 0.1
+     }
+    },
+    {
+     "expected": "insufficient_information",
+     "slice": "common",
+     "state_tokens": 32,
+     "jev": "insufficient_information",
+     "jev_conf": 0.79,
+     "jev_ms": 160.96712090075016,
+     "jev_tokens": 449,
+     "jev_cost": 0.00018858,
+     "jev_probs": {
+      "insufficient_information": 0.86,
+      "keep": 0.02,
+      "drop": 0.12
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "edge",
+     "state_tokens": 36,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 158.93537318333983,
+     "jev_tokens": 450,
+     "jev_cost": 0.000189,
+     "jev_probs": {
+      "keep": 0.0,
+      "insufficient_information": 0.0,
+      "drop": 1.0
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "edge",
+     "state_tokens": 49,
+     "jev": "keep",
+     "jev_conf": 0.9,
+     "jev_ms": 187.51254864037037,
+     "jev_tokens": 477,
+     "jev_cost": 0.00020034,
+     "jev_probs": {
+      "keep": 0.9400000000000001,
+      "drop": 0.03,
+      "insufficient_information": 0.03
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "edge",
+     "state_tokens": 43,
+     "jev": "keep",
+     "jev_conf": 0.99,
+     "jev_ms": 174.31645188480616,
+     "jev_tokens": 462,
+     "jev_cost": 0.00019403999999999998,
+     "jev_probs": {
+      "keep": 1.0,
+      "drop": 0.0,
+      "insufficient_information": 0.0
+     }
+    },
+    {
+     "expected": "insufficient_information",
+     "slice": "edge",
+     "state_tokens": 32,
+     "jev": "insufficient_information",
+     "jev_conf": 0.76,
+     "jev_ms": 171.57548666000366,
+     "jev_tokens": 460,
+     "jev_cost": 0.00019319999999999998,
+     "jev_probs": {
+      "insufficient_information": 0.84,
+      "keep": 0.15,
+      "drop": 0.01
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "edge",
+     "state_tokens": 38,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 170.93452624976635,
+     "jev_tokens": 455,
+     "jev_cost": 0.00019109999999999998,
+     "jev_probs": {
+      "insufficient_information": 0.0,
+      "keep": 0.0,
+      "drop": 1.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "edge",
+     "state_tokens": 32,
+     "jev": "drop",
+     "jev_conf": 1.0,
+     "jev_ms": 166.50029690936208,
+     "jev_tokens": 451,
+     "jev_cost": 0.00018941999999999999,
+     "jev_probs": {
+      "insufficient_information": 0.0,
+      "keep": 0.0,
+      "drop": 1.0
+     }
+    },
+    {
+     "expected": "drop",
+     "slice": "edge",
+     "state_tokens": 44,
+     "jev": "drop",
+     "jev_conf": 0.45,
+     "jev_ms": 149.68856098130345,
+     "jev_tokens": 460,
+     "jev_cost": 0.00019319999999999998,
+     "jev_probs": {
+      "keep": 0.2,
+      "insufficient_information": 0.17,
+      "drop": 0.63
+     }
+    },
+    {
+     "expected": "keep",
+     "slice": "edge",
+     "state_tokens": 44,
+     "jev": "keep",
+     "jev_conf": 0.52,
+     "jev_ms": 155.49706481397152,
+     "jev_tokens": 467,
+     "jev_cost": 0.00019613999999999998,
+     "jev_probs": {
+      "insufficient_information": 0.13,
+      "keep": 0.68,
+      "drop": 0.19
+     }
+    },
+    {
+     "expected": "insufficient_information",
+     "slice": "edge",
+     "state_tokens": 24,
+     "jev": "drop",
+     "jev_conf": 0.5,
+     "jev_ms": 159.7285750322044,
+     "jev_tokens": 439,
+     "jev_cost": 0.00018438,
+     "jev_probs": {
+      "keep": 0.01,
+      "insufficient_information": 0.32,
+      "drop": 0.67
+     }
+    }
+   ]
+  },
+  "result-usable/v1": {
+   "n": 29,
+   "labels": [
+    "no",
+    "yes"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 29,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.9655,
+    "p50_ms": 168.6,
+    "p95_ms": 218.8,
+    "mean_confidence": 0.9376,
+    "jev_input_tokens": 10935,
+    "jev_cost_usd": 0.004593,
+    "accuracy_by_slice": {
+     "common": 1.0,
+     "edge": 0.9091
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 1.0,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.0345,
+     "auto_accuracy": 1.0,
+     "auto_n": 28,
+     "local_llm_calls": 0,
+     "p50_ms": 168.6,
+     "p95_ms": 218.8
+    },
+    "0.8": {
+     "accuracy": 0.9655,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.069,
+     "auto_accuracy": 1.0,
+     "auto_n": 27,
+     "local_llm_calls": 0,
+     "p50_ms": 168.6,
+     "p95_ms": 218.8
+    },
+    "0.9": {
+     "accuracy": 0.8966,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1379,
+     "auto_accuracy": 1.0,
+     "auto_n": 25,
+     "local_llm_calls": 0,
+     "p50_ms": 168.6,
+     "p95_ms": 218.8
+    },
+    "0.95": {
+     "accuracy": 0.8276,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3103,
+     "auto_accuracy": 1.0,
+     "auto_n": 20,
+     "local_llm_calls": 0,
+     "p50_ms": 168.6,
+     "p95_ms": 218.8
+    },
+    "0.98": {
+     "accuracy": 0.7241,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.5862,
+     "auto_accuracy": 1.0,
+     "auto_n": 12,
+     "local_llm_calls": 0,
+     "p50_ms": 168.6,
+     "p95_ms": 218.8
+    }
+   },
+   "rows": [
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 176.95023072883487,
+     "jev_tokens": 376,
+     "jev_cost": 0.00015791999999999998,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 44,
+     "jev": "yes",
+     "jev_conf": 0.87,
+     "jev_ms": 210.56704595685005,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.87,
+      "no": 0.13
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 36,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 167.62410616502166,
+     "jev_tokens": 379,
+     "jev_cost": 0.00015918,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 32,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 166.90124105662107,
+     "jev_tokens": 373,
+     "jev_cost": 0.00015666,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 39,
+     "jev": "yes",
+     "jev_conf": 0.92,
+     "jev_ms": 163.5725162923336,
+     "jev_tokens": 375,
+     "jev_cost": 0.0001575,
+     "jev_probs": {
+      "yes": 0.92,
+      "no": 0.07999999999999996
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 202.92317913845181,
+     "jev_tokens": 387,
+     "jev_cost": 0.00016254,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 39,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 165.5982150696218,
+     "jev_tokens": 384,
+     "jev_cost": 0.00016128,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 39,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 185.61865901574492,
+     "jev_tokens": 377,
+     "jev_cost": 0.00015834,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 40,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 201.74015406519175,
+     "jev_tokens": 371,
+     "jev_cost": 0.00015581999999999998,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 36,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 149.55118484795094,
+     "jev_tokens": 368,
+     "jev_cost": 0.00015456,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 33,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 219.23753712326288,
+     "jev_tokens": 365,
+     "jev_cost": 0.00015329999999999999,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 40,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 157.86150144413114,
+     "jev_tokens": 377,
+     "jev_cost": 0.00015834,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 39,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 169.2804917693138,
+     "jev_tokens": 383,
+     "jev_cost": 0.00016085999999999997,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 25,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 163.38982805609703,
+     "jev_tokens": 365,
+     "jev_cost": 0.00015329999999999999,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 37,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 218.8219209201634,
+     "jev_tokens": 373,
+     "jev_cost": 0.00015666,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "yes",
+     "jev_conf": 0.84,
+     "jev_ms": 145.94989968463778,
+     "jev_tokens": 380,
+     "jev_cost": 0.0001596,
+     "jev_probs": {
+      "yes": 0.84,
+      "no": 0.16000000000000003
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "yes",
+     "jev_conf": 0.97,
+     "jev_ms": 155.73919424787164,
+     "jev_tokens": 373,
+     "jev_cost": 0.00015666,
+     "jev_probs": {
+      "yes": 0.97,
+      "no": 0.030000000000000027
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 40,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 161.44198505207896,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 39,
+     "jev": "no",
+     "jev_conf": 0.94,
+     "jev_ms": 174.95715618133545,
+     "jev_tokens": 380,
+     "jev_cost": 0.0001596,
+     "jev_probs": {
+      "yes": 0.06,
+      "no": 0.94
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 39,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 189.82557719573379,
+     "jev_tokens": 376,
+     "jev_cost": 0.00015791999999999998,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 45,
+     "jev": "yes",
+     "jev_conf": 0.55,
+     "jev_ms": 162.60017873719335,
+     "jev_tokens": 385,
+     "jev_cost": 0.0001617,
+     "jev_probs": {
+      "yes": 0.55,
+      "no": 0.44999999999999996
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 46,
+     "jev": "no",
+     "jev_conf": 0.96,
+     "jev_ms": 161.21246526017785,
+     "jev_tokens": 381,
+     "jev_cost": 0.00016001999999999998,
+     "jev_probs": {
+      "yes": 0.04,
+      "no": 0.96
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 48,
+     "jev": "yes",
+     "jev_conf": 0.93,
+     "jev_ms": 218.03409699350595,
+     "jev_tokens": 389,
+     "jev_cost": 0.00016338,
+     "jev_probs": {
+      "yes": 0.93,
+      "no": 0.06999999999999995
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 46,
+     "jev": "yes",
+     "jev_conf": 0.78,
+     "jev_ms": 168.570043053478,
+     "jev_tokens": 379,
+     "jev_cost": 0.00015918,
+     "jev_probs": {
+      "yes": 0.78,
+      "no": 0.21999999999999997
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 43,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 145.06324287503958,
+     "jev_tokens": 382,
+     "jev_cost": 0.00016044,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 35,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 195.97585732117295,
+     "jev_tokens": 374,
+     "jev_cost": 0.00015707999999999998,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 45,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 195.9310406818986,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 39,
+     "jev": "no",
+     "jev_conf": 0.9299999999999999,
+     "jev_ms": 146.13330829888582,
+     "jev_tokens": 374,
+     "jev_cost": 0.00015707999999999998,
+     "jev_probs": {
+      "yes": 0.07,
+      "no": 0.9299999999999999
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 36,
+     "jev": "no",
+     "jev_conf": 0.91,
+     "jev_ms": 190.05362503230572,
+     "jev_tokens": 375,
+     "jev_cost": 0.0001575,
+     "jev_probs": {
+      "yes": 0.09,
+      "no": 0.91
+     }
+    }
+   ]
+  },
+  "retry-worthwhile/v1": {
+   "n": 26,
+   "labels": [
+    "no",
+    "yes"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 1.0,
+    "p50_ms": 168.5,
+    "p95_ms": 206.5,
+    "mean_confidence": 0.8896,
+    "jev_input_tokens": 10141,
+    "jev_cost_usd": 0.004259,
+    "accuracy_by_slice": {
+     "common": 1.0,
+     "edge": 1.0
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.9615,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.0769,
+     "auto_accuracy": 1.0,
+     "auto_n": 24,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 206.5
+    },
+    "0.8": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1538,
+     "auto_accuracy": 1.0,
+     "auto_n": 22,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 206.5
+    },
+    "0.9": {
+     "accuracy": 0.7308,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3462,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 206.5
+    },
+    "0.95": {
+     "accuracy": 0.5769,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.5769,
+     "auto_accuracy": 1.0,
+     "auto_n": 11,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 206.5
+    },
+    "0.98": {
+     "accuracy": 0.5,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.8846,
+     "auto_accuracy": 1.0,
+     "auto_n": 3,
+     "local_llm_calls": 0,
+     "p50_ms": 168.5,
+     "p95_ms": 206.5
+    }
+   },
+   "rows": [
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 33,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 140.3020671568811,
+     "jev_tokens": 399,
+     "jev_cost": 0.00016758,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 23,
+     "jev": "yes",
+     "jev_conf": 0.92,
+     "jev_ms": 163.00350800156593,
+     "jev_tokens": 385,
+     "jev_cost": 0.0001617,
+     "jev_probs": {
+      "yes": 0.92,
+      "no": 0.07999999999999996
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 31,
+     "jev": "yes",
+     "jev_conf": 0.89,
+     "jev_ms": 178.7470020353794,
+     "jev_tokens": 394,
+     "jev_cost": 0.00016548,
+     "jev_probs": {
+      "yes": 0.89,
+      "no": 0.10999999999999999
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 27,
+     "jev": "yes",
+     "jev_conf": 0.87,
+     "jev_ms": 206.7492320202291,
+     "jev_tokens": 388,
+     "jev_cost": 0.00016296,
+     "jev_probs": {
+      "yes": 0.87,
+      "no": 0.13
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 25,
+     "jev": "yes",
+     "jev_conf": 0.77,
+     "jev_ms": 171.4055989868939,
+     "jev_tokens": 381,
+     "jev_cost": 0.00016001999999999998,
+     "jev_probs": {
+      "yes": 0.77,
+      "no": 0.22999999999999998
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 22,
+     "jev": "yes",
+     "jev_conf": 0.9,
+     "jev_ms": 206.4577122218907,
+     "jev_tokens": 381,
+     "jev_cost": 0.00016001999999999998,
+     "jev_probs": {
+      "yes": 0.9,
+      "no": 0.09999999999999998
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "yes",
+     "jev_conf": 0.95,
+     "jev_ms": 173.97478688508272,
+     "jev_tokens": 384,
+     "jev_cost": 0.00016128,
+     "jev_probs": {
+      "yes": 0.95,
+      "no": 0.050000000000000044
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "yes",
+     "jev_conf": 0.94,
+     "jev_ms": 139.31403402239084,
+     "jev_tokens": 393,
+     "jev_cost": 0.00016506,
+     "jev_probs": {
+      "yes": 0.94,
+      "no": 0.06000000000000005
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 22,
+     "jev": "yes",
+     "jev_conf": 0.94,
+     "jev_ms": 147.59390195831656,
+     "jev_tokens": 383,
+     "jev_cost": 0.00016085999999999997,
+     "jev_probs": {
+      "yes": 0.94,
+      "no": 0.06000000000000005
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 28,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 158.6216138675809,
+     "jev_tokens": 390,
+     "jev_cost": 0.00016379999999999997,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 33,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 171.5236147865653,
+     "jev_tokens": 387,
+     "jev_cost": 0.00016254,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 24,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 132.35044106841087,
+     "jev_tokens": 388,
+     "jev_cost": 0.00016296,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 30,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 166.3268399424851,
+     "jev_tokens": 395,
+     "jev_cost": 0.0001659,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 33,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 200.76800882816315,
+     "jev_tokens": 394,
+     "jev_cost": 0.00016548,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 30,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 179.3475137092173,
+     "jev_tokens": 397,
+     "jev_cost": 0.00016674,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 20,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 173.81102731451392,
+     "jev_tokens": 381,
+     "jev_cost": 0.00016001999999999998,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 25,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 143.42271210625768,
+     "jev_tokens": 388,
+     "jev_cost": 0.00016296,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 31,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 163.92963705584407,
+     "jev_tokens": 393,
+     "jev_cost": 0.00016506,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 35,
+     "jev": "no",
+     "jev_conf": 0.5900000000000001,
+     "jev_ms": 176.21133429929614,
+     "jev_tokens": 393,
+     "jev_cost": 0.00016506,
+     "jev_probs": {
+      "yes": 0.41,
+      "no": 0.5900000000000001
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 25,
+     "jev": "no",
+     "jev_conf": 0.9,
+     "jev_ms": 168.4914194047451,
+     "jev_tokens": 390,
+     "jev_cost": 0.00016379999999999997,
+     "jev_probs": {
+      "yes": 0.1,
+      "no": 0.9
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 30,
+     "jev": "no",
+     "jev_conf": 0.81,
+     "jev_ms": 163.5033329948783,
+     "jev_tokens": 397,
+     "jev_cost": 0.00016674,
+     "jev_probs": {
+      "yes": 0.19,
+      "no": 0.81
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 31,
+     "jev": "no",
+     "jev_conf": 0.92,
+     "jev_ms": 183.92599979415536,
+     "jev_tokens": 395,
+     "jev_cost": 0.0001659,
+     "jev_probs": {
+      "yes": 0.08,
+      "no": 0.92
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 25,
+     "jev": "yes",
+     "jev_conf": 0.89,
+     "jev_ms": 158.65833405405283,
+     "jev_tokens": 387,
+     "jev_cost": 0.00016254,
+     "jev_probs": {
+      "yes": 0.89,
+      "no": 0.10999999999999999
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 37,
+     "jev": "yes",
+     "jev_conf": 0.85,
+     "jev_ms": 174.72390783950686,
+     "jev_tokens": 395,
+     "jev_cost": 0.0001659,
+     "jev_probs": {
+      "yes": 0.85,
+      "no": 0.15000000000000002
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 38,
+     "jev": "yes",
+     "jev_conf": 0.77,
+     "jev_ms": 147.3556449636817,
+     "jev_tokens": 393,
+     "jev_cost": 0.00016506,
+     "jev_probs": {
+      "yes": 0.77,
+      "no": 0.22999999999999998
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 25,
+     "jev": "yes",
+     "jev_conf": 0.5,
+     "jev_ms": 145.79980308189988,
+     "jev_tokens": 390,
+     "jev_cost": 0.00016379999999999997,
+     "jev_probs": {
+      "yes": 0.5,
+      "no": 0.5
+     }
+    }
+   ]
+  },
+  "tool-selection/v1": {
+   "n": 26,
+   "labels": [
+    "code",
+    "knowledge",
+    "none",
+    "read",
+    "search"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.9615,
+    "p50_ms": 160.2,
+    "p95_ms": 186.3,
+    "mean_confidence": 0.8835,
+    "jev_input_tokens": 13054,
+    "jev_cost_usd": 0.005483,
+    "accuracy_by_slice": {
+     "common": 0.9412,
+     "edge": 1.0
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3462,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 160.2,
+     "p95_ms": 186.3
+    },
+    "0.8": {
+     "accuracy": 0.8462,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3846,
+     "auto_accuracy": 1.0,
+     "auto_n": 16,
+     "local_llm_calls": 0,
+     "p50_ms": 160.2,
+     "p95_ms": 186.3
+    },
+    "0.9": {
+     "accuracy": 0.8077,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4231,
+     "auto_accuracy": 1.0,
+     "auto_n": 15,
+     "local_llm_calls": 0,
+     "p50_ms": 160.2,
+     "p95_ms": 186.3
+    },
+    "0.95": {
+     "accuracy": 0.6538,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.5769,
+     "auto_accuracy": 1.0,
+     "auto_n": 11,
+     "local_llm_calls": 0,
+     "p50_ms": 160.2,
+     "p95_ms": 186.3
+    },
+    "0.98": {
+     "accuracy": 0.5385,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.6923,
+     "auto_accuracy": 1.0,
+     "auto_n": 8,
+     "local_llm_calls": 0,
+     "p50_ms": 160.2,
+     "p95_ms": 186.3
+    }
+   },
+   "rows": [
+    {
+     "expected": "search",
+     "slice": "common",
+     "state_tokens": 39,
+     "jev": "search",
+     "jev_conf": 0.97,
+     "jev_ms": 152.83173276111484,
+     "jev_tokens": 498,
+     "jev_cost": 0.00020916,
+     "jev_probs": {
+      "read": 0.0,
+      "none": 0.01,
+      "search": 0.97,
+      "code": 0.0,
+      "knowledge": 0.02
+     }
+    },
+    {
+     "expected": "search",
+     "slice": "common",
+     "state_tokens": 37,
+     "jev": "search",
+     "jev_conf": 0.95,
+     "jev_ms": 162.04075375571847,
+     "jev_tokens": 493,
+     "jev_cost": 0.00020706,
+     "jev_probs": {
+      "knowledge": 0.04,
+      "none": 0.0,
+      "search": 0.96,
+      "read": 0.0,
+      "code": 0.0
+     }
+    },
+    {
+     "expected": "search",
+     "slice": "common",
+     "state_tokens": 45,
+     "jev": "search",
+     "jev_conf": 1.0,
+     "jev_ms": 161.78753785789013,
+     "jev_tokens": 500,
+     "jev_cost": 0.00021,
+     "jev_probs": {
+      "search": 1.0,
+      "code": 0.0,
+      "knowledge": 0.0,
+      "read": 0.0,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "search",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "search",
+     "jev_conf": 1.0,
+     "jev_ms": 159.86668691039085,
+     "jev_tokens": 494,
+     "jev_cost": 0.00020747999999999999,
+     "jev_probs": {
+      "search": 1.0,
+      "read": 0.0,
+      "code": 0.0,
+      "knowledge": 0.0,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "read",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "read",
+     "jev_conf": 1.0,
+     "jev_ms": 162.59928327053785,
+     "jev_tokens": 519,
+     "jev_cost": 0.00021798,
+     "jev_probs": {
+      "knowledge": 0.0,
+      "read": 1.0,
+      "none": 0.0,
+      "code": 0.0,
+      "search": 0.0
+     }
+    },
+    {
+     "expected": "read",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "read",
+     "jev_conf": 1.0,
+     "jev_ms": 154.30248714983463,
+     "jev_tokens": 509,
+     "jev_cost": 0.00021378,
+     "jev_probs": {
+      "read": 1.0,
+      "search": 0.0,
+      "none": 0.0,
+      "knowledge": 0.0,
+      "code": 0.0
+     }
+    },
+    {
+     "expected": "read",
+     "slice": "common",
+     "state_tokens": 48,
+     "jev": "read",
+     "jev_conf": 1.0,
+     "jev_ms": 144.95999412611127,
+     "jev_tokens": 503,
+     "jev_cost": 0.00021125999999999998,
+     "jev_probs": {
+      "search": 0.0,
+      "code": 0.0,
+      "none": 0.0,
+      "read": 1.0,
+      "knowledge": 0.0
+     }
+    },
+    {
+     "expected": "code",
+     "slice": "common",
+     "state_tokens": 47,
+     "jev": "read",
+     "jev_conf": 0.61,
+     "jev_ms": 149.17582413181663,
+     "jev_tokens": 509,
+     "jev_cost": 0.00021378,
+     "jev_probs": {
+      "read": 0.7,
+      "none": 0.0,
+      "code": 0.25,
+      "search": 0.05,
+      "knowledge": 0.0
+     }
+    },
+    {
+     "expected": "code",
+     "slice": "common",
+     "state_tokens": 44,
+     "jev": "code",
+     "jev_conf": 0.54,
+     "jev_ms": 186.31925201043487,
+     "jev_tokens": 501,
+     "jev_cost": 0.00021041999999999998,
+     "jev_probs": {
+      "code": 0.63,
+      "none": 0.01,
+      "knowledge": 0.0,
+      "search": 0.01,
+      "read": 0.35
+     }
+    },
+    {
+     "expected": "code",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "code",
+     "jev_conf": 0.92,
+     "jev_ms": 160.1936318911612,
+     "jev_tokens": 496,
+     "jev_cost": 0.00020831999999999998,
+     "jev_probs": {
+      "knowledge": 0.0,
+      "read": 0.0,
+      "none": 0.0,
+      "search": 0.06,
+      "code": 0.94
+     }
+    },
+    {
+     "expected": "code",
+     "slice": "common",
+     "state_tokens": 48,
+     "jev": "code",
+     "jev_conf": 0.95,
+     "jev_ms": 146.95052476599813,
+     "jev_tokens": 504,
+     "jev_cost": 0.00021167999999999998,
+     "jev_probs": {
+      "search": 0.0,
+      "code": 0.96,
+      "knowledge": 0.0,
+      "read": 0.04,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "knowledge",
+     "slice": "common",
+     "state_tokens": 39,
+     "jev": "knowledge",
+     "jev_conf": 0.91,
+     "jev_ms": 155.8902971446514,
+     "jev_tokens": 498,
+     "jev_cost": 0.00020916,
+     "jev_probs": {
+      "read": 0.0,
+      "none": 0.0,
+      "code": 0.0,
+      "search": 0.07,
+      "knowledge": 0.93
+     }
+    },
+    {
+     "expected": "knowledge",
+     "slice": "common",
+     "state_tokens": 42,
+     "jev": "knowledge",
+     "jev_conf": 0.4,
+     "jev_ms": 173.3975219540298,
+     "jev_tokens": 496,
+     "jev_cost": 0.00020831999999999998,
+     "jev_probs": {
+      "knowledge": 0.53,
+      "none": 0.0,
+      "code": 0.0,
+      "read": 0.0,
+      "search": 0.47
+     }
+    },
+    {
+     "expected": "knowledge",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "knowledge",
+     "jev_conf": 0.78,
+     "jev_ms": 151.7251399345696,
+     "jev_tokens": 492,
+     "jev_cost": 0.00020664,
+     "jev_probs": {
+      "read": 0.0,
+      "none": 0.0,
+      "knowledge": 0.83,
+      "code": 0.0,
+      "search": 0.17
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "common",
+     "state_tokens": 32,
+     "jev": "none",
+     "jev_conf": 0.43,
+     "jev_ms": 165.60816718265414,
+     "jev_tokens": 489,
+     "jev_cost": 0.00020538,
+     "jev_probs": {
+      "read": 0.0,
+      "code": 0.0,
+      "none": 0.55,
+      "knowledge": 0.05,
+      "search": 0.4
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "common",
+     "state_tokens": 55,
+     "jev": "none",
+     "jev_conf": 0.98,
+     "jev_ms": 168.492394965142,
+     "jev_tokens": 513,
+     "jev_cost": 0.00021545999999999997,
+     "jev_probs": {
+      "none": 0.99,
+      "read": 0.0,
+      "code": 0.01,
+      "search": 0.0,
+      "knowledge": 0.0
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "common",
+     "state_tokens": 42,
+     "jev": "none",
+     "jev_conf": 1.0,
+     "jev_ms": 164.94951071217656,
+     "jev_tokens": 507,
+     "jev_cost": 0.00021294,
+     "jev_probs": {
+      "none": 1.0,
+      "read": 0.0,
+      "code": 0.0,
+      "knowledge": 0.0,
+      "search": 0.0
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "edge",
+     "state_tokens": 42,
+     "jev": "none",
+     "jev_conf": 0.99,
+     "jev_ms": 156.39865025877953,
+     "jev_tokens": 502,
+     "jev_cost": 0.00021084,
+     "jev_probs": {
+      "read": 0.0,
+      "code": 0.0,
+      "none": 1.0,
+      "search": 0.0,
+      "knowledge": 0.0
+     }
+    },
+    {
+     "expected": "read",
+     "slice": "edge",
+     "state_tokens": 50,
+     "jev": "read",
+     "jev_conf": 1.0,
+     "jev_ms": 150.95923515036702,
+     "jev_tokens": 512,
+     "jev_cost": 0.00021504,
+     "jev_probs": {
+      "knowledge": 0.0,
+      "code": 0.0,
+      "read": 1.0,
+      "none": 0.0,
+      "search": 0.0
+     }
+    },
+    {
+     "expected": "knowledge",
+     "slice": "edge",
+     "state_tokens": 53,
+     "jev": "knowledge",
+     "jev_conf": 0.91,
+     "jev_ms": 140.91854775324464,
+     "jev_tokens": 507,
+     "jev_cost": 0.00021294,
+     "jev_probs": {
+      "search": 0.06,
+      "knowledge": 0.9400000000000001,
+      "none": 0.0,
+      "code": 0.0,
+      "read": 0.0
+     }
+    },
+    {
+     "expected": "search",
+     "slice": "edge",
+     "state_tokens": 52,
+     "jev": "search",
+     "jev_conf": 0.98,
+     "jev_ms": 167.27143339812756,
+     "jev_tokens": 503,
+     "jev_cost": 0.00021125999999999998,
+     "jev_probs": {
+      "code": 0.0,
+      "read": 0.0,
+      "knowledge": 0.0,
+      "none": 0.01,
+      "search": 0.99
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "edge",
+     "state_tokens": 47,
+     "jev": "none",
+     "jev_conf": 0.92,
+     "jev_ms": 174.33800268918276,
+     "jev_tokens": 508,
+     "jev_cost": 0.00021335999999999998,
+     "jev_probs": {
+      "code": 0.06,
+      "knowledge": 0.0,
+      "none": 0.94,
+      "search": 0.0,
+      "read": 0.0
+     }
+    },
+    {
+     "expected": "code",
+     "slice": "edge",
+     "state_tokens": 46,
+     "jev": "code",
+     "jev_conf": 0.83,
+     "jev_ms": 179.3511789292097,
+     "jev_tokens": 499,
+     "jev_cost": 0.00020957999999999998,
+     "jev_probs": {
+      "none": 0.0,
+      "search": 0.12,
+      "code": 0.86,
+      "read": 0.01,
+      "knowledge": 0.01
+     }
+    },
+    {
+     "expected": "knowledge",
+     "slice": "edge",
+     "state_tokens": 49,
+     "jev": "knowledge",
+     "jev_conf": 0.92,
+     "jev_ms": 148.32121413201094,
+     "jev_tokens": 504,
+     "jev_cost": 0.00021167999999999998,
+     "jev_probs": {
+      "search": 0.06,
+      "knowledge": 0.9400000000000001,
+      "none": 0.0,
+      "code": 0.0,
+      "read": 0.0
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "edge",
+     "state_tokens": 26,
+     "jev": "none",
+     "jev_conf": 0.99,
+     "jev_ms": 204.85975686460733,
+     "jev_tokens": 484,
+     "jev_cost": 0.00020328,
+     "jev_probs": {
+      "knowledge": 0.0,
+      "search": 0.0,
+      "none": 1.0,
+      "code": 0.0,
+      "read": 0.0
+     }
+    },
+    {
+     "expected": "search",
+     "slice": "edge",
+     "state_tokens": 49,
+     "jev": "search",
+     "jev_conf": 0.99,
+     "jev_ms": 153.73451774939895,
+     "jev_tokens": 514,
+     "jev_cost": 0.00021588,
+     "jev_probs": {
+      "read": 0.0,
+      "code": 0.0,
+      "none": 0.0,
+      "knowledge": 0.01,
+      "search": 0.99
+     }
+    }
+   ]
+  },
+  "change-satisfies-intent/v1": {
+   "n": 26,
+   "labels": [
+    "no",
+    "yes"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.8462,
+    "p50_ms": 163.0,
+    "p95_ms": 192.2,
+    "mean_confidence": 0.8538,
+    "jev_input_tokens": 9893,
+    "jev_cost_usd": 0.004155,
+    "accuracy_by_slice": {
+     "common": 0.9412,
+     "edge": 0.6667
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.8462,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1538,
+     "auto_accuracy": 0.9091,
+     "auto_n": 22,
+     "local_llm_calls": 0,
+     "p50_ms": 163.0,
+     "p95_ms": 192.2
+    },
+    "0.8": {
+     "accuracy": 0.8077,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.2692,
+     "auto_accuracy": 0.9474,
+     "auto_n": 19,
+     "local_llm_calls": 0,
+     "p50_ms": 163.0,
+     "p95_ms": 192.2
+    },
+    "0.9": {
+     "accuracy": 0.7308,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4615,
+     "auto_accuracy": 1.0,
+     "auto_n": 14,
+     "local_llm_calls": 0,
+     "p50_ms": 163.0,
+     "p95_ms": 192.2
+    },
+    "0.95": {
+     "accuracy": 0.6154,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.6538,
+     "auto_accuracy": 1.0,
+     "auto_n": 9,
+     "local_llm_calls": 0,
+     "p50_ms": 163.0,
+     "p95_ms": 192.2
+    },
+    "0.98": {
+     "accuracy": 0.4615,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.9231,
+     "auto_accuracy": 1.0,
+     "auto_n": 2,
+     "local_llm_calls": 0,
+     "p50_ms": 163.0,
+     "p95_ms": 192.2
+    }
+   },
+   "rows": [
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 53,
+     "jev": "yes",
+     "jev_conf": 0.95,
+     "jev_ms": 173.07893000543118,
+     "jev_tokens": 386,
+     "jev_cost": 0.00016212,
+     "jev_probs": {
+      "yes": 0.95,
+      "no": 0.050000000000000044
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 49,
+     "jev": "yes",
+     "jev_conf": 0.95,
+     "jev_ms": 142.65699917450547,
+     "jev_tokens": 389,
+     "jev_cost": 0.00016338,
+     "jev_probs": {
+      "yes": 0.95,
+      "no": 0.050000000000000044
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "yes",
+     "jev_conf": 0.9,
+     "jev_ms": 155.82592925056815,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.9,
+      "no": 0.09999999999999998
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "yes",
+     "jev_conf": 0.65,
+     "jev_ms": 157.73929189890623,
+     "jev_tokens": 370,
+     "jev_cost": 0.0001554,
+     "jev_probs": {
+      "yes": 0.65,
+      "no": 0.35
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 37,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 147.57185382768512,
+     "jev_tokens": 383,
+     "jev_cost": 0.00016085999999999997,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 42,
+     "jev": "yes",
+     "jev_conf": 0.93,
+     "jev_ms": 165.71031091734767,
+     "jev_tokens": 375,
+     "jev_cost": 0.0001575,
+     "jev_probs": {
+      "yes": 0.93,
+      "no": 0.06999999999999995
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 49,
+     "jev": "yes",
+     "jev_conf": 0.89,
+     "jev_ms": 187.83587915822864,
+     "jev_tokens": 380,
+     "jev_cost": 0.0001596,
+     "jev_probs": {
+      "yes": 0.89,
+      "no": 0.10999999999999999
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 40,
+     "jev": "yes",
+     "jev_conf": 0.51,
+     "jev_ms": 159.06737372279167,
+     "jev_tokens": 375,
+     "jev_cost": 0.0001575,
+     "jev_probs": {
+      "yes": 0.51,
+      "no": 0.49
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 54,
+     "jev": "no",
+     "jev_conf": 0.94,
+     "jev_ms": 168.7527629546821,
+     "jev_tokens": 395,
+     "jev_cost": 0.0001659,
+     "jev_probs": {
+      "yes": 0.06,
+      "no": 0.94
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 140.79480385407805,
+     "jev_tokens": 375,
+     "jev_cost": 0.0001575,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 192.1534202992916,
+     "jev_tokens": 365,
+     "jev_cost": 0.00015329999999999999,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 45,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 143.23423197492957,
+     "jev_tokens": 389,
+     "jev_cost": 0.00016338,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 46,
+     "jev": "no",
+     "jev_conf": 0.91,
+     "jev_ms": 138.64048197865486,
+     "jev_tokens": 382,
+     "jev_cost": 0.00016044,
+     "jev_probs": {
+      "yes": 0.09,
+      "no": 0.91
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 46,
+     "jev": "no",
+     "jev_conf": 0.95,
+     "jev_ms": 157.0683470927179,
+     "jev_tokens": 384,
+     "jev_cost": 0.00016128,
+     "jev_probs": {
+      "yes": 0.05,
+      "no": 0.95
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 26,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 178.9444419555366,
+     "jev_tokens": 364,
+     "jev_cost": 0.00015287999999999999,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 46,
+     "jev": "yes",
+     "jev_conf": 0.91,
+     "jev_ms": 146.54703717678785,
+     "jev_tokens": 391,
+     "jev_cost": 0.00016422,
+     "jev_probs": {
+      "yes": 0.91,
+      "no": 0.08999999999999997
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 47,
+     "jev": "no",
+     "jev_conf": 0.84,
+     "jev_ms": 125.6021591834724,
+     "jev_tokens": 381,
+     "jev_cost": 0.00016001999999999998,
+     "jev_probs": {
+      "yes": 0.16,
+      "no": 0.84
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 44,
+     "jev": "no",
+     "jev_conf": 0.79,
+     "jev_ms": 162.96385880559683,
+     "jev_tokens": 379,
+     "jev_cost": 0.00015918,
+     "jev_probs": {
+      "yes": 0.21,
+      "no": 0.79
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 46,
+     "jev": "no",
+     "jev_conf": 0.87,
+     "jev_ms": 178.3266318961978,
+     "jev_tokens": 383,
+     "jev_cost": 0.00016085999999999997,
+     "jev_probs": {
+      "yes": 0.13,
+      "no": 0.87
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 46,
+     "jev": "no",
+     "jev_conf": 0.52,
+     "jev_ms": 215.59114893898368,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.48,
+      "no": 0.52
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 48,
+     "jev": "yes",
+     "jev_conf": 0.86,
+     "jev_ms": 155.66402487456799,
+     "jev_tokens": 385,
+     "jev_cost": 0.0001617,
+     "jev_probs": {
+      "yes": 0.86,
+      "no": 0.14
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 37,
+     "jev": "no",
+     "jev_conf": 0.6799999999999999,
+     "jev_ms": 171.56059201806784,
+     "jev_tokens": 373,
+     "jev_cost": 0.00015666,
+     "jev_probs": {
+      "yes": 0.32,
+      "no": 0.6799999999999999
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 40,
+     "jev": "no",
+     "jev_conf": 0.77,
+     "jev_ms": 174.63971488177776,
+     "jev_tokens": 374,
+     "jev_cost": 0.00015707999999999998,
+     "jev_probs": {
+      "yes": 0.23,
+      "no": 0.77
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 55,
+     "jev": "yes",
+     "jev_conf": 0.74,
+     "jev_ms": 143.15575128421187,
+     "jev_tokens": 392,
+     "jev_cost": 0.00016464,
+     "jev_probs": {
+      "yes": 0.74,
+      "no": 0.26
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 50,
+     "jev": "no",
+     "jev_conf": 0.86,
+     "jev_ms": 190.31264958903193,
+     "jev_tokens": 389,
+     "jev_cost": 0.00016338,
+     "jev_probs": {
+      "yes": 0.14,
+      "no": 0.86
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 174.60323590785265,
+     "jev_tokens": 378,
+     "jev_cost": 0.00015875999999999998,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    }
+   ]
+  },
+  "model-route/v1": {
+   "n": 27,
+   "labels": [
+    "human",
+    "kimi",
+    "local_fast",
+    "local_reasoning",
+    "none"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 27,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 1.0,
+    "p50_ms": 165.8,
+    "p95_ms": 232.4,
+    "mean_confidence": 0.9111,
+    "jev_input_tokens": 13533,
+    "jev_cost_usd": 0.005684,
+    "accuracy_by_slice": {
+     "common": 1.0,
+     "edge": 1.0
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.6296,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4444,
+     "auto_accuracy": 1.0,
+     "auto_n": 15,
+     "local_llm_calls": 0,
+     "p50_ms": 165.8,
+     "p95_ms": 232.4
+    },
+    "0.8": {
+     "accuracy": 0.5926,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4815,
+     "auto_accuracy": 1.0,
+     "auto_n": 14,
+     "local_llm_calls": 0,
+     "p50_ms": 165.8,
+     "p95_ms": 232.4
+    },
+    "0.9": {
+     "accuracy": 0.5556,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.5185,
+     "auto_accuracy": 1.0,
+     "auto_n": 13,
+     "local_llm_calls": 0,
+     "p50_ms": 165.8,
+     "p95_ms": 232.4
+    },
+    "0.95": {
+     "accuracy": 0.5185,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.6296,
+     "auto_accuracy": 1.0,
+     "auto_n": 10,
+     "local_llm_calls": 0,
+     "p50_ms": 165.8,
+     "p95_ms": 232.4
+    },
+    "0.98": {
+     "accuracy": 0.4074,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.7778,
+     "auto_accuracy": 1.0,
+     "auto_n": 6,
+     "local_llm_calls": 0,
+     "p50_ms": 165.8,
+     "p95_ms": 232.4
+    }
+   },
+   "rows": [
+    {
+     "expected": "local_fast",
+     "slice": "common",
+     "state_tokens": 32,
+     "jev": "local_fast",
+     "jev_conf": 1.0,
+     "jev_ms": 165.84176709875464,
+     "jev_tokens": 508,
+     "jev_cost": 0.00021335999999999998,
+     "jev_probs": {
+      "human": 0.0,
+      "local_reasoning": 0.0,
+      "kimi": 0.0,
+      "local_fast": 1.0,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "local_fast",
+     "slice": "common",
+     "state_tokens": 34,
+     "jev": "local_fast",
+     "jev_conf": 1.0,
+     "jev_ms": 174.39782712608576,
+     "jev_tokens": 509,
+     "jev_cost": 0.00021378,
+     "jev_probs": {
+      "kimi": 0.0,
+      "none": 0.0,
+      "local_fast": 1.0,
+      "human": 0.0,
+      "local_reasoning": 0.0
+     }
+    },
+    {
+     "expected": "local_fast",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "local_fast",
+     "jev_conf": 0.97,
+     "jev_ms": 173.74627478420734,
+     "jev_tokens": 498,
+     "jev_cost": 0.00020916,
+     "jev_probs": {
+      "none": 0.02,
+      "local_reasoning": 0.0,
+      "human": 0.0,
+      "local_fast": 0.98,
+      "kimi": 0.0
+     }
+    },
+    {
+     "expected": "local_fast",
+     "slice": "common",
+     "state_tokens": 28,
+     "jev": "local_fast",
+     "jev_conf": 1.0,
+     "jev_ms": 196.91585889086127,
+     "jev_tokens": 498,
+     "jev_cost": 0.00020916,
+     "jev_probs": {
+      "human": 0.0,
+      "none": 0.0,
+      "local_fast": 1.0,
+      "kimi": 0.0,
+      "local_reasoning": 0.0
+     }
+    },
+    {
+     "expected": "local_reasoning",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "local_reasoning",
+     "jev_conf": 0.9,
+     "jev_ms": 163.77693181857467,
+     "jev_tokens": 504,
+     "jev_cost": 0.00021167999999999998,
+     "jev_probs": {
+      "human": 0.0,
+      "local_reasoning": 0.92,
+      "local_fast": 0.08,
+      "none": 0.0,
+      "kimi": 0.0
+     }
+    },
+    {
+     "expected": "local_reasoning",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "local_reasoning",
+     "jev_conf": 0.98,
+     "jev_ms": 179.33820327743888,
+     "jev_tokens": 511,
+     "jev_cost": 0.00021462,
+     "jev_probs": {
+      "none": 0.0,
+      "local_fast": 0.0,
+      "human": 0.0,
+      "local_reasoning": 0.99,
+      "kimi": 0.01
+     }
+    },
+    {
+     "expected": "local_reasoning",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "local_reasoning",
+     "jev_conf": 0.93,
+     "jev_ms": 189.42448776215315,
+     "jev_tokens": 504,
+     "jev_cost": 0.00021167999999999998,
+     "jev_probs": {
+      "none": 0.0,
+      "local_reasoning": 0.95,
+      "local_fast": 0.0,
+      "human": 0.0,
+      "kimi": 0.05
+     }
+    },
+    {
+     "expected": "local_reasoning",
+     "slice": "common",
+     "state_tokens": 32,
+     "jev": "local_reasoning",
+     "jev_conf": 0.97,
+     "jev_ms": 232.3701959103346,
+     "jev_tokens": 500,
+     "jev_cost": 0.00021,
+     "jev_probs": {
+      "kimi": 0.02,
+      "local_reasoning": 0.97,
+      "none": 0.0,
+      "local_fast": 0.01,
+      "human": 0.0
+     }
+    },
+    {
+     "expected": "kimi",
+     "slice": "common",
+     "state_tokens": 38,
+     "jev": "kimi",
+     "jev_conf": 0.96,
+     "jev_ms": 174.75568410009146,
+     "jev_tokens": 506,
+     "jev_cost": 0.00021251999999999998,
+     "jev_probs": {
+      "kimi": 0.97,
+      "local_fast": 0.0,
+      "local_reasoning": 0.03,
+      "none": 0.0,
+      "human": 0.0
+     }
+    },
+    {
+     "expected": "kimi",
+     "slice": "common",
+     "state_tokens": 35,
+     "jev": "kimi",
+     "jev_conf": 0.8,
+     "jev_ms": 164.14379701018333,
+     "jev_tokens": 501,
+     "jev_cost": 0.00021041999999999998,
+     "jev_probs": {
+      "kimi": 0.85,
+      "local_fast": 0.07,
+      "none": 0.0,
+      "local_reasoning": 0.08,
+      "human": 0.0
+     }
+    },
+    {
+     "expected": "kimi",
+     "slice": "common",
+     "state_tokens": 33,
+     "jev": "kimi",
+     "jev_conf": 1.0,
+     "jev_ms": 139.62704315781593,
+     "jev_tokens": 502,
+     "jev_cost": 0.00021084,
+     "jev_probs": {
+      "local_reasoning": 0.0,
+      "kimi": 1.0,
+      "human": 0.0,
+      "local_fast": 0.0,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "kimi",
+     "slice": "common",
+     "state_tokens": 40,
+     "jev": "kimi",
+     "jev_conf": 0.94,
+     "jev_ms": 169.7910688817501,
+     "jev_tokens": 506,
+     "jev_cost": 0.00021251999999999998,
+     "jev_probs": {
+      "human": 0.0,
+      "kimi": 0.96,
+      "local_fast": 0.0,
+      "none": 0.0,
+      "local_reasoning": 0.04
+     }
+    },
+    {
+     "expected": "human",
+     "slice": "common",
+     "state_tokens": 27,
+     "jev": "human",
+     "jev_conf": 0.98,
+     "jev_ms": 162.52241795882583,
+     "jev_tokens": 500,
+     "jev_cost": 0.00021,
+     "jev_probs": {
+      "human": 0.99,
+      "none": 0.0,
+      "local_reasoning": 0.0,
+      "local_fast": 0.01,
+      "kimi": 0.0
+     }
+    },
+    {
+     "expected": "human",
+     "slice": "common",
+     "state_tokens": 29,
+     "jev": "human",
+     "jev_conf": 0.39,
+     "jev_ms": 186.2860037945211,
+     "jev_tokens": 499,
+     "jev_cost": 0.00020957999999999998,
+     "jev_probs": {
+      "local_reasoning": 0.04,
+      "human": 0.52,
+      "local_fast": 0.43,
+      "kimi": 0.0,
+      "none": 0.01
+     }
+    },
+    {
+     "expected": "human",
+     "slice": "common",
+     "state_tokens": 31,
+     "jev": "human",
+     "jev_conf": 0.97,
+     "jev_ms": 148.6610397696495,
+     "jev_tokens": 500,
+     "jev_cost": 0.00021,
+     "jev_probs": {
+      "local_reasoning": 0.01,
+      "kimi": 0.0,
+      "none": 0.0,
+      "local_fast": 0.02,
+      "human": 0.97
+     }
+    },
+    {
+     "expected": "human",
+     "slice": "common",
+     "state_tokens": 30,
+     "jev": "human",
+     "jev_conf": 1.0,
+     "jev_ms": 160.89279996231198,
+     "jev_tokens": 497,
+     "jev_cost": 0.00020873999999999998,
+     "jev_probs": {
+      "local_fast": 0.0,
+      "human": 1.0,
+      "local_reasoning": 0.0,
+      "kimi": 0.0,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "common",
+     "state_tokens": 18,
+     "jev": "none",
+     "jev_conf": 1.0,
+     "jev_ms": 146.9442369416356,
+     "jev_tokens": 488,
+     "jev_cost": 0.00020496,
+     "jev_probs": {
+      "none": 1.0,
+      "local_reasoning": 0.0,
+      "human": 0.0,
+      "local_fast": 0.0,
+      "kimi": 0.0
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "common",
+     "state_tokens": 20,
+     "jev": "none",
+     "jev_conf": 1.0,
+     "jev_ms": 141.49291813373566,
+     "jev_tokens": 491,
+     "jev_cost": 0.00020622,
+     "jev_probs": {
+      "local_reasoning": 0.0,
+      "kimi": 0.0,
+      "human": 0.0,
+      "local_fast": 0.0,
+      "none": 1.0
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "common",
+     "state_tokens": 23,
+     "jev": "none",
+     "jev_conf": 0.99,
+     "jev_ms": 239.9109429679811,
+     "jev_tokens": 494,
+     "jev_cost": 0.00020747999999999999,
+     "jev_probs": {
+      "none": 1.0,
+      "local_reasoning": 0.0,
+      "local_fast": 0.0,
+      "human": 0.0,
+      "kimi": 0.0
+     }
+    },
+    {
+     "expected": "local_fast",
+     "slice": "edge",
+     "state_tokens": 34,
+     "jev": "local_fast",
+     "jev_conf": 0.79,
+     "jev_ms": 177.47288709506392,
+     "jev_tokens": 506,
+     "jev_cost": 0.00021251999999999998,
+     "jev_probs": {
+      "none": 0.03,
+      "local_reasoning": 0.02,
+      "kimi": 0.04,
+      "local_fast": 0.83,
+      "human": 0.08
+     }
+    },
+    {
+     "expected": "human",
+     "slice": "edge",
+     "state_tokens": 30,
+     "jev": "human",
+     "jev_conf": 0.96,
+     "jev_ms": 155.86140099912882,
+     "jev_tokens": 499,
+     "jev_cost": 0.00020957999999999998,
+     "jev_probs": {
+      "local_reasoning": 0.0,
+      "human": 0.97,
+      "local_fast": 0.03,
+      "kimi": 0.0,
+      "none": 0.0
+     }
+    },
+    {
+     "expected": "local_fast",
+     "slice": "edge",
+     "state_tokens": 35,
+     "jev": "local_fast",
+     "jev_conf": 0.96,
+     "jev_ms": 147.68673479557037,
+     "jev_tokens": 501,
+     "jev_cost": 0.00021041999999999998,
+     "jev_probs": {
+      "kimi": 0.0,
+      "local_reasoning": 0.02,
+      "none": 0.01,
+      "local_fast": 0.97,
+      "human": 0.0
+     }
+    },
+    {
+     "expected": "kimi",
+     "slice": "edge",
+     "state_tokens": 50,
+     "jev": "kimi",
+     "jev_conf": 0.99,
+     "jev_ms": 136.97851076722145,
+     "jev_tokens": 517,
+     "jev_cost": 0.00021714,
+     "jev_probs": {
+      "local_reasoning": 0.01,
+      "human": 0.0,
+      "none": 0.0,
+      "local_fast": 0.0,
+      "kimi": 0.99
+     }
+    },
+    {
+     "expected": "local_reasoning",
+     "slice": "edge",
+     "state_tokens": 36,
+     "jev": "local_reasoning",
+     "jev_conf": 0.47,
+     "jev_ms": 163.66584412753582,
+     "jev_tokens": 503,
+     "jev_cost": 0.00021125999999999998,
+     "jev_probs": {
+      "local_fast": 0.21,
+      "human": 0.2,
+      "local_reasoning": 0.58,
+      "none": 0.0,
+      "kimi": 0.01
+     }
+    },
+    {
+     "expected": "human",
+     "slice": "edge",
+     "state_tokens": 31,
+     "jev": "human",
+     "jev_conf": 0.99,
+     "jev_ms": 140.27045108377934,
+     "jev_tokens": 501,
+     "jev_cost": 0.00021041999999999998,
+     "jev_probs": {
+      "kimi": 0.0,
+      "local_reasoning": 0.0,
+      "local_fast": 0.01,
+      "none": 0.0,
+      "human": 0.99
+     }
+    },
+    {
+     "expected": "none",
+     "slice": "edge",
+     "state_tokens": 19,
+     "jev": "none",
+     "jev_conf": 1.0,
+     "jev_ms": 179.65359520167112,
+     "jev_tokens": 489,
+     "jev_cost": 0.00020538,
+     "jev_probs": {
+      "local_reasoning": 0.0,
+      "none": 1.0,
+      "human": 0.0,
+      "kimi": 0.0,
+      "local_fast": 0.0
+     }
+    },
+    {
+     "expected": "local_reasoning",
+     "slice": "edge",
+     "state_tokens": 31,
+     "jev": "local_reasoning",
+     "jev_conf": 0.66,
+     "jev_ms": 183.03897604346275,
+     "jev_tokens": 501,
+     "jev_cost": 0.00021041999999999998,
+     "jev_probs": {
+      "none": 0.0,
+      "local_reasoning": 0.73,
+      "human": 0.0,
+      "local_fast": 0.27,
+      "kimi": 0.0
+     }
+    }
+   ]
+  },
+  "model-shortlist/v1": {
+   "n": 26,
+   "labels": [
+    "no",
+    "yes"
+   ],
+   "baseline": {
+    "accuracy": null,
+    "errors": 26,
+    "p50_ms": null,
+    "p95_ms": null,
+    "local_llm_calls": 0,
+    "input_tokens": 0
+   },
+   "jev_only": {
+    "accuracy": 0.9231,
+    "p50_ms": 160.5,
+    "p95_ms": 198.8,
+    "mean_confidence": 0.8946,
+    "jev_input_tokens": 11248,
+    "jev_cost_usd": 0.004724,
+    "accuracy_by_slice": {
+     "common": 1.0,
+     "edge": 0.7778
+    }
+   },
+   "sweep": {
+    "0.7": {
+     "accuracy": 0.9231,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1154,
+     "auto_accuracy": 0.9565,
+     "auto_n": 23,
+     "local_llm_calls": 0,
+     "p50_ms": 160.5,
+     "p95_ms": 198.8
+    },
+    "0.8": {
+     "accuracy": 0.9615,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.1923,
+     "auto_accuracy": 1.0,
+     "auto_n": 21,
+     "local_llm_calls": 0,
+     "p50_ms": 160.5,
+     "p95_ms": 198.8
+    },
+    "0.9": {
+     "accuracy": 0.9615,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.3462,
+     "auto_accuracy": 1.0,
+     "auto_n": 17,
+     "local_llm_calls": 0,
+     "p50_ms": 160.5,
+     "p95_ms": 198.8
+    },
+    "0.95": {
+     "accuracy": 0.8846,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.4231,
+     "auto_accuracy": 1.0,
+     "auto_n": 15,
+     "local_llm_calls": 0,
+     "p50_ms": 160.5,
+     "p95_ms": 198.8
+    },
+    "0.98": {
+     "accuracy": 0.6538,
+     "escalation_rate": 0.0,
+     "safe_default_rate": 0.7692,
+     "auto_accuracy": 1.0,
+     "auto_n": 6,
+     "local_llm_calls": 0,
+     "p50_ms": 160.5,
+     "p95_ms": 198.8
+    }
+   },
+   "rows": [
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 49,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 184.07481675967574,
+     "jev_tokens": 434,
+     "jev_cost": 0.00018228,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 47,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 162.63185814023018,
+     "jev_tokens": 431,
+     "jev_cost": 0.00018101999999999997,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 153.99704733863473,
+     "jev_tokens": 431,
+     "jev_cost": 0.00018101999999999997,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "yes",
+     "jev_conf": 0.93,
+     "jev_ms": 160.06820695474744,
+     "jev_tokens": 439,
+     "jev_cost": 0.00018438,
+     "jev_probs": {
+      "yes": 0.93,
+      "no": 0.06999999999999995
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 49,
+     "jev": "yes",
+     "jev_conf": 0.97,
+     "jev_ms": 150.82603506743908,
+     "jev_tokens": 429,
+     "jev_cost": 0.00018018,
+     "jev_probs": {
+      "yes": 0.97,
+      "no": 0.030000000000000027
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 46,
+     "jev": "yes",
+     "jev_conf": 0.97,
+     "jev_ms": 165.42187938466668,
+     "jev_tokens": 429,
+     "jev_cost": 0.00018018,
+     "jev_probs": {
+      "yes": 0.97,
+      "no": 0.030000000000000027
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 49,
+     "jev": "yes",
+     "jev_conf": 0.98,
+     "jev_ms": 141.35699719190598,
+     "jev_tokens": 435,
+     "jev_cost": 0.0001827,
+     "jev_probs": {
+      "yes": 0.98,
+      "no": 0.020000000000000018
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "common",
+     "state_tokens": 47,
+     "jev": "yes",
+     "jev_conf": 0.93,
+     "jev_ms": 147.39207783713937,
+     "jev_tokens": 430,
+     "jev_cost": 0.0001806,
+     "jev_probs": {
+      "yes": 0.93,
+      "no": 0.06999999999999995
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 45,
+     "jev": "no",
+     "jev_conf": 0.99,
+     "jev_ms": 190.10820100083947,
+     "jev_tokens": 431,
+     "jev_cost": 0.00018101999999999997,
+     "jev_probs": {
+      "yes": 0.01,
+      "no": 0.99
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 47,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 150.44936211779714,
+     "jev_tokens": 430,
+     "jev_cost": 0.0001806,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 48,
+     "jev": "no",
+     "jev_conf": 0.89,
+     "jev_ms": 152.49920403584838,
+     "jev_tokens": 436,
+     "jev_cost": 0.00018312,
+     "jev_probs": {
+      "yes": 0.11,
+      "no": 0.89
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 46,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 150.88689792901278,
+     "jev_tokens": 431,
+     "jev_cost": 0.00018101999999999997,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 49,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 160.54670419543982,
+     "jev_tokens": 435,
+     "jev_cost": 0.0001827,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 44,
+     "jev": "no",
+     "jev_conf": 0.97,
+     "jev_ms": 198.79624526947737,
+     "jev_tokens": 432,
+     "jev_cost": 0.00018144,
+     "jev_probs": {
+      "yes": 0.03,
+      "no": 0.97
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 41,
+     "jev": "no",
+     "jev_conf": 0.88,
+     "jev_ms": 162.2873619198799,
+     "jev_tokens": 425,
+     "jev_cost": 0.0001785,
+     "jev_probs": {
+      "yes": 0.12,
+      "no": 0.88
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 50,
+     "jev": "no",
+     "jev_conf": 0.85,
+     "jev_ms": 152.62853214517236,
+     "jev_tokens": 433,
+     "jev_cost": 0.00018186,
+     "jev_probs": {
+      "yes": 0.15,
+      "no": 0.85
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "common",
+     "state_tokens": 44,
+     "jev": "no",
+     "jev_conf": 0.98,
+     "jev_ms": 167.1215621754527,
+     "jev_tokens": 427,
+     "jev_cost": 0.00017934,
+     "jev_probs": {
+      "yes": 0.02,
+      "no": 0.98
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 55,
+     "jev": "yes",
+     "jev_conf": 0.66,
+     "jev_ms": 177.16274317353964,
+     "jev_tokens": 444,
+     "jev_cost": 0.00018648,
+     "jev_probs": {
+      "yes": 0.66,
+      "no": 0.33999999999999997
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 55,
+     "jev": "yes",
+     "jev_conf": 0.65,
+     "jev_ms": 160.5033278465271,
+     "jev_tokens": 438,
+     "jev_cost": 0.00018395999999999997,
+     "jev_probs": {
+      "yes": 0.65,
+      "no": 0.35
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 47,
+     "jev": "no",
+     "jev_conf": 0.85,
+     "jev_ms": 145.12525871396065,
+     "jev_tokens": 432,
+     "jev_cost": 0.00018144,
+     "jev_probs": {
+      "yes": 0.15,
+      "no": 0.85
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 51,
+     "jev": "no",
+     "jev_conf": 0.76,
+     "jev_ms": 205.46027086675167,
+     "jev_tokens": 433,
+     "jev_cost": 0.00018186,
+     "jev_probs": {
+      "yes": 0.24,
+      "no": 0.76
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 42,
+     "jev": "yes",
+     "jev_conf": 0.96,
+     "jev_ms": 168.07119362056255,
+     "jev_tokens": 422,
+     "jev_cost": 0.00017723999999999998,
+     "jev_probs": {
+      "yes": 0.96,
+      "no": 0.040000000000000036
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 52,
+     "jev": "yes",
+     "jev_conf": 0.97,
+     "jev_ms": 171.90166329964995,
+     "jev_tokens": 437,
+     "jev_cost": 0.00018354,
+     "jev_probs": {
+      "yes": 0.97,
+      "no": 0.030000000000000027
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 51,
+     "jev": "no",
+     "jev_conf": 0.54,
+     "jev_ms": 187.41267826408148,
+     "jev_tokens": 439,
+     "jev_cost": 0.00018438,
+     "jev_probs": {
+      "yes": 0.46,
+      "no": 0.54
+     }
+    },
+    {
+     "expected": "no",
+     "slice": "edge",
+     "state_tokens": 48,
+     "jev": "yes",
+     "jev_conf": 0.74,
+     "jev_ms": 150.32216208055615,
+     "jev_tokens": 433,
+     "jev_cost": 0.00018186,
+     "jev_probs": {
+      "yes": 0.74,
+      "no": 0.26
+     }
+    },
+    {
+     "expected": "yes",
+     "slice": "edge",
+     "state_tokens": 47,
+     "jev": "yes",
+     "jev_conf": 0.95,
+     "jev_ms": 149.67761654406786,
+     "jev_tokens": 432,
+     "jev_cost": 0.00018144,
+     "jev_probs": {
+      "yes": 0.95,
+      "no": 0.050000000000000044
+     }
+    }
+   ]
+  }
+ },
+ "pooled": {
+  "n": 267,
+  "decisions": 10,
+  "baseline_accuracy": null,
+  "baseline_p50_ms": null,
+  "baseline_p95_ms": null,
+  "baseline_local_calls": 0,
+  "baseline_input_tokens": 0,
+  "jev_only_accuracy": 0.9438,
+  "jev_calls": 267,
+  "jev_input_tokens": 117434,
+  "jev_cost_usd": 0.049322,
+  "jev_p50_ms": 166.5,
+  "price_source": "config/lif.yaml decision_fabric.jev.price_usd_per_mtok_input (owner-provided)",
+  "sweep": {
+   "0.7": {
+    "auto_n": 222,
+    "auto_share": 0.8315,
+    "auto_accuracy": 0.9685,
+    "auto_error_ci95_upper": 0.0636,
+    "accuracy": 0.8989,
+    "local_llm_calls": 0,
+    "safe_defaults": 45,
+    "p50_ms": 166.5,
+    "p95_ms": 208.8
+   },
+   "0.8": {
+    "auto_n": 208,
+    "auto_share": 0.779,
+    "auto_accuracy": 0.9856,
+    "auto_error_ci95_upper": 0.0415,
+    "accuracy": 0.8801,
+    "local_llm_calls": 0,
+    "safe_defaults": 59,
+    "p50_ms": 166.5,
+    "p95_ms": 208.8
+   },
+   "0.9": {
+    "auto_n": 181,
+    "auto_share": 0.6779,
+    "auto_accuracy": 1.0,
+    "auto_error_ci95_upper": 0.0208,
+    "accuracy": 0.8352,
+    "local_llm_calls": 0,
+    "safe_defaults": 86,
+    "p50_ms": 166.5,
+    "p95_ms": 208.8
+   },
+   "0.95": {
+    "auto_n": 135,
+    "auto_share": 0.5056,
+    "auto_accuracy": 1.0,
+    "auto_error_ci95_upper": 0.0277,
+    "accuracy": 0.7266,
+    "local_llm_calls": 0,
+    "safe_defaults": 132,
+    "p50_ms": 166.5,
+    "p95_ms": 208.8
+   },
+   "0.98": {
+    "auto_n": 84,
+    "auto_share": 0.3146,
+    "auto_accuracy": 1.0,
+    "auto_error_ci95_upper": 0.0437,
+    "accuracy": 0.6142,
+    "local_llm_calls": 0,
+    "safe_defaults": 183,
+    "p50_ms": 166.5,
+    "p95_ms": 208.8
+   }
+  }
+ },
+ "finished": 1790861198.6450398
+}

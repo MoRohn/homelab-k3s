@@ -8,6 +8,7 @@ POST /decision/validate   {state, data_class?}     (output-acceptable)
 POST /decision/workflow   {workflow, input, data_class?}                         → DAG run
 GET  /decision/status | /decision/workflows | /decision/definitions | /decision/recent
 POST /decision/control    {jev_enabled: bool}      operator kill-switch
+/de/*                     Decision Engineering (lif/decision/de_api.py)
 
 Outputs are typed recommendations. `action` is the policy gate; callers act on it, never
 on the raw provider answer. Hidden reasoning is never produced or exposed.
@@ -27,11 +28,10 @@ from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from lif.common import config, db, log
+from lif.decision import de_api
 from lif.decision.dag import DagRuntime
-from lif.decision.fabric import DecisionFabric, DecisionLog
-from lif.decision.providers import JevProvider, LocalLLMProvider
-from lif.decision.rules import rules
-from lif.decision.types import load_definitions
+from lif.decision.engineering import Runtime
+from lif.decision.fabric import DecisionLog
 from lif.models import discovery
 
 LOG = log.get("lif.decision.app")
@@ -49,12 +49,11 @@ CREATE INDEX IF NOT EXISTS decisions_ts ON decisions(ts);
 class State:
     def __init__(self):
         self.db = db.DB(os.environ.get("LIF_DECISIONS_DB", "/data/decisions.db"), SCHEMA)
-        gw = os.environ.get("LIF_GATEWAY_URL", "http://gateway.ai-system.svc:8080")
-        self.fabric = DecisionFabric(
-            load_definitions(), rules,
-            jev=JevProvider(config.secret("TYPE_SAFE_JEV_API_KEY")),
-            local_llm=LocalLLMProvider(gw, "local/instant", api_key=config.secret("LIF_DECISION_GATEWAY_KEY")),
-            decision_log=DecisionLog(2000, sink=self._persist))
+        # Decision Engineering runtime: registry (pinned releases) → fabric → cascade → SDK
+        self.de = Runtime.build(gateway_key=config.secret("LIF_DECISION_GATEWAY_KEY"),
+                                decision_log=DecisionLog(2000, sink=self._persist))
+        self.fabric = self.de.fabric
+        de_api.RT = self.de
         self.dag = DagRuntime(self.fabric)
         self.dag.load()
         discovery.build_dag(self.dag, {})      # registers the model-analysis node functions
@@ -84,11 +83,15 @@ async def lifespan(app: FastAPI):
             S.prune()
             await asyncio.sleep(3600)
     t = asyncio.create_task(daily())
+    from lif.decision import jobs
+    improve = asyncio.create_task(jobs.loop(S.de))       # mine → calibrate → recommend (never applies)
     yield
     t.cancel()
+    improve.cancel()
 
 
 app = FastAPI(title="LIF decision fabric", lifespan=lifespan)
+app.include_router(de_api.router)
 
 
 def _err(code: int, msg: str) -> JSONResponse:

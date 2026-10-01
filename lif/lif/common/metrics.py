@@ -66,3 +66,29 @@ batch_queue = Gauge("lif_batch_queue_depth", "Pending batch items", ["priority"]
 # ── cost ──
 cost_avoided = Counter("lif_external_cost_avoided_usd_total",
                        "ESTIMATE: API-equivalent cost of work served locally or by Jev", ["tier"])
+
+# ── Decision Engineering (docs/DECISION_ENGINEERING.md) ──
+# Funnel: every observed agent step lands in exactly one bucket.
+agent_steps = Counter("lif_agent_steps_total", "Observed agent steps by computational bucket",
+                      ["agent", "bucket"])          # code | jev_candidate | jev | generative | human | unknown
+cascade = Counter("lif_cascade_resolutions_total", "Cascade decisions by the tier that resolved them",
+                  ["decision", "tier"])              # code | jev | local_fast | local_reasoning | kimi | frontier | human | safe_default
+escalations = Counter("lif_escalations_total", "Escalations out of the Jev tier", ["decision", "provider", "reason"])
+escalation_latency = Histogram("lif_escalation_seconds", "Escalation provider latency", ["provider"], buckets=LAT)
+escalation_tokens = Counter("lif_escalation_tokens_total", "Escalation tokens", ["provider", "direction"])
+escalation_cost = Counter("lif_escalation_cost_usd_total", "Escalation spend (USD, from providers.yaml)",
+                          ["provider"])
+provider_breaker = Gauge("lif_provider_circuit_open", "1 while an escalation provider's breaker is open",
+                         ["provider"])
+provider_limited = Counter("lif_provider_rate_limited_total", "Calls delayed or refused by rate limits",
+                           ["provider", "how"])      # waited | refused | upstream_429
+fanout_size = Histogram("lif_jev_fanout_size", "Questions carried by one Jev request",
+                        buckets=(1, 2, 3, 4, 6, 8, 12, 16, 32))
+fanout_saved_tokens = Counter("lif_jev_fanout_saved_input_tokens_total",
+                              "ESTIMATE: state tokens not re-sent thanks to shared-state fan-out")
+shadow = Counter("lif_shadow_decisions_total", "Shadow evaluations", ["decision", "agreement"])
+outcomes = Counter("lif_decision_outcomes_total", "Observed decision outcomes", ["decision", "route", "outcome"])
+human_queue = Gauge("lif_human_review_queue", "Decisions waiting for a human")
+heavy_avoided = Counter("lif_heavy_generation_avoided_total",
+                        "Steps resolved by code/Jev/local-fast that the baseline sent to a heavy model",
+                        ["decision"])

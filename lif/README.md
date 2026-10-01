@@ -8,7 +8,7 @@ The Local Intelligence Fabric is a small private AI platform on `tiny-dgx`, a DG
 Applications see a single OpenAI-compatible endpoint and ask for **logical models** such as `local/default`, never for physical Hugging Face IDs.
 
 ```
-DETERMINISTIC CODE → JEV DECISION FABRIC → LOCAL FAST MODEL → LOCAL LARGER MODEL → (external: not configured)
+DETERMINISTIC CODE → JEV DECISION FABRIC → LOCAL FAST MODEL → LOCAL REASONING MODEL → KIMI K3 (configured, disabled) → HUMAN
 ```
 
 ## What runs today (2026-10-01)
@@ -80,6 +80,7 @@ Streaming responses carry `X-LIF-Served-By`, `X-LIF-Fallback`, `X-LIF-Degraded`,
 | [OBSERVABILITY](docs/OBSERVABILITY.md) | Metrics, alerts, availability |
 | [KNOWLEDGE](docs/KNOWLEDGE.md) | Persistent knowledge layer: typed agent repos, decisions/evidence/assumptions, reconsideration, sessions, MCP, packages |
 | [OPERATIONS](docs/OPERATIONS.md) | Runbook, `local-ai` CLI, Control Center |
+| [DECISION_ENGINEERING](docs/DECISION_ENGINEERING.md) | Decision mining, versioned Jev questions, calibration, cascade (code → Jev → local → Kimi K3 → human), shadow, agent SDK |
 | [DISASTER_RECOVERY](docs/DISASTER_RECOVERY.md) | Reboot, outages, restore |
 | [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Symptoms → causes → fixes |
 | [COST_MODEL](docs/COST_MODEL.md) | Estimates and how they are computed |

@@ -176,7 +176,7 @@ function tbl(headers, rows, opts){
 
 // ── pages ────────────────────────────────────────────────────────────────────
 const PAGES = ["Overview","Models","Discovery","Deployments","Inference","Decision Fabric","Batch Jobs","GPU",
-               "Benchmarks","Registry","Savings",
+               "Benchmarks","Registry","Savings","Settings","Decision Engineering",
                "Knowledge","Decisions","Evidence","Reconsiderations","Diagnostics","Agent Work","Skills & Packages"];
 let current = lsGet("lif.page") || "Overview";
 if (!PAGES.includes(current)) current = "Overview";
@@ -545,6 +545,215 @@ document.getElementById("view").addEventListener("click", async e => {
   }
 });
 
+// ── Decision Engineering (lif/decision/de_api.py via controller /v1/de/*) ─────
+// Every number comes from stored provenance, shadow rows, tests or mined traces.
+// "–" means no data yet; nothing here is illustrative.
+const DE_TABS = ["Overview","Opportunities","Inventory","Questions","Shadow Runs","Calibration","Cascades",
+                 "Agent Traces","Costs","Experiments","Review Queue"];
+let deTab = lsGet("lif.deTab") || "Overview";
+if (!DE_TABS.includes(deTab)) deTab = "Overview";
+let deSel = lsGet("lif.deSel") || "";
+let deRun = "";
+let deCompiled = null;
+const BUCKET_CLASS = {CODE:"ok", JEV_CANDIDATE:"info", GENERATIVE:"warn", HUMAN_OR_POLICY:"bad", UNKNOWN:"neutral"};
+const STAGE_CLASS = {production:"ok", expanded_automation:"ok", low_risk_automation:"info", calibrated:"info",
+  shadow:"warn", tested:"neutral", designed:"neutral", discovered:"neutral", retired:"bad"};
+
+function deBars(obj, total){
+  const t = total || Object.values(obj || {}).reduce((a, b) => a + b, 0) || 0;
+  return Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => html`<div class="row small" style="margin:3px 0">
+    <span class="mono" style="width:150px">${k}</span><div class="bar" style="flex:1"><i style="width:${raw(String(t ? Math.round(v / t * 100) : 0))}%"></i></div>
+    <span style="width:120px;text-align:right">${fmt.n(v, 0)}${t ? " (" + fmt.pct(v / t) + ")" : ""}</span></div>`);
+}
+function deTabs(){
+  return html`<div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:12px">${DE_TABS.map(t =>
+    html`<button type="button" class="btn ${raw(t === deTab ? "primary" : "")}" data-detab="${t}">${t}</button>`)}</div>`;
+}
+async function pageDE(){
+  const body = await ({"Overview": deOverview, "Opportunities": deOpportunities, "Inventory": deInventory,
+    "Questions": deQuestions, "Shadow Runs": deShadow, "Calibration": deCalibration, "Cascades": deCascades,
+    "Agent Traces": deTraces, "Costs": deCosts, "Experiments": deExperiments, "Review Queue": deReview})[deTab]();
+  return html`${deTabs()}${body}`;
+}
+async function deOverview(){
+  const o = await api("GET", "/v1/de/overview");
+  const p = o.providers || {};
+  const steps = o.agent_steps || {};
+  return html`<div class="grid">
+    ${card("Decisions (" + fmt.n(o.window_hours, 0) + " h)", kv([["Cascade decisions", fmt.n(o.decisions, 0)],
+       ["Jev auto-resolved", fmt.pct(o.jev_auto_rate)], ["Decision offload rate", fmt.pct(o.decision_offload_rate)],
+       ["Frontier generation avoidance", fmt.pct(o.frontier_generation_avoidance_rate)],
+       ["Median decision latency", o.median_decision_latency_ms === null ? "–" : fmt.n(o.median_decision_latency_ms, 0) + " ms"],
+       ["Human reviews pending", fmt.n(o.human_pending, 0)]]))}
+    ${card("Resolved by tier", o.share ? html`${deBars(Object.fromEntries(Object.entries(o.share).map(([k, v]) => [k, Math.round(v * (o.decisions || 0))])))}` : html`<div class="muted small">No cascade decisions yet.</div>`)}
+    ${card("Agent steps (mined)", Object.keys(steps).length ? html`${deBars(steps)}` : html`<div class="muted small">No mined traces. Run <span class="mono">local-ai agent audit --upload</span>.</div>`)}
+    ${card("Escalation providers", kv(Object.entries(p).map(([k, v]) => [k, v.kind === "human" ? pill("QUEUE","info")
+       : (v.enabled === false || (v.reason || "").length ? pill((v.reason || "unavailable").slice(0, 40), "warn") : (v.breaker_open ? pill("BREAKER OPEN","bad") : pill("READY","ok")))])))}
+  </div>
+  <p class="small muted">${o.note || ""}</p>
+  <section><h2>Registry</h2>${tbl(["Decision","Serving","Stage","Rollout","Versions"], (o.registry || []).map(r => html`<tr class="click" data-desel="${r.name}">
+     <td class="mono">${r.name}</td><td class="mono">${r.serving || "–"}</td><td>${r.stage ? pill(r.stage, STAGE_CLASS[r.stage]) : "–"}</td>
+     <td class="num">${fmt.n(r.rollout_pct, 0)}%</td><td class="small">${r.versions.map(v => v.ref.split("/")[1] + ":" + v.stage).join("  ")}</td></tr>`))}</section>`;
+}
+async function deInv(){ cache.deInv = await api("GET", "/v1/de/inventory"); return cache.deInv; }
+async function deOpportunities(){
+  const inv = await deInv();
+  const items = (inv.inventory || []).filter(i => i.classification === "JEV_CANDIDATE").sort((a, b) => b.opportunity - a.opportunity).slice(0, 12);
+  if (!items.length) return html`<div class="card">${inv.note || "No Jev candidates in the latest mining run."}</div>`;
+  const comp = deCompiled ? card("Candidate " + deCompiled.ref + (deCompiled.reuse ? " (reuse agent-core/" + deCompiled.reuse + ")" : ""), html`
+      <div class="small">${kv([["Lint", JSON.stringify(deCompiled.lint)], ["Next", html`<span class="mono">${deCompiled.next}</span>`]])}
+      ${(deCompiled.notes || []).map(n => html`<div>• ${n}</div>`)}</div>
+      <pre class="small mono" style="white-space:pre-wrap;max-height:300px;overflow:auto">${JSON.stringify(deCompiled.spec, null, 2)}</pre>`) : "";
+  return html`${comp}<div class="grid">${items.map(i => card(i.description, html`${kv([
+      ["Agent", i.agent], ["Calls/day", fmt.n(i.calls_per_day, 1)], ["Current executor", i.executor],
+      ["Avg tokens in / out", fmt.n(i.mean_input_tokens, 0) + " / " + fmt.n(i.mean_output_tokens, 0)],
+      ["Avg latency", i.mean_latency_ms ? fmt.n(i.mean_latency_ms / 1000, 1) + " s" : "–"],
+      ["Separable", fmt.pct(i.separable_share)], ["Suggested", (i.recommended_primitive || "–")],
+      ["Risk", pill(i.risk, i.risk === "low" ? "ok" : (i.risk === "medium" ? "warn" : "bad"))],
+      ["Savings/day", i.savings_per_day_usd === null ? "price unknown" : "$" + fmt.n(i.savings_per_day_usd, 2)],
+      ["Score", fmt.n(i.opportunity, 3)]])}
+      ${i.embedded ? html`<p class="small muted">Fused with generation in the same call: split decide()/generate() before migrating.</p>` : ""}
+      <div class="row"><button type="button" class="btn" data-decompile="${i.signature}">Generate candidate</button>
+      <button type="button" class="btn" data-deinspect="${i.signature}">Inspect</button></div>`))}</div>`;
+}
+async function deInventory(){
+  const inv = await deInv();
+  const rows = (inv.inventory || []).map(i => html`<tr class="click" data-deinspect="${i.signature}"><td>${i.agent}</td><td>${i.description}</td>
+    <td>${pill(i.classification, BUCKET_CLASS[i.classification])}</td><td class="num">${fmt.n(i.calls_per_day, 1)}</td><td class="mono small">${i.executor}</td>
+    <td class="num">${fmt.n(i.mean_input_tokens, 0)}</td><td class="num">${i.mean_latency_ms ? fmt.n(i.mean_latency_ms, 0) : "–"}</td>
+    <td class="num">${fmt.n(i.boundedness, 2)}</td><td class="num">${fmt.pct(i.separable_share)}</td><td>${i.risk}</td><td class="num">${fmt.n(i.opportunity, 3)}</td></tr>`);
+  return html`<p class="small muted">Mined ${fmt.ts(inv.generated_at)} · ${fmt.n(inv.runs, 0)} runs over ${fmt.n(inv.span_days, 2)} days${inv.span_days < 1 ? " (per-day rates extrapolated)" : ""}.</p>
+    ${tbl(["Agent","Decision","Bucket","Calls/day","Executor","Tokens in","Latency ms","Bounded","Separable","Risk","Score"], rows, {empty: inv.note || "No inventory yet."})}`;
+}
+async function deQuestions(){
+  const reg = await api("GET", "/v1/de/registry");
+  const names = (reg.decisions || []).map(d => d.name);
+  if (!deSel || !names.includes(deSel)) deSel = names[0] || "";
+  const pick = html`<div class="row" style="flex-wrap:wrap;gap:4px;margin-bottom:10px">${names.map(n => html`<button type="button" class="btn ${raw(n === deSel ? "primary" : "")}" data-desel="${n}">${n}</button>`)}</div>`;
+  if (!deSel) return html`${pick}<div class="card">No decisions registered.</div>`;
+  const d = await api("GET", "/v1/de/registry/" + encodeURIComponent(deSel));
+  const vers = d.versions.slice().reverse();
+  return html`${pick}<p class="small">Serving: <span class="mono">${d.serving || "nothing (baseline executor)"}</span></p>${vers.map(v => {
+    const t = v.latest_test, c = v.calibration, s = v.shadow || {};
+    const crit = v.type === "choice" ? v.choices : (v.type === "score" ? (Object.keys(v.level_descriptions || {}).length ? v.level_descriptions : Object.fromEntries(v.levels.map((l, i) => [l, "level " + i]))) : {yes: v.noul_criteria || "(instructions)"});
+    return card(v.ref + " · " + v.type, html`<div class="row" style="gap:6px;margin-bottom:6px">${pill(v.stage_now, STAGE_CLASS[v.stage_now])} ${pill("risk " + v.risk, v.risk === "low" ? "ok" : "warn")}
+      ${pill("lint " + v.lint.error + "E/" + v.lint.warning + "W", v.lint.error ? "bad" : (v.lint.warning ? "warn" : "ok"))}</div>
+      <div class="small"><b>Instructions.</b> ${v.instructions}</div>
+      <table class="small" style="margin:6px 0">${Object.entries(crit).map(([k, x]) => html`<tr><td class="mono" style="padding-right:10px;vertical-align:top">${k}</td><td>${x}</td></tr>`)}</table>
+      <div class="small"><b>State.</b> <span class="mono">${Object.entries(v.state_schema || {}).map(([k, ty]) => k + ":" + ty).join("  ") || "–"}</span></div>
+      ${v.findings.filter(f => f.severity !== "info").map(f => html`<div class="small">${pill(f.severity, f.severity === "error" ? "bad" : "warn")} <span class="mono">${f.code}</span> ${f.message}</div>`)}
+      ${kv([["Tests", t ? fmt.n(t.n, 0) + " cases · accuracy " + fmt.pct(t.accuracy) + " · " + JSON.stringify(t.by_provider) : "not run"],
+            ["Confidence", t ? "mean " + fmt.n(t.mean_confidence, 3) : "–"],
+            ["Shadow", s.n ? fmt.n(s.n, 0) + " runs · agreement " + fmt.pct(s.agreement_rate) + " · accuracy " + fmt.pct(s.candidate_accuracy) : "–"],
+            ["Calibration", c ? "HIGH " + (c.recommended.high ?? "none") + " · LOW " + (c.recommended.low ?? "none") + " · adequate " + c.adequacy.adequate : "not calibrated"],
+            ["Production threshold", (v.policy && v.policy.high) ? fmt.n(v.policy.high, 3) : "none (no automatic action)"]])}
+      <div class="row" style="flex-wrap:wrap"><button type="button" class="btn" data-deact="test" data-ref="${v.ref}">Run tests</button>
+        <button type="button" class="btn" data-deact="calibrate" data-ref="${v.ref}">Calibrate</button>
+        <button type="button" class="btn" data-deact="promote" data-ref="${v.ref}">Advance stage…</button>
+        <button type="button" class="btn" data-deact="rollback" data-ref="${v.ref}">Roll back serving</button></div>`);
+  })}
+  <section><h2>History</h2>${tbl(["When","Version","Stage","Rollout","Actor","Reason"], (d.history || []).map(h => html`<tr><td class="small">${fmt.ts(h.ts)}</td>
+    <td class="mono">${h.version}</td><td>${pill(h.stage, STAGE_CLASS[h.stage])}</td><td class="num">${fmt.n(h.rollout_pct, 0)}%</td><td>${h.actor}</td><td class="small">${h.reason}</td></tr>`), {empty: "No releases yet: the YAML stage applies."})}</section>`;
+}
+async function deShadow(){
+  const reg = await api("GET", "/v1/de/registry");
+  const refs = (reg.decisions || []).flatMap(d => d.versions.filter(v => ["shadow","calibrated","low_risk_automation","expanded_automation"].includes(v.stage)).map(v => v.ref));
+  const rows = await Promise.all(refs.map(r => api("GET", "/v1/de/shadow/" + r)));
+  return tbl(["Version","Shadow runs","Labelled","Agreement","Candidate acc.","Baseline acc.","Cand. p50/p95 ms","Base p50/p95 ms","Slices"], rows.map(s => html`<tr>
+    <td class="mono">${s.decision}</td><td class="num">${fmt.n(s.n, 0)}</td><td class="num">${fmt.n(s.labelled, 0)}</td><td class="num">${fmt.pct(s.agreement_rate)}</td>
+    <td class="num">${fmt.pct(s.candidate_accuracy)}</td><td class="num">${fmt.pct(s.baseline_accuracy)}</td>
+    <td class="num">${s.candidate_latency_ms ? fmt.n(s.candidate_latency_ms.p50, 0) + " / " + fmt.n(s.candidate_latency_ms.p95, 0) : "–"}</td>
+    <td class="num">${s.baseline_latency_ms ? fmt.n(s.baseline_latency_ms.p50, 0) + " / " + fmt.n(s.baseline_latency_ms.p95, 0) : "–"}</td>
+    <td class="small">${JSON.stringify(s.by_slice || {})}</td></tr>`), {empty: "No version is in shadow. `local-ai decision shadow NAME/VERSION`."});
+}
+async function deCalibration(){
+  if (!deSel) return html`<div class="card">Pick a decision under Questions first.</div>`;
+  const d = await api("GET", "/v1/de/registry/" + encodeURIComponent(deSel));
+  return html`${d.versions.slice().reverse().map(v => {
+    const c = v.calibration;
+    if (!c) return card(v.ref, html`<div class="small muted">Not calibrated. Needs shadow samples with outcomes: <span class="mono">local-ai decision calibrate ${v.ref}</span></div>`);
+    return card(v.ref + " · " + c.label_source + " · ECE " + (c.ece ?? "–"), html`
+      ${tbl(["Confidence","n","Observed accuracy","Mean confidence"], c.reliability.filter(b => b.n).map(b => html`<tr><td>${fmt.n(b.lo, 2)}–${fmt.n(b.hi, 2)}</td><td class="num">${fmt.n(b.n, 0)}</td>
+        <td><div class="row small"><div class="bar" style="flex:1"><i style="width:${raw(String(Math.round((b.accuracy || 0) * 100)))}%"></i></div><span style="width:60px;text-align:right">${fmt.pct(b.accuracy)}</span></div></td><td class="num">${fmt.n(b.mean_confidence, 3)}</td></tr>`))}
+      ${tbl(["Threshold","Coverage","Error","Error 95% upper","Escalation"], c.curve.filter(r => r.coverage !== null).map(r => html`<tr><td class="num">${r.threshold}</td><td class="num">${fmt.pct(r.coverage)}</td><td class="num">${fmt.pct(r.error_rate)}</td><td class="num">${fmt.pct(r.error_ci95_upper)}</td><td class="num">${fmt.pct(r.escalation_rate)}</td></tr>`))}
+      <p class="small">Recommended HIGH <b>${c.recommended.high ?? "none"}</b>, LOW <b>${c.recommended.low ?? "none"}</b> for risk ${c.risk} (max error ${c.recommended.max_error ?? "never automated"}).
+      Adequate: ${c.adequacy.adequate ? "yes" : "no — " + c.adequacy.reasons.join("; ")}</p>`);
+  })}`;
+}
+async function deCascades(){
+  const c = await api("GET", "/v1/de/cascade");
+  const rows = Object.entries(c.edges || {}).sort((a, b) => b[1].volume - a[1].volume).map(([k, e]) => html`<tr><td class="mono">${k.replace("->", " → ")}</td>
+    <td class="num">${fmt.n(e.volume, 0)}</td><td class="num">${fmt.pct(e.share)}</td><td class="num">${e.p50_ms === null ? "–" : fmt.n(e.p50_ms, 0) + " ms"}</td><td class="num">${fmt.n(e.errors, 0)}</td></tr>`);
+  return html`<p class="small muted">${fmt.n(c.decisions, 0)} cascade decisions in 7 days. Edges show where uncertain decisions went after Jev.</p>
+    ${tbl(["Edge","Volume","Share of decisions","p50 latency","Errors"], rows, {empty: "No escalations recorded."})}`;
+}
+async function deTraces(){
+  if (deRun){
+    const t = await api("GET", "/v1/de/traces/" + encodeURIComponent(deRun));
+    return html`<button type="button" class="btn" data-derun="">← all runs</button><h2 class="mono">${t.run_id}</h2>
+      ${tbl(["#","Operation","Bucket","Executor","Tokens in/out","Latency","Output","Why"], t.operations.map(o => html`<tr><td class="num">${o.seq}</td><td>${o.kind.replace(/_/g, " ")} <span class="muted mono small">${o.name}</span></td>
+        <td>${pill(o.classification.replace("_CANDIDATE", "").replace("_OR_POLICY", "/POLICY"), BUCKET_CLASS[o.classification])}</td><td class="mono small">${o.executor}</td>
+        <td class="num">${fmt.n(o.input_tokens, 0)} / ${fmt.n(o.output_tokens, 0)}</td><td class="num">${o.latency_ms ? fmt.n(o.latency_ms, 0) + " ms" : "–"}</td>
+        <td class="mono small">${o.output_label}</td><td class="small muted">${(o.reasons || [])[0] || ""}</td></tr>`))}`;
+  }
+  const r = await api("GET", "/v1/de/traces");
+  return tbl(["Run","Agent","Workflow","Started","Ops","Code","Jev","Generative","Human"], (r.runs || []).map(x => html`<tr class="click" data-derun="${x.run_id}">
+    <td class="mono small">${x.run_id}</td><td>${x.agent}</td><td class="small">${x.workflow}</td><td class="small">${fmt.ts(x.t0)}</td><td class="num">${x.ops}</td>
+    <td class="num">${x.code}</td><td class="num">${x.jev}</td><td class="num">${x.gen}</td><td class="num">${x.human}</td></tr>`), {empty: "No traces uploaded. `local-ai agent audit AGENT --upload`."});
+}
+async function deCosts(){
+  const p = await api("GET", "/v1/de/providers");
+  const rows = Object.entries(p.providers).map(([k, v]) => { const pr = v.pricing || {}; return html`<tr><td class="mono">${k}</td><td>${v.kind || ""}</td><td class="mono small">${v.model || ""}</td>
+    <td class="num">${pr.input_per_mtok ?? (pr.energy_estimate ? "energy est." : "–")}</td><td class="num">${pr.output_per_mtok ?? "–"}</td><td class="small">${pr.as_of || ""}${pr.verified === false ? " (unverified)" : ""}</td><td>${v.privacy || ""}</td></tr>`; });
+  const sim = deSel ? await api("POST", "/v1/de/simulate", {decision: deSel.includes("/") ? deSel : ((await api("GET", "/v1/de/registry/" + encodeURIComponent(deSel))).versions.slice(-1)[0] || {}).ref, volume_per_day: Number(lsGet("lif.deVolume") || 1000)}).catch(e => ({error: e.message})) : null;
+  return html`<section><h2>What-if: ${deSel || "pick a decision under Questions"}</h2>
+    ${sim && !sim.error ? html`<p class="small muted">${fmt.n(sim.samples, 0)} samples · volume <input id="deVolume" type="number" value="${lsGet("lif.deVolume") || 1000}" style="width:90px"> /day · escalation to ${sim.escalate_to} · prices from providers.yaml</p>
+      ${tbl(["Threshold","Jev coverage","Escalations/day","Error rate","Failures/day","Cost/day","Mean latency"], sim.rows.map(r => html`<tr><td class="num">${r.threshold}</td><td class="num">${fmt.pct(r.coverage)}</td>
+        <td class="num">${fmt.n(r.escalated_per_day, 0)}</td><td class="num">${fmt.pct(r.error_rate)}</td><td class="num">${fmt.n(r.expected_failures_per_day, 2)}</td><td class="num">$${fmt.n(r.cost_per_day_usd, 2)}</td><td class="num">${fmt.n(r.mean_latency_ms, 0)} ms</td></tr>`))}`
+      : html`<div class="small muted">${sim ? sim.error : ""}</div>`}</section>
+    <section><h2>Provider pricing (config/providers.yaml)</h2>${tbl(["Provider","Kind","Model","$/M in","$/M out","As of","Privacy"], rows)}</section>`;
+}
+async function deExperiments(){
+  const r = await api("GET", "/v1/de/experiments");
+  return tbl(["When","Experiment","Baseline","Candidate","Verdict","Summary"], (r.experiments || []).map(x => html`<tr><td class="small">${fmt.ts(x.ts)}</td><td>${x.name}</td>
+    <td class="mono small">${x.baseline}</td><td class="mono small">${x.candidate}</td><td>${pill(x.verdict, x.verdict === "pass" ? "ok" : "bad")}</td>
+    <td class="small">${x.summary && x.summary.accuracy !== undefined ? "accuracy " + fmt.pct(x.summary.accuracy) + " · n " + x.summary.n : JSON.stringify((x.summary || {}).delta || (x.summary || {}).verdict || {}).slice(0, 160)}</td></tr>`), {empty: "No experiments yet."});
+}
+async function deReview(){
+  const r = await api("GET", "/v1/de/human");
+  return html`<p class="small muted">Decisions the cascade could not settle. Your answer is recorded as the outcome and feeds calibration.</p>${(r.queue || []).map(q => card("#" + q.id + " · " + q.decision_ref, html`
+    <div class="small">${q.package.instructions}</div><div class="small muted">Reason: ${q.package.reason} · first pass ${JSON.stringify(q.package.jev || {})}</div>
+    <pre class="small mono" style="white-space:pre-wrap;max-height:200px;overflow:auto">${JSON.stringify(q.package.state, null, 2)}</pre>
+    <div class="row" style="flex-wrap:wrap">${q.package.labels.map(l => html`<button type="button" class="btn" data-dehuman="${q.id}" data-answer="${l}">${l}</button>`)}</div>`))}
+    ${(r.queue || []).length ? "" : html`<div class="card">Nothing waiting for review.</div>`}`;
+}
+document.getElementById("view").addEventListener("click", async e => {
+  const t = e.target.closest("[data-detab],[data-desel],[data-decompile],[data-deinspect],[data-deact],[data-derun],[data-dehuman]");
+  if (!t) return;
+  const ds = t.dataset;
+  try {
+    if (ds.detab !== undefined){ deTab = ds.detab; lsSet("lif.deTab", deTab); }
+    else if (ds.desel !== undefined){ deSel = ds.desel; lsSet("lif.deSel", deSel); if (current === "Decision Engineering" && deTab === "Overview"){ deTab = "Questions"; lsSet("lif.deTab", deTab); } }
+    else if (ds.derun !== undefined){ deRun = ds.derun; }
+    else if (ds.decompile){ deCompiled = await api("POST", "/v1/de/compile", {signature: ds.decompile}); }
+    else if (ds.deinspect){ const i = ((cache.deInv || {}).inventory || []).find(x => x.signature === ds.deinspect); if (i) toast(i.signature + ": " + (i.reasons || []).join(" · ") + (i.weaknesses.length ? " · weaknesses " + i.weaknesses.join(",") : ""), "info"); return; }
+    else if (ds.dehuman){ await api("POST", "/v1/de/human/" + ds.dehuman, {answer: ds.answer}); toast("Recorded " + ds.answer, "ok"); }
+    else if (ds.deact === "test"){ const r = await api("POST", "/v1/de/test", {decision: ds.ref}); toast(ds.ref + ": accuracy " + fmt.pct(r.accuracy) + " on " + r.n, r.accuracy >= 0.9 ? "ok" : "warn"); }
+    else if (ds.deact === "calibrate"){ const r = await api("POST", "/v1/de/calibrate", {decision: ds.ref}); toast(ds.ref + ": HIGH " + r.recommended.high + (r.adequacy.adequate ? "" : " (sample not adequate)"), r.adequacy.adequate ? "ok" : "warn"); }
+    else if (ds.deact === "promote"){
+      const stage = window.prompt("Target stage for " + ds.ref + " (designed, tested, shadow, calibrated, low_risk_automation, expanded_automation, production, retired):", "shadow");
+      if (!stage) return;
+      const high = ["low_risk_automation","expanded_automation","production"].includes(stage) ? window.prompt("HIGH threshold (must be ≥ the calibrated recommendation):", "") : "";
+      const reason = window.prompt("Reason (audited):", "") || "";
+      const r = await api("POST", "/v1/de/transition", {ref: ds.ref, stage, reason, policy: high ? {high: Number(high)} : {}});
+      toast(r.release.name + "/" + r.release.version + " → " + r.release.stage, "ok");
+    }
+    else if (ds.deact === "rollback"){ const reason = window.prompt("Rollback reason (audited):", ""); if (reason === null) return; const r = await api("POST", "/v1/de/rollback", {name: ds.ref.split("/")[0], reason}); toast("Serving " + (r.serving || "YAML"), "ok"); }
+  } catch(err){ toast(err.message, "bad"); }
+  refresh();
+});
+document.getElementById("view").addEventListener("change", e => { if (e.target.id === "deVolume"){ lsSet("lif.deVolume", e.target.value); refresh(); } });
+
 // ── Knowledge (persistent knowledge layer, /v1/knowledge on the knowledge service) ──
 // Same admin key as the controller. In the cluster the ingress routes /v1/knowledge to the
 // knowledge service; elsewhere set localStorage "lif.knowledgeBase" to its origin.
@@ -716,6 +925,7 @@ function kTyping(){ const a = document.activeElement; return !!(a && a.closest &
 const RENDER = {"Overview": pageOverview, "Models": pageModels, "Discovery": pageDiscovery, "Deployments": pageDeployments,
   "Inference": pageInference, "Decision Fabric": pageDecision, "Batch Jobs": pageBatch, "GPU": pageGpu,
   "Benchmarks": pageBenchmarks, "Registry": pageRegistry, "Savings": pageSavings, "Settings": pageSettings,
+  "Decision Engineering": pageDE,
   "Knowledge": pageKnowledge, "Decisions": pageKDecisions, "Evidence": pageKEvidence, "Reconsiderations": pageKReconsider,
   "Diagnostics": pageKDiagnostics, "Agent Work": pageKWork, "Skills & Packages": pageKCapabilities};
 

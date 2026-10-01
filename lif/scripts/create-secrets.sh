@@ -20,6 +20,11 @@ K_ADMIN=$(gen admin); K_INTERNAL=$(gen internal); K_ENGINE=$(gen engine)   # eng
 
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT; umask 077
 printf '%s' "$JEV" > "$tmp/TYPE_SAFE_JEV_API_KEY"
+# Optional heavy escalation (Kimi K3). Absent → the provider stays disabled; privacy policy
+# (lif.yaml privacy.external_llm_allowed) still decides what may be sent even with a key.
+MOONSHOT=$(set -a; . ./.env.local >/dev/null 2>&1; printf '%s' "${MOONSHOT_API_KEY:-}")
+EXTRA=()
+if [ -n "$MOONSHOT" ]; then printf '%s' "$MOONSHOT" > "$tmp/MOONSHOT_API_KEY"; EXTRA+=(--from-file="$tmp/MOONSHOT_API_KEY"); fi
 printf 'controller-probe:%s\nbatch:%s\ndecision-fabric:%s\nbnn:%s\noperator:%s\n' \
   "$K_PROBE" "$K_BATCH" "$K_DEC" "$K_BNN" "$K_OPS" > "$tmp/LIF_GATEWAY_KEYS"
 printf 'operator:%s\n' "$K_ADMIN" > "$tmp/LIF_ADMIN_KEYS"
@@ -33,7 +38,7 @@ printf '%s' "$MTOK" > "$tmp/token"
 kubectl -n ai-system create secret generic lif-secrets --from-file="$tmp/TYPE_SAFE_JEV_API_KEY" \
   --from-file="$tmp/LIF_GATEWAY_KEYS" --from-file="$tmp/LIF_ADMIN_KEYS" --from-file="$tmp/LIF_PROBE_KEY" \
   --from-file="$tmp/LIF_BATCH_GATEWAY_KEY" --from-file="$tmp/LIF_DECISION_GATEWAY_KEY" \
-  --from-file="$tmp/LIF_INTERNAL_KEY" --from-file="$tmp/LIF_ENGINE_KEY" \
+  --from-file="$tmp/LIF_INTERNAL_KEY" --from-file="$tmp/LIF_ENGINE_KEY" "${EXTRA[@]}" \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 kubectl -n ai-system create secret generic lif-gpusched --from-file="$tmp/token" \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null

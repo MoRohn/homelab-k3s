@@ -1,0 +1,23 @@
+name: result-usable
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: >
+  Judge whether `result.summary` gives the agent what `step.intent` needed in order to continue.
+criteria: >
+  `result.summary` contains the information, file, value or confirmation that `step.intent`
+  names, and `result.status` is "ok".
+state_schema:
+  step.intent: str
+  result.summary: str
+  result.status: str
+default: "no"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

@@ -238,6 +238,40 @@ async def overview():
             "controller_uptime_sec": round(time.time() - S.started)}
 
 
+# ── Decision Engineering (proxied to the decision-fabric service, /de/*) ───────
+# Reads pass through. Lifecycle changes carry the internal key, are attributed to the
+# authenticated admin (never a client-supplied name) and land in the activity timeline.
+_DE_MUTATING = ("transition", "rollback", "human/", "inventory")
+
+
+@app.api_route("/v1/de/{path:path}", methods=["GET", "POST"])
+async def decision_engineering(path: str, request: Request):
+    url = f"{S.decision_url}/de/{path}"
+    headers: dict[str, str] = {}
+    body = None
+    if request.method == "POST":
+        body = await request.json()
+        if path.startswith(_DE_MUTATING):
+            headers["X-LIF-Internal"] = config.secret("LIF_INTERNAL_KEY") or ""
+            if isinstance(body, dict) and path.startswith(("transition", "rollback", "human/")):
+                body["actor"] = body["reviewer"] = getattr(request.state, "who", "operator")
+    try:
+        r = await S.http.request(request.method, url, json=body, headers=headers, params=dict(request.query_params),
+                                 timeout=120)
+    except Exception as e:
+        return JSONResponse({"error": f"decision-fabric unreachable: {str(e)[:120]}"}, status_code=502)
+    if request.method == "POST" and path.startswith(_DE_MUTATING) and r.status_code < 300:
+        S.reg.event(f"decision_{path.split('/')[0]}", str((body or {}).get("ref") or (body or {}).get("name") or path),
+                    getattr(request.state, "who", "operator"),
+                    **{k: v for k, v in (body or {}).items() if k in ("stage", "reason", "policy", "rollout_pct",
+                                                                    "answer")})
+    try:
+        data = r.json()
+    except ValueError:
+        data = {"error": r.text[:300]}
+    return JSONResponse(data, status_code=r.status_code)
+
+
 PROM = os.environ.get("LIF_PROMETHEUS_URL", "http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090")
 
 
