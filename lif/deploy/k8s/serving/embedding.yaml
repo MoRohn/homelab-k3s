@@ -63,6 +63,8 @@ spec:
             - "512"
             - "--batch-size"
             - "512"
+            - "--cache-ram"      # llama.cpp defaults to an 8 GiB prompt cache; embeddings don't need one
+            - "0"
           ports: [{name: http, containerPort: 8080}]
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
           resources:

@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from lif.common import config
 
 GRAMZ_UNLOAD_MIB = 34_600          # measured 2026-09-30 (gpusched live unload)
-CPU_ANON_BUDGET_MIB = 1_536        # per CPU model: KV + compute buffers (anon) — tier0 4B measured 1.38 GiB
+CPU_ANON_BUDGET_MIB = 2_048        # per CPU model: KV + buffers + prompt cache (anon) — tier0 4B: 1.38 GiB + 0.25 cache
 CPU_MAX_WEIGHTS_MIB = 6_144        # beyond this, CPU decode on A725 cores drops below ~8 tok/s
 # Vision (llama.cpp mtmd): the mmproj is read into anonymous buffers (not mmap'd), and encoding an
 # image needs a compute buffer for the vision tower. ESTIMATE, not yet measured on this host:
@@ -40,6 +40,10 @@ DEFAULT_VOCAB = 152_064            # unknown vocabulary → size as for a large 
 # 3,584 Mi re-read weights from disk on every token (2026-10-01; private/lif/perf, local only). So every
 # limit gets this headroom on top.
 CGROUP_HEADROOM = 1.15
+# llama-server keeps idle slots' KV in a host-RAM prompt cache (--cache-ram) that DEFAULTS TO 8 GiB of
+# anonymous memory. Every text server sets it explicitly to this, and it is part of the anon budget.
+# Embedding servers set 0 (no prompts worth caching).
+PROMPT_CACHE_MIB = 256
 LIMIT_STEP_MIB = 256
 
 BYTES_PER_PARAM = {"F32": 4.0, "F16": 2.0, "BF16": 2.0, "Q8_0": 1.07, "Q6_K": 0.82, "Q5_K_M": 0.71,
@@ -102,7 +106,8 @@ def estimate(meta: dict, *, device: str = "auto", context: int = 8192, concurren
     else:
         return FitReport("no_fit", 0, 0, 0, 0, 0, None, ["parameter count unknown — cannot size safely"])
     kv = kv_cache_mib(meta, context, concurrency)
-    overhead = runtime_overhead_mib(meta, embedding=meta.get("category") in ("embedding", "reranking"))
+    embedding = meta.get("category") in ("embedding", "reranking")
+    overhead = runtime_overhead_mib(meta, embedding=embedding) + (0 if embedding else PROMPT_CACHE_MIB)
     mm = pick.get("mmproj") or {}
     mmproj = int(mm["size"] / 2**20) if mm.get("size") else 0
     img = VISION_IMAGE_HEADROOM_MIB if mmproj else 0

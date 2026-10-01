@@ -17,8 +17,9 @@ profiles:
     context: 8192
     concurrency: 2              # measured: 4-way batching lowers CPU throughput (bandwidth-bound)
     weights_mib: 2381
-    anon_mib: 1409                # measured 2026-10-01 (n=1): KV 576 + runtime/compute buffers
-    memory_budget_mb: 4608        # = cgroup limit: weights (page cache, charged to the pod) + anon + 15 %
+    anon_mib: 1665                # measured 1,409 (2026-10-01, n=1: KV 576 + runtime/compute) + 256 prompt cache
+    cache_ram_mib: 256            # --cache-ram (llama.cpp default: 8 GiB)
+    memory_budget_mb: 4864        # = cgroup limit: weights (page cache, charged to the pod) + anon + 15 %
     mlock: true                   # hot fallback: weights stay resident (homelab/host/prep-memlock.sh)
     endpoint: http://tier0.ai-serving.svc:8080
     license: apache-2.0
@@ -36,8 +37,9 @@ profiles:
     context: 8192
     concurrency: 4
     weights_mib: 1749
-    anon_mib: 1256                # hardware_fit estimate
-    memory_budget_mb: 3584
+    anon_mib: 1512                # hardware_fit estimate, incl. 256 MiB prompt cache
+    cache_ram_mib: 256
+    memory_budget_mb: 3840
     endpoint: http://tier0-small.ai-serving.svc:8080
     license: apache-2.0
     chat_template_kwargs: {enable_thinking: false}
@@ -56,6 +58,7 @@ profiles:
     concurrency: 2
     weights_mib: 609
     anon_mib: 736                 # hardware_fit estimate (no logits buffer: pooled embeddings)
+    cache_ram_mib: 0
     memory_budget_mb: 1792
     endpoint: http://embedding.ai-serving.svc:8080
     license: apache-2.0

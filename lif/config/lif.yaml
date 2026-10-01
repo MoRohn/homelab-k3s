@@ -37,12 +37,12 @@ memory_guard:
   sustain_sec: 60
   optional: [tier0-small]                  # shed first (redundancy tiers)
   shed_optional_below_mib: 9216
-  restore_optional_above_mib: 12800       # ≥ shed line + tier0-small's 3584 Mi limit, or a restore re-sheds
+  restore_optional_above_mib: 13056       # ≥ shed line + tier0-small's 3840 Mi limit, or a restore re-sheds
   secondary: [embedding]                   # shed only in the danger zone
   shed_secondary_below_mib: 6144
   restore_secondary_above_mib: 8704
   # tier0 (the hot fallback) is never shed by the guard; the kernel OOM score and its
-  # 4.5 GiB cgroup limit bound it instead.
+  # 4.75 GiB cgroup limit bound it instead.
 
 gpu:
   safety_reserve_gb: 16

@@ -316,8 +316,8 @@ async def test_memory_guard_hysteresis(tmp_path, monkeypatch):
     gpu.snap = Snapshot(reachable=True, state=BlerbzState.LOW, mem_available_mib=9800, ts=clock[0])
     clock[0] += 120
     await life.memory_guard()
-    assert scaled == [("tier0-small", 0)]         # 9.8 GiB: inside the hysteresis band (9216–12800), no flapping
-    gpu.snap = Snapshot(reachable=True, state=BlerbzState.LOW, mem_available_mib=13000, ts=clock[0])
+    assert scaled == [("tier0-small", 0)]         # 9.8 GiB: inside the hysteresis band (9216–13056), no flapping
+    gpu.snap = Snapshot(reachable=True, state=BlerbzState.LOW, mem_available_mib=13500, ts=clock[0])
     await life.memory_guard()
     clock[0] += 61
     await life.memory_guard()

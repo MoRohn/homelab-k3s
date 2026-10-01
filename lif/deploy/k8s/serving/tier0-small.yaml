@@ -57,12 +57,16 @@ spec:
             - "--flash-attn"
             - "on"
             - "--jinja"
+            - "--cache-ram"      # host-RAM prompt cache: llama.cpp defaults to 8 GiB of anon memory
+            - "256"
+            - "--cache-reuse"    # keep the cached prefix when the console drops the oldest turn
+            - "256"
           ports: [{name: http, containerPort: 8080}]
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
           resources:
-            # weights 1,749 MiB + anon ~1,256 MiB (hardware_fit estimate) + 15 %
-            requests: {cpu: 500m, memory: 3584Mi}
-            limits: {cpu: "8", memory: 3584Mi}
+            # weights 1,749 MiB + anon ~1,512 MiB incl. 256 MiB prompt cache (hardware_fit estimate) + 15 %
+            requests: {cpu: 500m, memory: 3840Mi}
+            limits: {cpu: "8", memory: 3840Mi}
           startupProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5, failureThreshold: 60}
           readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10, failureThreshold: 3}
           livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 30, timeoutSeconds: 10, failureThreshold: 4}
