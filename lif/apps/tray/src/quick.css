@@ -74,3 +74,5 @@ footer { display: flex; align-items: center; gap: 12px; font-size: 12px; }
   color: inherit;
 }
 .error { color: var(--down); font-size: 12px; }
+#fix-trust { font-size: 12px; }
+#fix-trust[hidden] { display: none; }

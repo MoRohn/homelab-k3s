@@ -21,13 +21,16 @@ async function checkTrust(url) {
   try {
     await fetch(new URL('/healthz', url), { mode: 'no-cors', cache: 'no-store' });
     setStatus('Online', 'ok');
+    $('fix-trust').hidden = true;
   } catch {
     setStatus('Certificate not trusted', 'down',
-      'This computer does not trust the Labzilla CA yet. Install labzilla-ca.crt (see the tray app README).');
+      'This computer does not trust the Labzilla CA yet. "How to fix" opens Trust this device to download it.');
+    $('fix-trust').hidden = false;
   }
 }
 
 function render(s) {
+  if (s.online !== true) $('fix-trust').hidden = true;
   if (s.online === null) setStatus('Checking…', '');
   else if (!s.online) setStatus('Not reachable', 'down');
   else checkTrust(s.url);
@@ -60,6 +63,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') invoke('hide_quick');
 });
 $('open').addEventListener('click', () => invoke('open_console'));
+$('fix-trust').addEventListener('click', () => invoke('open_trust_page'));
 $('server').addEventListener('click', () => {
   $('server-form').hidden = !$('server-form').hidden;
   if (!$('server-form').hidden) $('server-url').focus();

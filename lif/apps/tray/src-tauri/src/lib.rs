@@ -291,6 +291,17 @@ fn open_console(app: AppHandle) -> Result<(), String> {
     show_main(&app, None).map_err(|e| e.to_string())
 }
 
+/// The console's "Trust this device" page in the system browser: a computer that doesn't trust the
+/// Labzilla CA yet can still click through the browser warning there and download the certificate.
+#[tauri::command]
+fn open_trust_page(app: AppHandle) -> Result<(), String> {
+    let page = current_url(&app).join("/trust").map_err(|e| e.to_string())?;
+    if let Some(q) = app.get_webview_window("quick") {
+        let _ = q.hide();
+    }
+    tauri_plugin_opener::OpenerExt::opener(&app).open_url(page.as_str(), None::<&str>).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn hide_quick(app: AppHandle) {
     if let Some(q) = app.get_webview_window("quick") {
@@ -342,7 +353,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![get_status, ask, open_console, hide_quick, set_server])
+        .invoke_handler(tauri::generate_handler![get_status, ask, open_console, open_trust_page, hide_quick, set_server])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory); // menu-bar app: no Dock icon

@@ -11,7 +11,7 @@ your browser is closed.
 | Menu → **Open Labzilla** | Opens the full console in its own window. Closing the window keeps the app in the tray |
 | Menu → **Start at login** | Turns starting at login on or off (on after the first run) |
 | Look at the icon | In colour: the server is reachable. Grey: it isn't. The menu shows which server |
-| Look at Quick Ask's status | **Online**, **Not reachable**, or **Certificate not trusted** (install the CA, below) |
+| Look at Quick Ask's status | **Online**, **Not reachable**, or **Certificate not trusted** with a **How to fix** link (below) |
 
 Linux AppIndicator trays don't report clicks, so on Linux use the menu's **Ask Labzilla…** or the shortcut.
 AppIndicator doesn't report where the icon is either: Quick Ask drops from just beneath the top bar where you
@@ -20,9 +20,11 @@ first menu click it opens at the right-hand end of the top bar. (Needs X11; Wayl
 
 ## Install
 
-1. **Trust the Labzilla Local CA once** on the computer (the same step as for its browser): install
-   `secrets/labzilla-ca.crt` into the OS trust store. The app's windows use the OS web view, which trusts
-   what the OS trusts.
+1. **Trust the Labzilla Local CA once** on the computer (the same step as for its browser). Open
+   `https://labzilla.local/trust` (or Quick Ask → **How to fix**), accept the browser warning this one time,
+   press **Download certificate** and install it into the OS trust store. Check the SHA-256 fingerprint
+   against the one shown on a device that already trusts Labzilla. The app's windows use the OS web view,
+   which trusts what the OS trusts.
 
    | OS | How |
    |---|---|
