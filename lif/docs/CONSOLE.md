@@ -360,7 +360,7 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 | 18 | Direct prompt URL `/ask` | Done | Route `/ask` | |
 | 19 | Voice input | Partial | Ask composer | Web Speech API is feature-detected. It needs a secure context and browser support, and is hidden with a reason otherwise |
 | 20 | File intake, "Processing: Local only" | Partial | Ask composer, `AttachmentIn` | Text, code, logs, markdown, JSON and CSV (≤ 256 KB) are read in the browser. Images and PDFs are accepted but answered honestly: there is no local vision model and no PDF text extraction. A message with files stays Local only even when Jev routing is on |
-| 21 | Response actions | Partial | Ask | Copy, Continue and Open Details are in v1. Save to Knowledge needs the knowledge service (read-only until deployed). Run as Agent is hidden: no installed agent takes a free-form task yet (Model Scout and the Evaluator run fixed model checks) |
+| 21 | Response actions | Partial | Ask | Copy, Continue and Open Details are in v1. Save to Knowledge is not offered as a write yet: the console reads knowledge only. Run as Agent is hidden: no installed agent takes a free-form task yet (Model Scout and the Evaluator run fixed model checks) |
 | 22 | Agents screen | Partial | `pages/agents`, `routes/agents.py` | There is no AgentRun backend. Runs are synthesized from discovery runs, benchmark activity, the decision cycle and traces, and labelled by source. There is no Code Agent |
 | 23 | Agent detail | Partial | `/agents/:id` | Goal, steps, decisions, tools and artifacts come from the source records. Cost is shown only where Jev spend is recorded. No chain-of-thought |
 | 24 | Activity timeline | Done | `Timeline` | Built from activity events |
@@ -371,7 +371,7 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 | 29 | Candidate comparison | Partial | `/models/candidates/:id` | Stability comes from benchmark errors only; no canary outcome metrics exist. "Ignore" hides the candidate on this device only (there is no backend ignore; blocking is an API-only release action in v1) |
 | 30 | Jobs combine all background work | Partial | `pages/jobs`, `routes/jobs.py` | Batch jobs are durable. Discovery, download and benchmark tasks are in controller memory and lost on restart. Scheduled work is static descriptors |
 | 31 | Resource-aware reasons | Done | `humanize.job_state` | "Paused — GPU reserved for BLERBZ — resumes automatically" |
-| 32 | Knowledge as project memory | Partial | `pages/knowledge` | Bundled read-only public knowledge until the knowledge service is deployed. Recent changes come from object dates |
+| 32 | Knowledge as project memory | Partial | `pages/knowledge` | Read from the knowledge service (deployed 2026-10-01); the console shows public objects only and never the private repo. Recent changes come from object dates |
 | 33 | Single knowledge search | Partial | `/api/knowledge/search` | Public objects only. Incidents live in private knowledge, so "the last OOM incident" gets an honest "no public record" |
 | 34 | Decision record page | Done | `/knowledge/o/:key` | History is limited to what the object records. A record whose `selected` is a bare option token shows its title as the decision, with the token in brackets |
 | 35 | System consolidates infrastructure | Partial | `pages/system` | Tabs: Compute, Services, Storage, Network, Logs, Settings. Kubernetes is folded into Services, because RBAC cannot read ai-system pods |
@@ -463,7 +463,7 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 
 ## Deploy & access
 
-**Status: not yet deployed.** The manifests, image stage and secrets below are ready; every step is the owner's (an apply changes production).
+**Status: deployed 2026-10-01** (image tag `*-console`; console + knowledge service, mDNS name and local CA in place). First-run setup (step 5) and trusting the CA on each device remain the owner's.
 
 ### What ships
 
