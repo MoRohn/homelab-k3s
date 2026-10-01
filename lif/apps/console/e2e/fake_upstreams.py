@@ -750,6 +750,9 @@ def _store(w: World, t: float) -> dict[str, list[Series]]:
         c("lif_requests_total", 0.002, endpoint="/v1/chat/completions", alias="local/default", status="503", job="gateway")
     c("lif_requests_total", 0.02 * load, endpoint="/v1/embeddings", alias="local/embedding", status="200", job="gateway")
     for prof, tps in ((P4B, 17.0), (P17B, 31.0)):
+        # llama-server's own counters (Home's answer-speed trend: tokens ÷ seconds spent generating)
+        c("llamacpp:tokens_predicted_total", 0.5 * load * tps, pod=f"{prof}-0", job="model-server")
+        c("llamacpp:tokens_predicted_seconds_total", 0.5 * load, pod=f"{prof}-0", job="model-server")
         h("lif_decode_tokens_per_second", tps, 0.04 * load, TPS_BUCKETS, profile=prof, job="gateway")
         c("lif_tokens_total", 30 * load, profile=prof, direction="input", job="gateway")
         c("lif_tokens_total", 9 * load, profile=prof, direction="output", job="gateway")
@@ -1823,7 +1826,48 @@ def _route_auto(text: str, data_class: str) -> tuple[str, dict]:
     return alias, decision
 
 
+# Curated answers for the README screenshots (readme_shots.mjs). Keyed by the exact demo prompt, so every
+# other test keeps the synthetic replies. They describe how Labzilla actually behaves.
+DEMO_ANSWERS: dict[str, str] = {
+    "How does Labzilla keep my conversations private?": (
+        "**Everything stays on this machine by default.**\n\n"
+        "- Prompts, files and answers are handled by local models on the DGX Spark. No cloud LLM is configured, "
+        "and policy blocks one until you allow it.\n"
+        "- Images are never stored: a conversation keeps only the file's name and size.\n"
+        "- *Allow Jev routing* is opt-in per conversation. Jev only sees the prompt to choose a model, and "
+        "messages with files never go to it.\n"
+        "- Every answer has a receipt: which model answered, how long it took, and whether anything left the box.\n\n"
+        "Open **Details** under any answer to see its receipt."),
+    "Write a Python function that retries an HTTP GET with exponential backoff": (
+        "Here is a small, dependency-light version using `httpx`:\n\n"
+        "```python\nimport random\nimport time\n\nimport httpx\n\n\n"
+        "def get_with_retry(url: str, attempts: int = 5, base: float = 0.5) -> httpx.Response:\n"
+        "    \"\"\"GET `url`, retrying connection errors and 5xx with jittered exponential backoff.\"\"\"\n"
+        "    for attempt in range(attempts):\n"
+        "        try:\n"
+        "            r = httpx.get(url, timeout=10)\n"
+        "            if r.status_code < 500:\n"
+        "                return r\n"
+        "        except httpx.TransportError:\n"
+        "            if attempt == attempts - 1:\n"
+        "                raise\n"
+        "        time.sleep(base * 2 ** attempt * (0.5 + random.random()))\n"
+        "    return r\n```\n\n"
+        "It returns the last response once the retries run out, so the caller still sees the final 5xx."),
+    "Explain unified memory on the DGX Spark in two sentences": (
+        "The DGX Spark's CPU and GPU share one 128 GB pool of LPDDR5X memory, so a model loaded once is reachable "
+        "by both without copying it across a bus. The trade-off is bandwidth: CPU and GPU draw from the same "
+        "memory channels, which is why Labzilla keeps a safety margin free and yields to production work."),
+    "Draft a two-line status update about the new Home cockpit": (
+        "**Home now answers \"how is Labzilla doing?\" at a glance:** answer speed, availability, free memory "
+        "and GPU load with six-hour trends, plus recent conversations and what needs attention.\n\n"
+        "Every tile links to the detail behind it, and nothing is shown as 0 when it simply wasn't measured."),
+}
+
+
 def _answer(prompt: str, alias: str, images: int = 0) -> str:
+    if prompt.strip() in DEMO_ANSWERS:
+        return DEMO_ANSWERS[prompt.strip()]
     topic = " ".join(prompt.split()[:8]) or "your request"
     if images:
         return (f"**What I see:** {'an image' if images == 1 else f'{images} images'} — a synthetic description "

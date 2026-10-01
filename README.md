@@ -22,6 +22,22 @@
 
 ---
 
+## A look inside
+
+<p align="center">
+  <img src="assets/screenshots/home.png" alt="Labzilla Console Home: a 'Labzilla is healthy' status block, then eight tiles for the last 24 hours (answers, answer speed, first word, availability, free memory, GPU load, AI requests, estimated value) with six-hour trend lines, recent conversations, service health and recent activity" width="100%">
+</p>
+<p align="center"><sub><b>Home</b>: is it healthy, how fast and available is local AI, what is the DGX doing, and what happened. Every tile drills down.</sub></p>
+
+<p align="center">
+  <img src="assets/screenshots/ask.png" alt="Labzilla Console Ask: conversation history on the left; an answer explaining that everything stays on the machine by default, with its receipt (model, device, time), the route Auto to Local Instant and a Local only badge" width="100%">
+</p>
+<p align="center"><sub><b>Ask</b>: private chat with local models. Every answer shows who answered, how fast, and that nothing left the box.</sub></p>
+
+<p align="center"><sub>Demo data from the console's test harness (<code>lif/apps/console/e2e/readme_shots.mjs</code>), not from a live system.</sub></p>
+
+---
+
 labzilla is a monorepo with two projects that share one host, one cluster and one set of
 local credentials:
 
