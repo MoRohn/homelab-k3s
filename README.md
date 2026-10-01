@@ -73,7 +73,7 @@ Everyday use: type in the command bar at the bottom (or press `/`). Plain questi
 
 Design, security model and every screen: [lif/docs/CONSOLE.md](lif/docs/CONSOLE.md).
 
-## Inside LIF
+## Inside LIF (Local Intelligence Fabric)
 
 LIF has one rule: **don't generate when you only need to decide.** Every agent step goes to the cheapest
 executor that can do it correctly, and the platform keeps measuring whether that is still true.
