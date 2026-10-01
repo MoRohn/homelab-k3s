@@ -26,9 +26,7 @@ personal/*
 .idea/
 tmp/
 
-# ---- Local Intelligence Fabric ----
-local-intelligence-fabric/.venv/
-local-intelligence-fabric/.pytest_cache/
+# ---- Python ----
 **/__pycache__/
 
 # ---- Separate projects symlinked in for path compatibility (see docs/local-intelligence-fabric.md) ----

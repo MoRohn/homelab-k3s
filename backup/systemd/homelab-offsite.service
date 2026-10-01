@@ -1,0 +1,9 @@
+[Unit]
+Description=Off-site copy of Longhorn backups (homelab-k3s/backup/offsite-sync.sh)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/homelab-k3s/backup/offsite-sync.sh
+Nice=10
+IOSchedulingClass=idle

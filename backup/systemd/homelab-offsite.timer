@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly off-site check; syncs when the last success is >20h old
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

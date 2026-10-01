@@ -108,8 +108,9 @@ prometheus-node-exporter:
     # GB10 uses cppc_cpufreq: reading frequencies goes through ACPI CPPC firmware calls
     # that block ~22% of the time, hanging the whole scrape (bisected 2026-10-01).
     - --no-collector.cpufreq
-    # Off-site backup freshness (backup/offsite-sync.sh); dir created by host/prep-networking.sh
-    - --collector.textfile.directory=/host/root/var/lib/node_exporter/textfile
+    # Off-site backup freshness (backup/offsite-sync.sh). /var/tmp: readable by node-exporter's
+    # unprivileged user, writable without sudo, survives reboots.
+    - --collector.textfile.directory=/host/root/var/tmp/node_exporter_textfile
   # 64Mi was OOM-killed ~40 times a day here (many interfaces, NVMe, hwmon); it peaks ~60Mi
   resources:
     requests: {cpu: 10m, memory: 48Mi}
