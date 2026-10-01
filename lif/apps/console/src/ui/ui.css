@@ -1,0 +1,3 @@
+/* Kept as the stable import path used by main.tsx; the kit's styles live in src/styles/components.css
+   (styles stay together with tokens.css and base.css). */
+@import '../styles/components.css';

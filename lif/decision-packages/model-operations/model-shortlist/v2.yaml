@@ -1,0 +1,33 @@
+# v2 (2026-10-01): category meaning and the summary-vs-pipeline_tag precedence were ambiguous (2 misses).
+# v1 is unchanged; benchmarks/decision-engineering found the ambiguity.
+name: model-shortlist
+version: v2
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: model-operations
+data_class: PUBLIC
+instructions: 'Judge whether the model described by `model.id`, `model.pipeline_tag` and `model.summary` is built
+  for the task category named in `category.name`.
+
+  '
+criteria: '`model.pipeline_tag` or `model.summary` names the task of `category.name`, where "chat" means conversational
+  text generation, "code" means generating or editing code, "embedding" means text embeddings for similarity search
+  and retrieval, and "rerank" means scoring query-passage relevance. When `model.summary` states a different intended
+  use, it overrides `model.pipeline_tag`. `model.summary` does not describe it as a test, toy, merge of unclear
+  origin, or a model for a different task.'
+state_schema:
+  model.id: str
+  model.pipeline_tag: str
+  model.summary: str
+  category.name: str
+default: 'no'
+fallback:
+- rules
+policy:
+  mode: three_zone
+  middle_route:
+  - local_reasoning
+  low_route:
+  - safe_default

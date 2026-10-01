@@ -1,0 +1,10 @@
+# Traefik's default certificate for every LAN ingress host (replaces the self-signed TRAEFIK DEFAULT CERT,
+# which was regenerated on each Traefik restart). The Secret is created by issue-certs.sh from secrets/.
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: kube-system
+spec:
+  defaultCertificate:
+    secretName: lan-default-tls

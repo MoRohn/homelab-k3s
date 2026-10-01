@@ -35,7 +35,7 @@ SECRET_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|KEY|PASS$", re.I)
 
 
 def local_secret_values():
-    """Credential values on this machine. Whole-file secrets (*.key, *.token) count in full;
+    """Credential values on this machine. Whole-file secrets (*.key, *.token, *.code) count in full;
     dotenv files contribute only variables whose NAME says secret (usernames and endpoints
     legitimately appear in tracked docs)."""
     vals = set()
@@ -45,7 +45,7 @@ def local_secret_values():
         if not p.is_file():
             continue
         text = p.read_text(errors="ignore")
-        if p.suffix in (".key", ".token"):
+        if p.suffix in (".key", ".token", ".code"):
             vals.update(l.strip() for l in text.splitlines() if len(l.strip()) >= 12)
             continue
         for line in text.splitlines():

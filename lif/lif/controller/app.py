@@ -44,7 +44,9 @@ class State:
         self.dag.load()
         self.k8s = K8s()
         self.life = Lifecycle(self.reg, self.k8s, self.gpu, self.fabric)
-        self.disc = Discovery(self.reg, self.dag, admissible_mib=lambda: self.gpu.current().admissible_mib)
+        self.disc = Discovery(self.reg, self.dag, admissible_mib=lambda: self.gpu.current().admissible_mib,
+                              observer=self._observe if (config.get("decision_engineering.observe") or {}).get(
+                                  "discovery") else None)
         self.admin = {}
         for line in (config.secret("LIF_ADMIN_KEYS") or "").splitlines():
             if ":" in line and not line.strip().startswith("#"):
@@ -57,6 +59,11 @@ class State:
         self.http = httpx.AsyncClient(timeout=30)
         self.tasks: list[asyncio.Task] = []
         self.started = time.time()
+
+    async def _observe(self, payload: dict) -> None:
+        """Report a discovery decision to the decision-fabric's shadow API (POST /de/observe)."""
+        r = await self.http.post(f"{self.decision_url}/de/observe", json=payload, timeout=20)
+        r.raise_for_status()
 
 
 S: State

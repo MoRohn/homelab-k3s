@@ -368,3 +368,72 @@ def test_mcp_classify_operation_routes_by_primitive():
                               )["bucket"] == C.CODE
     r = handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     assert {t["name"] for t in r["result"]["tools"]} >= {"decide", "classify_operation", "decision_lint"}
+
+
+# ── real-agent shadow: POST /de/observe + discovery wiring ────────────────────
+
+ADV = {"name": "model-advance", "version": "v1", "primitive": "noul", "stage": "shadow", "risk": "low",
+       "data_class": "PUBLIC", "default": "no",
+       "instructions": "Judge whether the model in `model.id` is worth benchmarking for `category.name`.",
+       "criteria": "`model.id` is built for the task of `category.name`.",
+       "state_schema": {"model.id": "str", "category.name": "str"}}
+
+
+def test_observe_shadows_a_real_agent_and_routes_disagreement_to_human(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from lif.decision import de_api, shadow as sh
+    monkeypatch.setenv("LIF_TRACE_DIR", str(tmp_path / "traces"))
+    monkeypatch.setenv("LIF_INTERNAL_KEY", "ik")
+    defs = index_definitions([DecisionDef.from_raw(ADV)])
+    h, calls = jev_answers({"model_advance": {"noul": 0.92}})
+    rt = Runtime.build(store=Store(str(tmp_path / "de.db")), rules=RulesProvider(), jev_key="", definitions=defs)
+    rt.fabric.jev = jev(h)
+    de_api.RT = rt
+    app = FastAPI()
+    app.include_router(de_api.router)
+    c = TestClient(app)
+    body = {"decision": "model-advance", "agent": "model-discovery", "data_class": "PUBLIC",
+            "state": {"model": {"id": "org/Coder-7B"}, "category": {"name": "coding"}, "extra": "dropped"},
+            "baseline": {"answer": "no", "executor": "discovery-policy:jev", "confidence": 0.55}}
+    r = c.post("/de/observe", json=body).json()
+    assert r["served"] == "no" and r["shadow"][0]["answer"] == "yes" and r["disagreement"] and r["review_ticket"]
+    assert "extra" not in json.dumps(calls[0]["state"])                # state compiled to the schema
+    prov = rt.store.q("SELECT route, executor FROM provenance WHERE id=?", (r["provenance_id"],))[0]
+    assert prov["route"] == "baseline" and prov["executor"] == "discovery-policy:jev"
+    # the human labels the case in the Review Queue → outcome on provenance and shadow rows
+    assert c.post(f"/de/human/{r['review_ticket']}", json={"answer": "yes"}, headers={"X-LIF-Internal": "ik"}
+                  ).status_code == 200
+    s = sh.samples(rt.store, "model-advance/v1")
+    assert len(s) == 1 and s[0].correct is True and s[0].agree is False
+    assert list((tmp_path / "traces" / "model-discovery").glob("*.jsonl"))   # mineable trace
+    assert c.post("/de/observe", json={**body, "baseline": {"answer": "maybe"}}).status_code == 400
+
+
+async def test_discovery_reports_each_advance_decision(tmp_path):
+    from lif.models import discovery as disc
+    from lif.decision.dag import WorkflowRun
+    st = disc.advance_state({"model_id": "org/Coder-14B", "pipeline_tag": "text-generation", "tags": ["code"],
+                             "params_b": 14, "last_modified": "2026-09"}, "coding",
+                            {"model_id": "org/Coder-7B", "params_b": 7, "last_modified": "2026-01"})
+    assert st["comparison"] == {"newer_than_current": True, "larger_than_current": True}
+    assert disc.advance_state({"model_id": "x"}, "general", None)["current"]["model_id"] == "none"
+    sent = []
+
+    async def observer(p):
+        sent.append(p)
+    d = disc.Discovery.__new__(disc.Discovery)
+    d.observer = observer
+    from lif.decision.types import DecisionResult
+    suit = DecisionResult("benchmark", 0.5, {}, "jev", "model-suitability/v2")
+    runs = [WorkflowRun("w", {"recommendation": {"action": "shortlist", "p_advance": 0.8}, "suitability": suit},
+                        {}, [], 1, 1),
+            WorkflowRun("w", {"recommendation": {"action": "review", "p_advance": 0.4}, "suitability": suit},
+                        {}, [], 1, 1), RuntimeError("dag failed")]
+    survivors = [({"model_id": "a"}, {}), ({"model_id": "b"}, {}), ({"model_id": "c"}, {})]
+    assert await d._observe("coding", None, survivors, runs) == 2
+    assert [p["baseline"]["answer"] for p in sent] == ["yes", "no"] and sent[0]["data_class"] == "PUBLIC"
+
+    async def broken(p):
+        raise ConnectionError("decision-fabric down")
+    d.observer = broken
+    assert await d._observe("coding", None, survivors, runs) == 0         # never breaks discovery

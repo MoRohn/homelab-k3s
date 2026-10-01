@@ -1,0 +1,29 @@
+/* Home (desktop/medium): one calm status block + one list (§6, §108). Tokens only; no new colors. */
+.lz-home-headline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.lz-home-headline h1 {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+  margin: 0;
+}
+.lz-home-updated { margin-left: auto; }
+.lz-home-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.lz-home-link:hover { color: var(--brand-text); border-bottom-color: currentColor; }
+.lz-home-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-4);
+}
+.lz-home-attention > .section-title { color: var(--text); }

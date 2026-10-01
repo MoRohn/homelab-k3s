@@ -1,0 +1,74 @@
+/* System tabs. Tokens only; segment colors come from the ResourceBar palette (--seg-*). */
+.lz-sys-panel { display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* Compute: "Current work" shares (§36) */
+.lz-sys-work {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+.lz-sys-work li { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* Workload timeline (§37): time · label · strip · numbers; stacks on narrow widths */
+.lz-sys-timeline { list-style: none; margin: 0; padding: 0; }
+.lz-sys-timeline li {
+  display: grid;
+  grid-template-columns: minmax(4.5em, max-content) minmax(8em, 1fr) minmax(80px, 2fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.lz-sys-timeline li:first-child { border-top: 0; }
+.lz-sys-timeline time { white-space: nowrap; }
+.lz-sys-timeline-label { overflow-wrap: anywhere; }
+.lz-sys-strip { width: 100%; height: 8px; display: block; }
+.lz-sys-strip-bg { fill: var(--seg-free); }
+.lz-sys-strip-blerbz { fill: var(--seg-blerbz); }
+.lz-sys-strip-ai { fill: var(--seg-ai); }
+@media (max-width: 639.98px) {
+  .lz-sys-timeline li { grid-template-columns: minmax(4em, max-content) 1fr; }
+  .lz-sys-timeline li > .lz-sys-strip,
+  .lz-sys-timeline li > span:last-child { grid-column: 2; }
+}
+
+/* Services: one block per service, worst first */
+.lz-sys-services { list-style: none; margin: 0; padding: 0; }
+.lz-sys-service {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+}
+.lz-sys-service:first-child { border-top: 0; padding-top: var(--space-2); }
+.lz-sys-service-name { font-size: var(--fs-md); font-weight: var(--fw-semibold); margin: 0; }
+
+/* Logs: filter + search on one row when there is room */
+.lz-sys-logs-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.lz-sys-logs-filters > :last-child { flex: 1 1 220px; max-width: 360px; }
+
+/* Settings */
+.lz-sys-setting + .lz-sys-setting { border-top: 1px solid var(--border); padding-top: var(--space-2); }
+.lz-sys-prefs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+.lz-sys-advanced > summary {
+  cursor: pointer;
+  min-height: var(--touch);
+  display: flex;
+  align-items: center;
+  font-weight: var(--fw-semibold);
+}
+.lz-sys-advanced[open] > summary { margin-bottom: var(--space-3); }

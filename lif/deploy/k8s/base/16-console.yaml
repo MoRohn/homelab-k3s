@@ -1,0 +1,172 @@
+# Labzilla Console (lif.console, docs/CONSOLE.md): the human front door. Serves the PWA and /api,
+# and calls controller/gateway/batch/Prometheus in-cluster with keys that never reach the browser.
+# One replica + Recreate: SQLite (users, sessions, devices, threads, audit) has a single writer, and
+# the SSE hub's fan-out lives in that one process.
+# Priority ai-interactive: user-facing, but not on the inference path, so it sits below
+# ai-critical (gateway/controller) and above batch work.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lif-console
+  namespace: ai-system
+  labels:
+    app: console
+    app.kubernetes.io/part-of: lif
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console
+  namespace: ai-system
+  labels: &id001
+    app: console
+    app.kubernetes.io/part-of: lif
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: console
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      priorityClassName: ai-interactive
+      automountServiceAccountToken: false     # no Kubernetes API access: everything goes via the controller
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: console
+        image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+        args:
+        - lif.console.app:app
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: LIF_GATEWAY_URL
+          value: http://gateway.ai-system.svc:8080
+        - name: LIF_CONTROLLER_URL
+          value: http://controller.ai-system.svc:8080
+        - name: LIF_BATCH_URL
+          value: http://batch.ai-system.svc:8080
+        - name: LIF_PROMETHEUS_URL
+          value: http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090
+        - name: LIF_CONSOLE_DB
+          value: /data/console.db
+        - name: LIF_KNOWLEDGE_ROOT              # bundled public repos; LIF_KNOWLEDGE_URL unset = read-only mode
+          value: /app/knowledge
+        - name: LIF_KNOWLEDGE_INDEX             # derived index, rebuilt on start (root filesystem is read-only)
+          value: /tmp/knowledge-index.db
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 96Mi
+          limits:
+            cpu: '1'
+            memory: 320Mi
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 2
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http
+          periodSeconds: 10
+        volumeMounts:
+        - name: secrets
+          mountPath: /var/run/lif/secrets
+          readOnly: true
+        - name: config
+          mountPath: /etc/lif
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: data
+          mountPath: /data
+      volumes:
+      # Only the console's own keys, not the whole Secret (no Jev or inter-service keys here).
+      # optional: the console starts before create-secrets.sh has added them and shows
+      # "Not configured" instead of failing to mount.
+      - name: secrets
+        secret:
+          secretName: lif-secrets
+          defaultMode: 288
+          optional: true
+          items:
+          - key: LIF_CONSOLE_ADMIN_KEY
+            path: LIF_CONSOLE_ADMIN_KEY
+          - key: LIF_CONSOLE_GATEWAY_KEY
+            path: LIF_CONSOLE_GATEWAY_KEY
+          - key: LIF_CONSOLE_SETUP_CODE
+            path: LIF_CONSOLE_SETUP_CODE
+      - name: config
+        projected:
+          sources:
+          - configMap:
+              name: lif-config
+              items:
+              - key: lif.yaml
+                path: lif.yaml
+              - key: models.yaml
+                path: models.yaml
+              - key: core-decisions.yaml
+                path: decisions/core.yaml
+              - key: candidate-model-analysis.yaml
+                path: workflows/candidate-model-analysis.yaml
+              - key: core-evals.yaml
+                path: evals/core.yaml
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: data
+        persistentVolumeClaim:
+          claimName: lif-console
+---
+# Port name `http` + label part-of=lif: the lif-services ServiceMonitor scrapes /metrics.
+apiVersion: v1
+kind: Service
+metadata:
+  name: console
+  namespace: ai-system
+  labels:
+    app: console
+    app.kubernetes.io/part-of: lif
+spec:
+  selector:
+    app: console
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http

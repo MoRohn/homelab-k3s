@@ -23,6 +23,7 @@ DETERMINISTIC CODE → JEV DECISION FABRIC → LOCAL FAST MODEL → LOCAL REASON
 | `qwen3-1.7b-q8-cpu` | `ai-serving/tier0-small` | Optional fallback; the memory guard sheds it when host headroom is low |
 | `qwen3-embedding-0.6b-q8-cpu` | `ai-serving/embedding` | 1024-dim embeddings |
 | Local image registry | `ai-system/registry` | Bound to `127.0.0.1:5000` only |
+| Labzilla Console *(not yet deployed)* | `ai-system/console` | Web console and mobile gateway (PWA), `https://labzilla.tiny-dgx.lan`; manifests ready, deploy is the owner's step |
 
 **No LIF model uses the GPU yet.** The primary workload's resident models pin about 107 GB, and gpusched admits about 0.6–1.2 GiB. See [GPU_SCHEDULING.md](docs/GPU_SCHEDULING.md) for the path to GPU tiers.
 
@@ -80,6 +81,7 @@ Streaming responses carry `X-LIF-Served-By`, `X-LIF-Fallback`, `X-LIF-Degraded`,
 | [OBSERVABILITY](docs/OBSERVABILITY.md) | Metrics, alerts, availability |
 | [KNOWLEDGE](docs/KNOWLEDGE.md) | Persistent knowledge layer: typed agent repos, decisions/evidence/assumptions, reconsideration, sessions, MCP, packages |
 | [OPERATIONS](docs/OPERATIONS.md) | Runbook, `local-ai` CLI, Control Center |
+| [CONSOLE](docs/CONSOLE.md) | Labzilla Console: design, routes, security model, API, deploy & access (DNS, mDNS, TLS) |
 | [DECISION_ENGINEERING](docs/DECISION_ENGINEERING.md) | Decision mining, versioned Jev questions, calibration, cascade (code → Jev → local → Kimi K3 → human), shadow, agent SDK |
 | [DISASTER_RECOVERY](docs/DISASTER_RECOVERY.md) | Reboot, outages, restore |
 | [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Symptoms → causes → fixes |

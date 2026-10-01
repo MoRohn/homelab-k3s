@@ -2,6 +2,8 @@
 # the internet: the primary workload's ngrok tunnel forwards only :8766 and is untouched.
 #   https://ai.tiny-dgx.lan   → gateway  (OpenAI-compatible; API key required)
 #   https://lif.tiny-dgx.lan  → controller + Control Center (admin key required)
+#   https://labzilla.tiny-dgx.lan → Labzilla Console (own sign-in and device pairing; docs/CONSOLE.md)
+#   https://labzilla.local    → the same console, once the owner publishes the name via mDNS (docs/CONSOLE.md)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,3 +19,7 @@ spec:
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: gateway, port: {number: 8080}}}}]}
     - host: lif.tiny-dgx.lan
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: controller, port: {number: 8080}}}}]}
+    - host: labzilla.tiny-dgx.lan
+      http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: console, port: {number: 8080}}}}]}
+    - host: labzilla.local
+      http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: console, port: {number: 8080}}}}]}

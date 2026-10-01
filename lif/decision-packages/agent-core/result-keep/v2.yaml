@@ -1,0 +1,35 @@
+# v2 (2026-10-01): a bare status ('Checked.', a single word) read as 'drop' instead of insufficient_information.
+# v1 is unchanged; benchmarks/decision-engineering found the ambiguity.
+name: result-keep
+version: v2
+primitive: choice
+stage: designed
+risk: low
+reversible: true
+owner: agent-core
+data_class: CONFIDENTIAL
+instructions: 'Decide what to do with the worker result in `result.summary` for the goal in `goal.text`.
+
+  '
+criteria:
+  keep: '`result.summary` contains evidence, data, a finding (including a negative finding) or a partial solution
+    that a final answer to `goal.text` would use'
+  drop: '`result.summary` is off-topic for `goal.text`, an error message with no diagnostic detail, or only restates
+    the task'
+  insufficient_information: '`result.summary` is a single word, a bare status such as "done" or "checked" with no
+    content, or is cut off before it says anything about `goal.text`'
+exits:
+- insufficient_information
+state_schema:
+  goal.text: str
+  result.summary: str
+default: insufficient_information
+fallback:
+- rules
+- local_llm
+policy:
+  mode: three_zone
+  middle_route:
+  - local_reasoning
+  low_route:
+  - safe_default

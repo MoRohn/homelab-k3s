@@ -190,10 +190,13 @@ def priority_score(meta: dict, fit: dict, run: dict, category: str) -> float:
 
 class Discovery:
     def __init__(self, registry: Registry, dag: DagRuntime, hfc: hf.HFClient | None = None,
-                 admissible_mib=lambda: 0.0):
+                 admissible_mib=lambda: 0.0, observer=None):
         self.reg, self.dag, self.hf = registry, dag, hfc or hf.HFClient()
         self.admissible = admissible_mib
         self.running: int | None = None
+        # Decision Engineering: async fn(payload) that reports each advance decision to
+        # POST /de/observe (shadow + human review). Never awaited on the critical path's result.
+        self.observer = observer
 
     def current_models(self) -> dict[str, dict]:
         out = {}
@@ -290,6 +293,8 @@ class Discovery:
                     if rec["action"] in ("shortlist", "review"):
                         scored.append((priority_score(meta, fit, r.results, cat), meta, fit, screening))
                 f["after_screening"] = len(scored)
+                if self.observer is not None:
+                    f["observed"] = await self._observe(cat, current.get(cat), survivors, runs)
                 providers = Counter(r.results["suitability"].provider for r in runs if not isinstance(r, Exception))
                 f["providers"] = dict(providers)
 
@@ -328,6 +333,28 @@ class Discovery:
             return {"status": "failed", "run": run_id, "error": str(exc), "funnel": funnel}
         finally:
             self.running = None
+
+    async def _observe(self, cat: str, cur: dict | None, survivors, runs) -> int:
+        """Report the agent's own advance decision for every screened model to the shadow API.
+        Bounded, concurrent, and failure-proof: discovery never depends on it."""
+        payloads = []
+        for (meta, _), r in zip(survivors, runs):
+            if isinstance(r, Exception):
+                continue
+            rec, suit = r.results["recommendation"], r.results["suitability"]
+            payloads.append({"decision": "model-advance", "agent": "model-discovery", "workflow": "discovery",
+                             "data_class": "PUBLIC", "state": advance_state(meta, cat, cur),
+                             "baseline": {"answer": "yes" if rec["action"] == "shortlist" else "no",
+                                          "executor": f"discovery-policy:{suit.provider}",
+                                          "confidence": float(rec.get("p_advance") or 0.0)}})
+
+        async def one(p):
+            try:
+                await asyncio.wait_for(self.observer(p), timeout=20)
+                return 1
+            except Exception:
+                return 0
+        return sum(await asyncio.gather(*(one(p) for p in payloads)))
 
     async def _list(self, cat: str, limit: int) -> list[dict]:
         """Raises HFUnavailable if EVERY query for the category failed — an outage must
@@ -379,6 +406,19 @@ def _bucket(why: str) -> str:
         if why.startswith(prefix):
             return prefix
     return re.sub(r"[\d.]+B outside.*", "size outside category range", why)
+
+
+def advance_state(meta: dict, cat: str, cur: dict | None) -> dict:
+    """State for the model-advance decision. Comparisons with production are computed here
+    (rule 6: never ask the model to compare numbers or dates)."""
+    cur = cur or {}
+    cp, up = float(meta.get("params_b") or 0), float(cur.get("params_b") or 0)
+    return {"model": {"id": meta.get("model_id", ""), "pipeline_tag": meta.get("pipeline_tag") or "",
+                      "tags": [str(t) for t in (meta.get("tags") or [])][:20]},
+            "category": {"name": cat},
+            "current": {"model_id": cur.get("model_id") or "none"},
+            "comparison": {"newer_than_current": str(meta.get("last_modified") or "") > str(cur.get("last_modified") or ""),
+                           "larger_than_current": bool(cur) and cp > up * 1.2}}
 
 
 def _screen_state(meta: dict) -> dict:

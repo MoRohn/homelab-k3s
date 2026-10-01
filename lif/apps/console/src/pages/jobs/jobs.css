@@ -1,0 +1,11 @@
+/* Jobs pages (lazy chunk). Everything else comes from the ui kit. */
+.lz-jobs-more { padding: var(--space-2) var(--row-px, var(--space-4)) var(--space-3); }
+.lz-jobs-note {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--info-tint);
+  color: var(--text);
+}
+.lz-crumb { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); text-decoration: none; min-height: 32px; align-self: flex-start; }
+.lz-crumb:hover { color: var(--text); }
+@media (pointer: coarse) { .lz-crumb { min-height: 44px; } }

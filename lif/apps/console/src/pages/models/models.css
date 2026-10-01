@@ -1,0 +1,66 @@
+/* Models area only (§26–§29). Loaded with the lazy Models chunk; everything else comes from ui.css tokens. */
+
+.lz-models-gap { gap: var(--space-2); }
+
+/* portfolio: ROLE / MODEL / STATE */
+.lz-role-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lz-role-name { font-weight: var(--fw-semibold); }
+.lz-role-blurb { color: var(--text-muted); font-size: var(--fs-sm); }
+.lz-role-cause { color: var(--warning); font-size: var(--fs-sm); display: flex; gap: var(--space-1); align-items: flex-start; }
+.lz-role-cause svg { flex: none; margin-top: 2px; }
+.lz-state-cell { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
+
+/* "Advanced" disclosure (§97) */
+.lz-advanced > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  min-height: var(--touch);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+}
+.lz-advanced > summary::-webkit-details-marker { display: none; }
+.lz-advanced > summary::before { content: '▸'; font-size: 0.8em; }
+.lz-advanced[open] > summary::before { content: '▾'; }
+.lz-advanced > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.lz-advanced[open] > .stack { margin-top: var(--space-3); }
+
+/* discovery stages */
+.lz-disc-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.lz-disc-stage { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; }
+.lz-disc-stage.pending, .lz-disc-stage.skipped { color: var(--text-muted); }
+
+/* fallback chain: "Qwen3 4B → Qwen3 1.7B" */
+.lz-chain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.lz-chain li { display: flex; align-items: center; gap: var(--space-2); }
+.lz-chain-step {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-xs);
+  font-feature-settings: var(--font-features-num);
+}
+.lz-chain li.serving .lz-chain-step { background: var(--brand-tint); color: var(--brand-text); }
+
+/* actions: each button carries its own consequence line, so they stack into a grid */
+.lz-model-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-2); }
+.lz-model-actions > button { justify-content: flex-start; height: 100%; }
+
+/* comparison verdicts: icon + word, never color alone (§57) */
+.lz-verdict { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-sm); white-space: nowrap; }
+.lz-verdict.better { color: var(--success); }
+.lz-verdict.worse { color: var(--danger); }
+.lz-verdict.same, .lz-verdict.unknown { color: var(--text-muted); }
+.lz-cmp-head { font-size: var(--fs-xs); color: var(--text-muted); font-weight: var(--fw-regular); display: block; }
+
+.lz-canary-pick { max-width: 220px; }
+
+.lz-compare-link { color: var(--brand-text); font-size: var(--fs-sm); font-weight: var(--fw-medium); white-space: nowrap; }

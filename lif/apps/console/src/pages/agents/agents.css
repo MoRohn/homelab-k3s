@@ -1,0 +1,29 @@
+/* Agents pages (lazy chunk). Everything else comes from the ui kit. */
+.lz-agents-h { font-size: var(--fs-md); font-weight: var(--fw-semibold); display: inline-flex; align-items: center; gap: var(--space-2); }
+.lz-agents-section:focus { outline: none; }
+.lz-agents-section:focus-visible { box-shadow: var(--focus-ring); border-radius: var(--radius); }
+.lz-agents-note { padding: var(--space-2) var(--space-3); border-radius: var(--radius); background: var(--info-tint); }
+.lz-agents-running { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); margin: 0; padding: 0; list-style: none; }
+.lz-agents-running > li { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.lz-agents-running .lz-agent-card { height: 100%; border-radius: var(--radius); }
+
+/* run sheet */
+.lz-run-agents, .lz-run-checks { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.lz-run-agent { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+.lz-run-agent:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+.lz-run-agent input, .lz-run-check input { margin-top: 3px; accent-color: var(--brand); width: 18px; height: 18px; flex-shrink: 0; }
+.lz-run-agent-name { font-weight: var(--fw-semibold); }
+.lz-run-check { display: flex; align-items: center; gap: var(--space-2); min-height: 36px; cursor: pointer; }
+.lz-run-check input { margin-top: 0; }
+.lz-run-unavailable { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+.lz-run-unavailable li { display: flex; flex-direction: column; color: var(--text-muted); }
+
+.lz-crumb { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); text-decoration: none; min-height: 32px; align-self: flex-start; }
+.lz-crumb:hover { color: var(--text); }
+.lz-agent-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.lz-agent-result { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (pointer: coarse) {
+  .lz-crumb, .lz-run-check { min-height: 44px; }
+}
+.lz-run-handoff { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.lz-run-handoff p { margin: 0; }
