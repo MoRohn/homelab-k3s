@@ -1,0 +1,10 @@
+name: grounding
+version: 1
+description: What one piece of evidence says about one claim. Inspectable support, not truth.
+fields:
+  claim: {type: "claim?", description: "omit when embedded under the claim"}
+  source: {type: evidence, required: true}
+  passage: "passage?"
+  stance: {type: enum, required: true, values: [supports, contradicts, observes, reports, infers, uncertain]}
+  basis: {type: enum, values: [observed, measured, reported, inferred]}
+  note: text

@@ -1,0 +1,7 @@
+name: question
+version: 1
+fields:
+  status: {type: enum, required: true, values: [open, answered, dropped]}
+  answer: text
+  answered_by: {type: "object?", propagates: false}
+  blocks: {type: "object[]", inverse: true}

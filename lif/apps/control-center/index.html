@@ -176,7 +176,8 @@ function tbl(headers, rows, opts){
 
 // ── pages ────────────────────────────────────────────────────────────────────
 const PAGES = ["Overview","Models","Discovery","Deployments","Inference","Decision Fabric","Batch Jobs","GPU",
-               "Benchmarks","Registry","Savings","Settings"];
+               "Benchmarks","Registry","Savings",
+               "Knowledge","Decisions","Evidence","Reconsiderations","Diagnostics","Agent Work","Skills & Packages"];
 let current = lsGet("lif.page") || "Overview";
 if (!PAGES.includes(current)) current = "Overview";
 let cache = {};
@@ -247,7 +248,8 @@ async function pageModels(){
   const rows = (d.models || []).map(m => {
     const p = m.profile || {}; const s = (m.last_benchmark && m.last_benchmark.summary) || {};
     return html`<tr>
-      <td><div class="mono">${m.id}</div><div class="small muted">${m.model_id}@${String(m.revision || "").slice(0, 10)}</div></td>
+      <td><div class="mono">${m.id}</div><div class="small muted">${m.model_id}@${String(m.revision || "").slice(0, 10)}</div>
+        <a href="#" class="small" data-kmodel="${m.id}">decisions, evidence, incidents →</a></td>
       <td>${pill(m.state, MODEL_STATE_CLASS[m.state])} ${m.pinned ? pill("pinned","info") : ""} ${m.blocked ? pill("blocked","bad") : ""}</td>
       <td>${m.category}</td><td>${p.runtime || "–"} / ${p.device || "–"}</td><td>${p.precision || "–"}</td>
       <td class="num">${fmt.n(p.params_b)}B</td><td class="num">${fmt.mib(p.memory_budget_mb)}</td>
@@ -543,9 +545,179 @@ document.getElementById("view").addEventListener("click", async e => {
   }
 });
 
+// ── Knowledge (persistent knowledge layer, /v1/knowledge on the knowledge service) ──
+// Same admin key as the controller. In the cluster the ingress routes /v1/knowledge to the
+// knowledge service; elsewhere set localStorage "lif.knowledgeBase" to its origin.
+const KBASE = (lsGet("lif.knowledgeBase") || "") + "/v1/knowledge";
+const K = {sel: lsGet("lif.k.sel"), q: "", type: ""};
+function kapi(method, path, body){ return api(method, KBASE + path, body); }
+function kq(params){ return Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "")
+  .map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v)).join("&"); }
+function klink(key, label){ return html`<a href="#" class="mono" data-k="${key}">${label || String(key).split("::").pop()}</a>`; }
+function klinks(keys){ return html`${(keys || []).map((k, i) => html`${i ? ", " : ""}${klink(k)}`)}`; }
+const K_STATUS = {accepted:"ok", active:"ok", supported:"ok", completed:"ok", resolved:"ok", proposed:"info", open:"info",
+  "in-progress":"info", challenged:"warn", contested:"warn", blocked:"warn", invalidated:"bad", superseded:"neutral",
+  rejected:"bad", deprecated:"neutral", critical:"bad", high:"warn", normal:"info", low:"neutral"};
+function kpill(s){ return s ? pill(s, K_STATUS[s] || "neutral") : ""; }
+function kobjRows(objs){
+  return objs.map(o => html`<tr><td>${klink(o.key, o.title)}</td><td>${o.type}</td><td>${kpill(o.status)}</td>
+    <td class="small muted">${o.repo}</td><td class="small">${o.updated}</td></tr>`);
+}
+
+async function kDetail(){
+  if (!K.sel) return html``;
+  let o;
+  try { o = await kapi("GET", "/objects/" + encodeURIComponent(K.sel)); }
+  catch(e){ K.sel = null; return html``; }
+  const extra = [];
+  if (o.type_name === "decision"){
+    const w = await kapi("GET", "/why/" + encodeURIComponent(o.key));
+    extra.push(card("Why", html`${kv([["Question", w.question || "–"], ["Selected", w.selected || "–"], ["Date", w.date || "–"],
+      ["Alternatives", (w.alternatives || []).join(" · ") || "–"]])}
+      <h3 style="margin-top:10px">Evidence</h3><div>${klinks(w.evidence.map(e => e.key))}</div>
+      <h3>Assumptions</h3><div>${w.assumptions.map(a => html`<div>${klink(a.key)} ${kpill(a.status)}
+        <span class="small muted">supports ${(a.support || {}).supports ? a.support.supports.length : 0} · contradicts ${(a.support || {}).contradicts ? a.support.contradicts.length : 0}</span></div>`)}</div>
+      <h3>Affects</h3><div>${klinks((w.affects || []).filter(Boolean).map(a => a.key))}</div>
+      ${w.reconsiderations.length ? html`<h3>Reconsideration</h3>${w.reconsiderations.map(r => html`<div>${kpill(r.resolved_by ? "resolved" : "open")} ${r.reason}</div>`)}` : ""}`));
+  }
+  if (["claim", "assumption"].includes(o.type_name)){
+    const t = await kapi("GET", "/evidence/" + encodeURIComponent(o.key));
+    extra.push(card("Evidence", html`${t.groundings.length ? t.groundings.map(g => html`<div style="margin-bottom:8px">
+      ${kpill(g.stance === "supports" ? "supported" : g.stance === "contradicts" ? "contested" : g.stance)} ${g.evidence ? klink(g.evidence.key, g.evidence.title) : "?"}
+      <span class="small muted">basis ${g.basis || "?"} · quality ${g.evidence_quality || "?"}</span>
+      ${g.passage ? html`<div class="small">“${g.passage.text}”</div>` : ""}</div>`) : html`<div class="muted">No groundings — unverified.</div>`}
+      ${t.independence_warning ? html`<div>${pill("shared dataset", "warn")} groundings are not independent</div>` : ""}
+      <div class="small muted">${t.verdict}</div>`));
+  }
+  const imp = await kapi("GET", "/impact/" + encodeURIComponent(o.key));
+  extra.push(card("Change impact", Object.keys(imp.by_type).length ? html`${Object.entries(imp.by_type).map(([t, xs]) =>
+    html`<div><b>${t}</b> (${xs.length}): ${klinks(xs.map(x => x.key))}</div>`)}` : html`<div class="muted">Nothing depends on it.</div>`));
+  const p = o.provenance || {};
+  return html`<section class="card" style="margin-bottom:14px">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${o.title} ${kpill(o.status)}</h2>
+      <button type="button" class="btn" data-kclose="1">Close</button></div>
+    <div class="small muted mono">${o.key} · ${o.type} · ${p.repo}@${p.repo_version} · ${String(p.path || "").split("/").slice(-3).join("/")}:${p.line} · updated ${p.updated} ${p.updated_by ? "by " + p.updated_by : ""}</div>
+    ${o.body && o.body.trim() ? html`<p style="white-space:pre-wrap">${o.body.trim().slice(0, 1500)}</p>` : ""}
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:10px">
+      ${card("Links out", html`${o.links_out.length ? o.links_out.map(l => html`<div><span class="muted small">${l.field || l.rel}</span> ${l.resolved ? klink(l.target) : html`<span class="pill bad">${l.target}</span>`}</div>`) : html`<div class="muted">none</div>`}`)}
+      ${card("Links in", html`${o.links_in.length ? o.links_in.map(l => html`<div><span class="muted small">${l.field || l.rel} of</span> ${klink(l.source)}</div>`) : html`<div class="muted">none</div>`}`)}
+      ${extra}
+      ${o.diagnostics.length ? card("Diagnostics", html`${o.diagnostics.map(d => html`<div>${kpill(d.severity === "error" ? "invalidated" : "challenged")} ${d.code} ${d.message}</div>`)}`) : ""}
+    </div></section>`;
+}
+
+async function pageKnowledge(){
+  const [h, res, recent] = await Promise.all([kapi("GET", "/health"),
+    K.q ? kapi("GET", "/search?" + kq({q: K.q, type: K.type, limit: 30})) : Promise.resolve(null),
+    kapi("GET", "/objects?" + kq({type: "decision,assumption,lesson,incident,task,question", limit: 15}))]);
+  const pct = v => v === null || v === undefined ? "–" : fmt.pct(v);
+  return html`${await kDetail()}
+  <div class="grid">
+    ${card("Knowledge health", kv([["Objects", fmt.n(h.objects, 0)], ["Valid references", pct(h.valid_reference_rate)],
+      ["Broken references", fmt.n(h.broken_references, 0)], ["Errors / warnings", h.errors + " / " + h.warnings]]))}
+    ${card("Decisions", kv([["Decisions", fmt.n(h.decisions, 0)], ["Traceable to evidence", pct(h.decision_traceability_rate)],
+      ["Needing review", fmt.n(h.decisions_needing_review, 0)], ["Reconsideration queue", fmt.n(h.reconsideration_queue, 0)]]))}
+    ${card("Claims & assumptions", kv([["Evidence coverage", pct(h.evidence_coverage)], ["Stale / challenged assumptions", fmt.n(h.stale_assumptions, 0)],
+      ["Conflicting claims", fmt.n(h.conflicting_claims, 0)], ["Orphans", fmt.n(h.orphans, 0)]]))}
+    ${card("Work", kv([["Open tasks", fmt.n(h.open_tasks, 0)], ["Open questions", fmt.n(h.open_questions, 0)],
+      ["Sessions", fmt.n(h.sessions, 0)], ["Context recovery rate", pct(h.context_recovery_rate)]]))}
+  </div>
+  <section style="margin-top:14px"><h2>Search</h2>
+    <form id="ksearch" class="row"><input type="text" id="kq" placeholder="search objects, decisions, evidence, skills…" value="${K.q}" style="min-width:320px">
+      <input type="text" id="ktype" placeholder="type (optional)" value="${K.type}" style="width:150px"><button class="btn" type="submit">Search</button></form>
+    ${res ? html`<p class="small muted">retrieval: ${res.retrieval.join(" + ")} · ${res.total} match(es)</p>
+      ${tbl(["Object", "Type", "Status", "Repo", "Score", "Snippet"], res.results.map(r => html`<tr><td>${klink(r.key, r.title)}</td><td>${r.type}</td>
+        <td>${kpill(r.status)}</td><td class="small muted">${r.repo}</td><td class="num">${r.score}</td><td class="small">${(r.snippet || "").slice(0, 120)}</td></tr>`))}` : ""}
+  </section>
+  <section><h2>Recently changed</h2>${tbl(["Object", "Type", "Status", "Repo", "Updated"], kobjRows(recent), {empty: "No knowledge yet."})}</section>`;
+}
+
+async function pageKDecisions(){
+  const ds = await kapi("GET", "/objects?type=decision");
+  return html`${await kDetail()}<section><h2>Decisions <span class="muted small">— click one for evidence, assumptions, alternatives, downstream impact and reconsideration status</span></h2>
+    ${tbl(["Decision", "Status", "Date", "Selected", "Evidence", "Assumptions"], ds.map(d => html`<tr><td>${klink(d.key, d.title)}</td><td>${kpill(d.status)}</td>
+      <td class="small">${d.fields.date || ""}</td><td class="small">${String(d.fields.selected || "").slice(0, 80)}</td>
+      <td class="small">${(d.fields.evidence || []).length}</td><td class="small">${(d.fields.assumptions || []).length}</td></tr>`), {empty: "No decisions recorded."})}</section>`;
+}
+
+async function pageKEvidence(){
+  const [as, cs] = await Promise.all([kapi("GET", "/objects?type=assumption"), kapi("GET", "/objects?" + kq({type: "claim", limit: 200}))]);
+  const claims = cs.filter(c => c.type === "claim");
+  return html`${await kDetail()}<section><h2>Assumptions <span class="muted small">— an invalidated or contradicted assumption queues everything that rests on it for review</span></h2>
+    ${tbl(["Assumption", "Status", "Confidence", "Updated"], as.map(a => html`<tr><td>${klink(a.key, a.title)}</td><td>${kpill(a.status)}</td>
+      <td>${a.fields.confidence || "–"}</td><td class="small">${a.updated}</td></tr>`), {empty: "No assumptions."})}</section>
+    <section><h2>Claims <span class="muted small">— groundings record what sources say; they do not make a claim true</span></h2>
+    ${tbl(["Claim", "Status", "Confidence", "Repo"], claims.map(c => html`<tr><td>${klink(c.key, c.title)}</td><td>${kpill(c.status)}</td>
+      <td>${c.fields.confidence || "–"}</td><td class="small muted">${c.repo}</td></tr>`), {empty: "No claims."})}</section>`;
+}
+
+async function pageKReconsider(){
+  const rs = await kapi("GET", "/reconsiderations");
+  return html`${await kDetail()}<section><h2>Reconsideration queue <span class="muted small">— never auto-reversed; record a review (reaffirmed / revised / superseded) to close an item</span></h2>
+    ${tbl(["Object", "Priority", "Because", "Trigger", "Path", "Since", ""], rs.map(r => html`<tr><td>${klink(r.key)}</td><td>${kpill(r.priority)}</td>
+      <td class="small">${r.reason}</td><td>${klink(r.trigger)}</td><td class="small mono">${r.chain.filter((_, i) => i % 2 === 0).map(k => k.split("::").pop()).join(" → ")}</td>
+      <td class="small">${r.since}</td><td class="row"><button type="button" class="btn" data-kreview="${r.key}" data-ktrigger="${r.trigger}" data-koutcome="reaffirmed">Reaffirm</button>
+      <button type="button" class="btn" data-kreview="${r.key}" data-ktrigger="${r.trigger}" data-koutcome="needs-work">Needs work</button></td></tr>`),
+      {empty: "Nothing needs reconsideration."})}</section>`;
+}
+
+async function pageKDiagnostics(){
+  const ds = await kapi("GET", "/diagnostics");
+  return html`<section><h2>Knowledge diagnostics <span class="muted small">— the compiler's view: types, references, staleness, contradictions, missing evidence</span></h2>
+    ${tbl(["Severity", "Code", "Object", "Message", "File"], ds.map(d => html`<tr><td>${kpill(d.severity === "error" ? "invalidated" : d.severity === "warning" ? "challenged" : "open")} ${d.severity}</td>
+      <td class="mono">${d.code}</td><td>${d.key ? klink(d.key) : ""}</td><td class="small">${d.message}</td>
+      <td class="small mono">${String(d.path || "").split("/").slice(-2).join("/")}${d.line ? ":" + d.line : ""}</td></tr>`), {empty: "No diagnostics."})}</section>`;
+}
+
+async function pageKCapabilities(){
+  const [sk, pk, vw] = await Promise.all([kapi("GET", "/skills"), kapi("GET", "/packages"), kapi("GET", "/views")]);
+  return html`<section><h2>Skills</h2>${tbl(["Skill", "Version", "From", "Description", "Checks / tests"], sk.map(s => html`<tr><td class="mono">${s.name}</td>
+      <td class="num">${s.version}</td><td class="small">${s.repo}@${s.repo_version}</td><td class="small">${s.description}</td>
+      <td class="small">${s.has_checks ? "checks" : "–"} ${s.has_tests ? "· tests" : ""}</td></tr>`))}</section>
+    <section><h2>Packages <span class="muted small">— local registry; installs and upgrades need a human (knowledge package …)</span></h2>
+      ${tbl(["Package", "Versions", "Description"], pk.map(p => html`<tr><td class="mono">${p.name}</td><td class="small">${p.versions.join(", ")}</td><td class="small">${p.description}</td></tr>`))}</section>
+    <section><h2>Views and apps</h2>${tbl(["View", "Kind", "From", "Title"], vw.views.map(v => html`<tr><td class="mono">${v.name}</td><td>${v.kind}</td><td class="small">${v.repo}</td><td class="small">${v.title}</td></tr>`))}
+      <div class="grid" style="margin-top:10px">${vw.apps.map(a => card(a.title || a.name, html`<div class="small">${a.description}</div><div class="small muted mono">${a.views.join(" · ")}</div>`))}</div></section>`;
+}
+
+async function pageKWork(){
+  const [tasks, sessions, qs] = await Promise.all([kapi("GET", "/objects?type=task"), kapi("GET", "/objects?type=session&limit=20"),
+    kapi("GET", "/objects?type=question&status=open")]);
+  const lanes = ["open", "in-progress", "blocked", "completed"];
+  return html`${await kDetail()}<section><h2>Agent work</h2><div class="grid" style="grid-template-columns:repeat(4,minmax(180px,1fr))">
+    ${lanes.map(l => card(l, html`${tasks.filter(t => t.status === l).map(t => html`<div>${klink(t.key, t.title)}</div>`)}`))}</div></section>
+    <section><h2>Sessions <span class="muted small">— checkpoints the next session resumes from (knowledge session resume)</span></h2>
+    ${tbl(["Session", "Agent", "Ended", "Next"], sessions.map(s => html`<tr><td>${klink(s.key, s.title)}</td><td class="small">${s.fields.agent || ""}</td>
+      <td class="small">${s.fields.ended || ""}</td><td class="small">${(s.fields.next || []).join(" · ")}</td></tr>`), {empty: "No sessions checkpointed yet."})}</section>
+    <section><h2>Open questions</h2>${tbl(["Question", "Status", "Repo", "Updated"], qs.map(q => html`<tr><td>${klink(q.key, q.title)}</td><td>${kpill(q.status)}</td><td class="small muted">${q.repo}</td><td class="small">${q.updated}</td></tr>`))}</section>`;
+}
+
+document.getElementById("view").addEventListener("click", async e => {
+  const a = e.target.closest("[data-k],[data-kclose],[data-kreview],[data-kmodel]");
+  if (!a) return;
+  e.preventDefault();
+  if (a.dataset.kmodel){ K.q = a.dataset.kmodel; K.type = ""; current = "Knowledge"; lsSet("lif.page", current); navRender(); }
+  else if (a.dataset.kclose){ K.sel = null; lsSet("lif.k.sel", null); }
+  else if (a.dataset.kreview){
+    try { await kapi("POST", "/reviews", {object: a.dataset.kreview, trigger: a.dataset.ktrigger, outcome: a.dataset.koutcome});
+          toast("review recorded", "ok"); } catch(err){ toast(err.message, "bad"); }
+  } else { K.sel = a.dataset.k; lsSet("lif.k.sel", K.sel); }
+  refresh();
+  if (K.sel) window.scrollTo(0, 0);
+});
+document.getElementById("view").addEventListener("submit", e => {
+  if (e.target.id !== "ksearch") return;
+  e.preventDefault();
+  K.q = document.getElementById("kq").value.trim(); K.type = document.getElementById("ktype").value.trim();
+  refresh();
+});
+function kTyping(){ const a = document.activeElement; return !!(a && a.closest && a.closest("#view") && a.tagName === "INPUT"); }
+
 const RENDER = {"Overview": pageOverview, "Models": pageModels, "Discovery": pageDiscovery, "Deployments": pageDeployments,
   "Inference": pageInference, "Decision Fabric": pageDecision, "Batch Jobs": pageBatch, "GPU": pageGpu,
-  "Benchmarks": pageBenchmarks, "Registry": pageRegistry, "Savings": pageSavings, "Settings": pageSettings};
+  "Benchmarks": pageBenchmarks, "Registry": pageRegistry, "Savings": pageSavings, "Settings": pageSettings,
+  "Knowledge": pageKnowledge, "Decisions": pageKDecisions, "Evidence": pageKEvidence, "Reconsiderations": pageKReconsider,
+  "Diagnostics": pageKDiagnostics, "Agent Work": pageKWork, "Skills & Packages": pageKCapabilities};
 
 let busy = false;
 async function refresh(){
@@ -576,7 +748,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && inspectorR
 
 navRender();
 refresh();
-setInterval(() => { if (!document.hidden && !inspectorRec) refresh(); }, 10000);
+setInterval(() => { if (!document.hidden && !inspectorRec && !kTyping()) refresh(); }, 10000);
 </script>
 </body>
 </html>

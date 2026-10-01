@@ -1,0 +1,11 @@
+inputs:
+  subject: {type: object, required: true}
+checks:
+  - id: subject-clean
+    description: No error diagnostics on the subject
+    no_diagnostics: "{subject}"
+  - id: no-open-contradiction
+    description: Nothing upstream is an unresolved contradiction
+    query: {type: claim, status: contested, dependent_of: "{subject}"}
+    expect: empty
+    severity: warning

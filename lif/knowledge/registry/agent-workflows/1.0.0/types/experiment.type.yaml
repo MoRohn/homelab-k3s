@@ -1,0 +1,6 @@
+name: experiment
+version: 1
+fields:
+  status: {type: enum, values: [planned, running, completed, abandoned]}
+  hypothesis: {type: "claim?"}
+  results: {type: "result[]", propagates: false}

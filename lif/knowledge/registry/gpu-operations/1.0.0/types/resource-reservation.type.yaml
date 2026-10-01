@@ -1,0 +1,8 @@
+name: resource-reservation
+version: 1
+description: Capacity held back for a workload (memory headroom, cores, GPU share) and why.
+fields:
+  resource: {type: enum, required: true, values: [gpu-memory, host-memory, cpu, gpu-compute, bandwidth]}
+  amount: string
+  holder: string
+  because: decision[]

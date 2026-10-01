@@ -1,0 +1,4 @@
+name: evidence-table
+kind: evidence
+title: Evidence — supporting, contradicting, source quality, shared datasets, open questions
+params: [object]

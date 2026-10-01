@@ -1,0 +1,12 @@
+name: deployment
+version: 1
+description: Something running (a model behind an alias, a service). Links back to the decision that selected it.
+fields:
+  status: {type: enum, values: [planned, active, superseded, retired]}
+  model: "model?"
+  service: "service?"
+  alias: string
+  profile: string
+  runs_on: "host?"
+  selected_by: decision[]
+  since: date

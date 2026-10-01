@@ -72,9 +72,11 @@ All four Python services run from **one image** (`127.0.0.1:5000/lif/fabric:<tag
 | `lif/controller/` | k8s client, manifest templates, lifecycle, API |
 | `lif/batch/` | batch engine and API |
 | `lif/cli/main.py` | `local-ai` CLI |
+| `lif/knowledge/` | Persistent knowledge layer: compiler, graph, context, sessions, packages, MCP server, `knowledge` CLI ([KNOWLEDGE](KNOWLEDGE.md)) |
 | `apps/control-center/index.html` | single-file UI with no external assets |
 | `config/` | `lif.yaml`, `models.yaml`, `decisions/`, `workflows/` |
 | `evals/core.yaml` | 15-item synthetic evaluation suite |
+| `knowledge/` | Agent repos (`repos/`) and the local knowledge package registry (`registry/`); index in `.knowledge/` is derived |
 
 ## Namespaces and priorities
 

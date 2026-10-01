@@ -1,0 +1,5 @@
+name: engineering
+description: Changing code or infrastructure — decisions, assumptions, constraints and open work matter most.
+keywords: [implement, refactor, deploy, change, fix, build, migrate, configure, manifest, code]
+weights: {decision: 3, assumption: 2.5, task: 2, change: 2, method: 1.5, skill: 1.5, deployment: 1.5, incident: 1.5, question: 1.5}
+default_weight: 1.0

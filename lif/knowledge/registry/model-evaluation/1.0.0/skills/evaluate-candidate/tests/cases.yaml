@@ -1,0 +1,12 @@
+- name: candidate with benchmark evidence passes
+  inputs: {candidate: benched}
+  expect: {passed: true, failed: []}
+- name: candidate without benchmark fails has-benchmark
+  inputs: {candidate: unbenched}
+  expect: {passed: false, failed: [has-benchmark]}
+- name: missing input is rejected
+  inputs: {}
+  expect: {passed: false, input_errors: true}
+- name: wrong input type is rejected
+  inputs: {candidate: a-note}
+  expect: {passed: false, input_errors: true}

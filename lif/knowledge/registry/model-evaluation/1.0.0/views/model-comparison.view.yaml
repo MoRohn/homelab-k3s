@@ -1,0 +1,6 @@
+name: model-comparison
+kind: comparison
+title: Model comparison — local benchmark evidence
+query: {type: benchmark}
+columns: [title, model, suite, summary, date]
+metrics: [quality, json_valid, ttft_ms_p50, decode_tps_p50]

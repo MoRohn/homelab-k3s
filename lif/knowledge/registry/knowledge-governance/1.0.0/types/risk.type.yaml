@@ -1,0 +1,8 @@
+name: risk
+version: 1
+fields:
+  status: {type: enum, values: [open, mitigated, accepted, closed]}
+  likelihood: {type: enum, values: [low, medium, high]}
+  impact: {type: enum, values: [low, medium, high, critical]}
+  mitigations: object[]
+  threatens: {type: "object[]", inverse: true}

@@ -1,0 +1,9 @@
+name: lesson
+version: 1
+description: A reusable lesson from experience (incident, experiment, review) that changes how work is done.
+fields:
+  observation: {type: text, required: true}
+  lesson: {type: text, required: true}
+  evidence: {type: "evidence[]", min: 1}
+  invalidates: {type: "assumption[]", propagates: false}
+  changed: {type: "object[]", inverse: true, description: "methods/skills/checks this lesson changed"}

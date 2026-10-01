@@ -1,0 +1,12 @@
+name: skill
+version: 1
+description: An executable operating practice (SKILL.md + checks.yaml + tools.yaml + tests/).
+fields:
+  name: string
+  version: int
+  description: text
+  when: text
+  inputs: string[]
+  outputs: string[]
+  method: {type: "method?", description: "the method this skill operationalizes"}
+  status: {type: enum, values: [draft, active, retired]}

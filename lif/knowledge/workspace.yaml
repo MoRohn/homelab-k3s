@@ -1,0 +1,22 @@
+# Knowledge workspace for labzilla. Canonical knowledge is the typed Markdown in these repos;
+# the index (.knowledge/) is derived and git-ignored — `knowledge rebuild` recreates it.
+name: labzilla-knowledge
+registry: registry                 # local package registry: registry/<package>/<version>/
+index: .knowledge/index.db
+events_repo: lif-operations        # platform events are operational history → the private repo
+repos:
+  - path: repos/local-intelligence-fabric
+  - path: ../../private/knowledge/lif-operations     # git-ignored; absent in a public clone
+    optional: true
+
+# Agent permission scopes (read:knowledge, write:knowledge, execute:skills, execute:tools,
+# modify:types, install:packages, deploy:apps, admin). The CLI runs as `human` with all scopes.
+# Through MCP and HTTP, installs, upgrades, migrations, deletes and publishing are refused with the
+# CLI command a human must run (the CLI itself trusts its caller). `write_repos` limits which repos
+# an agent may write; read access is not repo-scoped yet.
+permissions:
+  default: {scopes: [read:knowledge]}
+  claude-code: {scopes: [read:knowledge, write:knowledge, execute:skills, execute:tools]}
+  codex: {scopes: [read:knowledge, write:knowledge, execute:skills, execute:tools]}
+  lif-controller: {scopes: [read:knowledge, write:knowledge], write_repos: [lif-operations]}
+  decision-fabric: {scopes: [read:knowledge, write:knowledge]}

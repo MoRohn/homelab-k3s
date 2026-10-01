@@ -1,0 +1,11 @@
+name: change
+version: 1
+description: A meaningful change to the system or the knowledge (what, why, by whom, in which session).
+fields:
+  subject: {type: "object[]", propagates: false}
+  reason: text
+  because: {type: "object[]", description: "decision, lesson or task that motivated it"}
+  before: any
+  after: any
+  session: {type: "session?", propagates: false}
+  date: date

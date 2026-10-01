@@ -1,0 +1,12 @@
+name: assumption
+version: 1
+extends: claim
+description: >
+  A claim the work proceeds on without (full) verification. When it is invalidated or contradicted,
+  everything that depends on it is queued for reconsideration — never auto-reversed.
+fields:
+  status: {type: enum, values: [active, challenged, invalidated, retired]}
+  confidence: {type: enum, values: [low, medium, high]}
+  used_by: {type: "object[]", inverse: true, description: "objects that depend on this assumption"}
+  check: {type: text, description: "how to tell if it stops being true"}
+review_after_days: 180

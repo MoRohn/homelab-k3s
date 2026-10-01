@@ -1,0 +1,14 @@
+name: claim
+version: 1
+description: >
+  A proposition. Groundings record what evidence says about it (supports, contradicts, …);
+  the graph never treats a supported claim as automatically true.
+fields:
+  statement: {type: text, required: true}
+  status: {type: enum, values: [open, supported, contested, refuted, retracted]}
+  confidence: {type: enum, values: [low, medium, high]}
+  grounds: {type: "grounding[]", embedded: true}
+  supported_by: evidence[]
+  contradicted_by: evidence[]
+  extracted_from: {type: "passage?", description: "source passage this claim was extracted from"}
+  resolution: {type: text, description: "how a contradiction was resolved"}

@@ -1,0 +1,129 @@
+# LIF knowledge service — NOT part of lif/kustomization.yaml. Apply deliberately, with the owner's go-ahead:
+#   kubectl apply -f lif/deploy/k8s/knowledge/knowledge.yaml
+#
+# Canonical knowledge stays in the Git working tree on the host (lif/knowledge, private/knowledge),
+# mounted read-only except the private events repo the event sink writes to. The index lives on
+# an emptyDir on purpose: it is derived and rebuilt from the repos at every start (knowledge rebuild),
+# so there is no database to back up or migrate.
+#
+# Secrets (create before applying; nothing here contains a value):
+#   lif-admin-keys      LIF_ADMIN_KEYS        (existing; operators/Control Center)
+#   lif-knowledge-keys  LIF_KNOWLEDGE_KEYS    agent-name:key lines → scopes from workspace.yaml permissions
+#   lif-events-key      LIF_EVENTS_ADMIN_KEY  a controller admin key used only to read /v1/activity
+apiVersion: v1
+kind: Service
+metadata:
+  name: knowledge
+  namespace: ai-system
+  labels: {app: knowledge, app.kubernetes.io/part-of: lif}     # scraped by ServiceMonitor lif-services
+spec:
+  selector: {app: knowledge}
+  ports: [{name: http, port: 8080, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: knowledge
+  namespace: ai-system
+  labels: {app: knowledge, app.kubernetes.io/part-of: lif}
+spec:
+  replicas: 1                       # one writer per events repo
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: knowledge}}
+  template:
+    metadata:
+      labels: {app: knowledge, app.kubernetes.io/part-of: lif}
+    spec:
+      priorityClassName: ai-interactive
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000             # owner of the host Git working tree (writes must keep the owner's uid)
+        runAsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: knowledge
+          image: 127.0.0.1:5000/lif/fabric:IMAGE_TAG
+          args: [lif.knowledge.app:app]
+          ports: [{name: http, containerPort: 8080}]
+          env:
+            - {name: LIF_KNOWLEDGE_ROOT, value: /knowledge/lif/knowledge}
+            - {name: LIF_KNOWLEDGE_INDEX, value: /index/knowledge.db}
+            - {name: LIF_CONTROLLER_URL, value: "http://controller.ai-system.svc:8080"}
+            - {name: LIF_KNOWLEDGE_EMBED_URL, value: "http://gateway.ai-system.svc:8080"}
+            - {name: LIF_SECRETS_DIR, value: /var/run/lif/secrets}
+          volumeMounts:
+            - {name: lif-knowledge, mountPath: /knowledge/lif/knowledge, readOnly: true}
+            - {name: private-knowledge, mountPath: /knowledge/private/knowledge}
+            - {name: index, mountPath: /index}
+            - {name: secrets, mountPath: /var/run/lif/secrets, readOnly: true}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          startupProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 2, failureThreshold: 60}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 20, timeoutSeconds: 5}
+          readinessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 10}
+      volumes:
+        - name: lif-knowledge
+          hostPath: {path: /home/tiny/labzilla/lif/knowledge, type: Directory}
+        - name: private-knowledge
+          hostPath: {path: /home/tiny/labzilla/private/knowledge, type: DirectoryOrCreate}
+        - name: index
+          emptyDir: {sizeLimit: 512Mi}
+        - name: secrets
+          projected:
+            sources:
+              - secret: {name: lif-admin-keys, optional: true}
+              - secret: {name: lif-knowledge-keys, optional: true}
+              - secret: {name: lif-events-key, optional: true}
+---
+# /v1/knowledge on the Control Center host goes to this service; everything else stays on the controller.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lif-knowledge
+  namespace: ai-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: lif.tiny-dgx.lan
+      http: {paths: [{path: /v1/knowledge, pathType: Prefix, backend: {service: {name: knowledge, port: {number: 8080}}}}]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: knowledge, namespace: ai-system}
+spec:
+  podSelector: {matchLabels: {app: knowledge}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ai-system}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}   # traefik
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+        - ipBlock: {cidr: 10.42.0.1/32}       # host: local agents and CLI
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata: {name: lif-knowledge, namespace: ai-system, labels: {app.kubernetes.io/part-of: lif}}
+spec:
+  groups:
+    - name: lif-knowledge
+      rules:
+        - alert: LIFKnowledgeErrors
+          expr: max(lif_knowledge_diagnostics{severity="error"}) > 0
+          for: 30m
+          labels: {severity: warning}
+          annotations: {summary: "Knowledge graph has error diagnostics (broken links, wrong reference types, missing required fields). Run `knowledge diagnostics`."}
+        - alert: LIFKnowledgeCompileSlow
+          expr: histogram_quantile(0.9, sum(rate(lif_knowledge_compile_seconds_bucket[1h])) by (le)) > 10
+          for: 1h
+          labels: {severity: info}
+          annotations: {summary: "Knowledge compile p90 > 10 s — see question knowledge-scale-question (SQLite index decision review_when)."}

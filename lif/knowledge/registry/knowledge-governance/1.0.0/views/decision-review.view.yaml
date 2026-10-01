@@ -1,0 +1,4 @@
+name: decision-review
+kind: decision-review
+title: Decision review
+params: [object]

@@ -1,0 +1,9 @@
+name: event
+version: 1
+description: A significant platform event (promotion, incident, upgrade). Objects with refresh_when react to its kind.
+fields:
+  kind: {type: string, required: true}
+  at: string
+  subject: {type: "object?", propagates: false}
+  actor: string
+  detail: map

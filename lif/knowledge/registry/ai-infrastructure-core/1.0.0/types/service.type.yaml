@@ -1,0 +1,8 @@
+name: service
+version: 1
+fields:
+  status: {type: enum, values: [planned, active, degraded, retired]}
+  runs_on: "host?"
+  depends_on: service[]
+  owner: string
+  code: {type: string, description: "path to the implementing code"}

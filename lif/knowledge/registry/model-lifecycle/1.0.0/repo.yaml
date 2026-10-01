@@ -1,0 +1,11 @@
+name: model-lifecycle
+version: 1.0.0
+kind: package
+data_class: PUBLIC              # published in the public repo
+description: The chain candidate → benchmark → comparison → promotion decision → deployment → production result, kept queryable.
+dependencies:
+  - {name: ai-infrastructure-core, version: ^1.0}
+  - {name: model-evaluation, version: ^1.0}
+exports:
+  methods: [manual-first-promotion]
+  views: [lifecycle-chain]

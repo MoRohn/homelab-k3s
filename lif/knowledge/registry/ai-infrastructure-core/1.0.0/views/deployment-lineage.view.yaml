@@ -1,0 +1,4 @@
+name: deployment-lineage
+kind: lineage
+title: Deployment lineage — model → deployment → decision → evidence
+params: [object]

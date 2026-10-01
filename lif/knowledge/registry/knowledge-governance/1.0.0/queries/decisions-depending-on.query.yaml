@@ -1,0 +1,4 @@
+name: decisions-depending-on
+description: All decisions that depend (directly or transitively) on an object, e.g. an assumption
+params: [object]
+find: {type: decision, depends_on: "{object}"}

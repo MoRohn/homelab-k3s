@@ -1,0 +1,4 @@
+name: decision-lineage
+kind: lineage
+title: Decision lineage — what it rests on, what rests on it
+params: [object]

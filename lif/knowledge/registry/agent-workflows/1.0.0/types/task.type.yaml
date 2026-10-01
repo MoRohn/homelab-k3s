@@ -1,0 +1,13 @@
+name: task
+version: 1
+fields:
+  status: {type: enum, required: true, values: [open, in-progress, blocked, completed, cancelled]}
+  created_by: string
+  assignee: string
+  implements: {type: "decision?", description: "the decision this work carries out"}
+  depends_on: task[]
+  produced: {type: "object[]", propagates: false}
+  result: {type: "object?", propagates: false}
+  triggered_decisions: {type: "decision[]", propagates: false}
+  skill: {type: "skill?", propagates: false}
+  due: date

@@ -1,0 +1,17 @@
+name: local-intelligence-fabric
+version: 0.1.0
+kind: project
+project: local-intelligence-fabric
+data_class: PUBLIC              # this repo is public; private material goes in private/knowledge
+description: >
+  The Local Intelligence Fabric's own knowledge (dogfood): architecture decisions, model and GPU
+  constraints, assumptions, evidence, methods, roadmap and open questions.
+dependencies:
+  - {name: knowledge-governance, version: ^1.0}
+  - {name: agent-workflows, version: ^1.0}
+  - {name: ai-infrastructure-core, version: ^1.0}
+  - {name: gpu-operations, version: ^1.0}
+  - {name: incident-response, version: ^1.0}
+  - {name: model-evaluation, version: ^1.0}
+  - {name: model-lifecycle, version: ^1.0}
+  - {name: kubernetes-operations, version: ^1.0}

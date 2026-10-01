@@ -1,0 +1,12 @@
+name: model-evaluation
+version: 1.0.0
+kind: package
+data_class: PUBLIC              # published in the public repo
+description: Benchmark methodology, evaluation criteria, candidate comparison, promotion and rollback requirements.
+dependencies:
+  - {name: knowledge-governance, version: ^1.0}
+  - {name: ai-infrastructure-core, version: ^1.0}
+exports:
+  methods: [benchmark-methodology, model-promotion]
+  skills: [evaluate-candidate, compare-models, prepare-canary]
+  views: [model-comparison]

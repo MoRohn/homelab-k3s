@@ -1,0 +1,6 @@
+inputs:
+  model: {type: model, required: true}
+checks:
+  - id: model-clean
+    description: The model object has no error diagnostics
+    no_diagnostics: "{model}"

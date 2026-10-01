@@ -1,0 +1,10 @@
+inputs:
+  target: {type: object, required: true}
+checks:
+  - id: target-clean
+    description: The target has no error diagnostics
+    no_diagnostics: "{target}"
+  - id: no-invalidated-assumptions-upstream
+    description: Nothing the target rests on is an invalidated assumption
+    query: {type: assumption, status: invalidated, dependent_of: "{target}"}
+    expect: empty

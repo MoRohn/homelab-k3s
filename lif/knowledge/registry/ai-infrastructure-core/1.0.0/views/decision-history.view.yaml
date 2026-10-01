@@ -1,0 +1,6 @@
+name: decision-history
+kind: timeline
+title: Decision history
+query: {type: decision}
+columns: [title, status, date, selected, supersedes]
+date_field: date

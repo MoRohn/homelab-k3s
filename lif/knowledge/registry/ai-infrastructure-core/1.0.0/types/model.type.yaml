@@ -1,0 +1,11 @@
+name: model
+version: 1
+fields:
+  profile: string
+  hf_id: string
+  revision: string
+  category: string
+  state: string
+  runtime: "runtime?"
+  params_b: float
+  license: string

@@ -1,0 +1,5 @@
+name: system-map
+kind: table
+title: System map — services and what they run on
+query: {type: "service,deployment"}
+columns: [title, type, status, runs_on, depends_on, model, selected_by]

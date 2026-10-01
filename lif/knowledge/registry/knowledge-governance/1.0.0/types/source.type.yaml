@@ -1,0 +1,13 @@
+name: source
+version: 1
+extends: evidence
+description: >
+  Captured original material: what a source SAYS, not what the system believes. Mark citable
+  paragraphs with a trailing ^id block anchor.
+fields:
+  kind: {type: enum, values: [documentation, web, pdf, repository, meeting, api, dataset, agent-output, measurement, note]}
+  author: string
+  captured: date
+  sha256: {type: string, description: "content hash of the original at capture time"}
+  quality: {type: enum, values: [primary, secondary, anecdotal, unknown]}
+  dataset: {type: "evidence?", propagates: false, description: "shared underlying dataset (independence check)"}

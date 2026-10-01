@@ -1,0 +1,13 @@
+name: agent-workflows
+version: 1.0.0
+kind: package
+data_class: PUBLIC              # published in the public repo
+description: >
+  Persistent agent work: tasks, attempts, artifacts, results, experiments, changes and session
+  checkpoints, plus the context profiles agents assemble context with.
+dependencies:
+  - {name: knowledge-governance, version: ^1.0}
+exports:
+  types: [task, attempt, artifact, result, experiment, change, session]
+  profiles: [engineering, research, operations, product, incident-response, model-evaluation]
+  skills: [end-of-work-capture, session-resume]

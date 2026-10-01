@@ -1,0 +1,12 @@
+name: model-evaluation
+keywords: [benchmark, candidate, promote, promotion, canary, evaluate, quantization, hugging face, new model]
+weights:
+  model: 3
+  benchmark: 3
+  decision: 2.5
+  method: 2.5
+  incident: 2
+  lesson: 2
+  assumption: 2
+  skill: 1.5
+default_weight: 1.0

@@ -1,0 +1,62 @@
+# Knowledge-layer decisions (lif.knowledge.decisions). Deterministic graph logic runs first;
+# these are asked only when it cannot answer. Knowledge state is INTERNAL/CONFIDENTIAL, so under the
+# default privacy policy (jev_allowed: [PUBLIC]) Jev never sees it and the rules answer —
+# add INTERNAL to privacy.jev_allowed to let Jev rank/classify internal knowledge.
+
+- name: knowledge-context-profile
+  version: v1
+  type: choice
+  data_class: INTERNAL
+  owner: knowledge
+  instructions: >
+    An agent is about to work on the task in the state. Pick the context profile whose kinds of
+    knowledge matter most for it.
+  choices:
+    engineering: changing code, configuration or infrastructure
+    research: weighing sources, claims and evidence
+    operations: running the platform, capacity, alerts, runbooks
+    product: requirements, features, commitments, customers
+    incident-response: an incident, outage, OOM or failure and its causes
+    model-evaluation: discovering, benchmarking, comparing or promoting models
+  default: engineering
+  fallback: [rules]
+
+- name: knowledge-object-type
+  version: v1
+  type: choice
+  data_class: CONFIDENTIAL
+  owner: knowledge
+  instructions: >
+    Classify one passage extracted from a source document by the kind of knowledge object it
+    should become, if any.
+  choices:
+    claim: states something as fact that could be supported or contradicted
+    decision: records a choice that was made
+    requirement: states something that must be true of a system or deliverable
+    commitment: a promise to someone with an owner or a date
+    question: an open question
+    none: background, narrative or formatting; no object
+  thresholds: {auto: 0.90, validate: 0.75, escalate: 0.55}
+  default: none
+  fallback: [rules]
+
+- name: knowledge-review-priority
+  version: v1
+  type: score
+  data_class: INTERNAL
+  owner: knowledge
+  instructions: >
+    A knowledge object needs reconsideration because something it depends on changed. Rate how
+    urgently a human should review it, from its type, status, and how much depends on it.
+  levels: [low, normal, high, critical]
+  default: normal
+  fallback: [rules]
+
+- name: knowledge-duplicate
+  version: v1
+  type: noul
+  data_class: INTERNAL
+  owner: knowledge
+  instructions: Are these two knowledge objects about the same thing (a likely duplicate)?
+  default: "no"
+  fallback: [rules]

@@ -1,0 +1,9 @@
+name: review
+version: 1
+description: A human or agent review. Naming an item and its trigger closes that reconsideration.
+fields:
+  reviews: {type: "object[]", required: true, propagates: false}
+  trigger: {type: "object?", propagates: false}
+  outcome: {type: enum, required: true, values: [reaffirmed, revised, superseded, needs-work]}
+  reviewer: string
+  date: {type: date, required: true}

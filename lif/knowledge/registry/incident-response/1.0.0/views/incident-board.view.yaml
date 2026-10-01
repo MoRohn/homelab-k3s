@@ -1,0 +1,7 @@
+name: incident-board
+kind: kanban
+title: Incidents
+query: {type: incident}
+columns: [title, severity, status, date, root_cause, lessons]
+group_by: status
+lanes: [open, mitigated, resolved, closed]

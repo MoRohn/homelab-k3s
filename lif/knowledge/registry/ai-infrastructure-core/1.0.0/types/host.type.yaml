@@ -1,0 +1,6 @@
+name: host
+version: 1
+fields:
+  hardware: text
+  memory_gb: float
+  arch: string

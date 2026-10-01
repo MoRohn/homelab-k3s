@@ -1,0 +1,7 @@
+name: artifact
+version: 1
+extends: evidence
+description: Something work produced (file, report, image, run log). Large binaries live in object storage; this records where.
+fields:
+  kind: string
+  sha256: string

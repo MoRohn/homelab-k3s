@@ -1,0 +1,5 @@
+name: namespace
+version: 1
+fields:
+  cluster: "cluster?"
+  purpose: text

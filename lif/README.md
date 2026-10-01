@@ -78,6 +78,7 @@ Streaming responses carry `X-LIF-Served-By`, `X-LIF-Fallback`, `X-LIF-Degraded`,
 | [BATCH_PROCESSING](docs/BATCH_PROCESSING.md) | `/v1/batch` |
 | SECURITY *(private, local only)* | Keys, network policy, privacy |
 | [OBSERVABILITY](docs/OBSERVABILITY.md) | Metrics, alerts, availability |
+| [KNOWLEDGE](docs/KNOWLEDGE.md) | Persistent knowledge layer: typed agent repos, decisions/evidence/assumptions, reconsideration, sessions, MCP, packages |
 | [OPERATIONS](docs/OPERATIONS.md) | Runbook, `local-ai` CLI, Control Center |
 | [DISASTER_RECOVERY](docs/DISASTER_RECOVERY.md) | Reboot, outages, restore |
 | [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Symptoms → causes → fixes |

@@ -1,0 +1,6 @@
+name: attempt
+version: 1
+fields:
+  task: {type: task, required: true}
+  outcome: {type: enum, values: [succeeded, failed, abandoned]}
+  notes: text

@@ -1,0 +1,13 @@
+name: evidence
+version: 1
+description: Something observed, measured or reported that a conclusion can rest on. Must have a traceable origin.
+fields:
+  summary: text
+  basis: {type: enum, values: [observed, measured, reported, inferred, derived]}
+  source: {type: "evidence?", description: "where this evidence came from"}
+  passage: {type: "passage?", description: "the exact passage ([[source^p3]]) that justifies it"}
+  location: {type: string, description: "path or URI of the original artifact"}
+  url: url
+  produced_by: {type: "object?", propagates: false, description: "task, run or agent that produced it"}
+  observed: date
+review_after_days: 365

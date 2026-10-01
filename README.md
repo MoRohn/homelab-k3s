@@ -44,6 +44,7 @@ labzilla/
 │   ├── deploy/k8s/     manifests (kustomization.yaml at lif/)
 │   ├── config/ evals/  apps/control-center/
 │   ├── benchmarks/     public, reproducible benchmarks
+│   ├── knowledge/      agent repos + knowledge package registry (typed Markdown; `knowledge` CLI, MCP)
 │   ├── tests/
 │   └── docs/
 ├── assets/brand/       logo (light + dark), mark, social card

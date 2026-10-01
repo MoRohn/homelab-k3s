@@ -1,0 +1,7 @@
+name: result
+version: 1
+extends: evidence
+fields:
+  task: "task?"
+  outcome: {type: enum, values: [positive, negative, inconclusive]}
+  metrics: map

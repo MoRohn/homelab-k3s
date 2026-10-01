@@ -1,0 +1,5 @@
+name: constraints
+kind: table
+title: Platform constraints (assumptions tagged constraint)
+query: {type: assumption, where: ["tags~constraint"]}
+columns: [title, status, confidence, supported_by, grounds]

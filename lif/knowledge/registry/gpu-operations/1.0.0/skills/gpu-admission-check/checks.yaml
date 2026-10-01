@@ -1,0 +1,6 @@
+inputs:
+  job: {type: object, required: true}
+checks:
+  - id: job-clean
+    description: The job description has no error diagnostics
+    no_diagnostics: "{job}"

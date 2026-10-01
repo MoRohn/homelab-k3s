@@ -1,0 +1,7 @@
+name: project-dashboard
+kind: kanban
+title: Project work
+query: {type: task, project: local-intelligence-fabric}
+columns: [title, status, implements, depends_on]
+group_by: status
+lanes: [open, in-progress, blocked, completed]

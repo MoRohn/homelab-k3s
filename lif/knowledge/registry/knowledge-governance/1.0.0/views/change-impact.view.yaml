@@ -1,0 +1,4 @@
+name: change-impact
+kind: impact
+title: Change impact
+params: [object]

@@ -1,0 +1,10 @@
+inputs:
+  candidate: {type: model, required: true}
+checks:
+  - id: has-benchmark
+    description: The candidate has local benchmark evidence
+    query: {type: benchmark, links_to: "{candidate}"}
+    expect: nonempty
+  - id: candidate-clean
+    description: The candidate object has no error diagnostics
+    no_diagnostics: "{candidate}"

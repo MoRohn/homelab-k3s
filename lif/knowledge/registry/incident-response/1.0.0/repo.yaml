@@ -1,0 +1,13 @@
+name: incident-response
+version: 1.0.0
+kind: package
+data_class: PUBLIC              # published in the public repo
+description: Incidents that make the platform better — timeline, root cause, failed assumptions, lessons, method and check updates.
+dependencies:
+  - {name: knowledge-governance, version: ^1.0}
+  - {name: agent-workflows, version: ^1.0}
+exports:
+  types: [incident]
+  methods: [incident-learning]
+  skills: [incident-review]
+  views: [incident-board]

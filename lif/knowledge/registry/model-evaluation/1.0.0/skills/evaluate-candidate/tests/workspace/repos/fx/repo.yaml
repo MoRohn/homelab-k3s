@@ -1,0 +1,5 @@
+name: fx
+kind: project
+dependencies:
+  - {name: model-evaluation, version: ^1.0}
+  - {name: ai-infrastructure-core, version: ^1.0}

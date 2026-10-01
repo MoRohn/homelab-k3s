@@ -1,0 +1,16 @@
+name: gpu-operations
+version: 1.0.0
+kind: package
+data_class: PUBLIC              # published in the public repo
+description: >
+  Operating a GPU shared with a higher-priority primary workload: resource reservations, admission
+  through the host scheduler, memory constraints, and the incidents that shaped those rules.
+dependencies:
+  - {name: knowledge-governance, version: ^1.0}
+  - {name: ai-infrastructure-core, version: ^1.0}
+  - {name: incident-response, version: ^1.0}
+exports:
+  types: [resource-reservation]
+  methods: [gpu-admission]
+  skills: [gpu-admission-check]
+  views: [gpu-capacity, resource-incidents]

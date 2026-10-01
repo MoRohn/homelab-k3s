@@ -1,0 +1,5 @@
+name: decisions
+kind: table
+title: Decisions
+query: {type: decision}
+columns: [title, status, date, selected, evidence, assumptions]

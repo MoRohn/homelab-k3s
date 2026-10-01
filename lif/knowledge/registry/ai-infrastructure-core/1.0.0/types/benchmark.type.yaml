@@ -1,0 +1,12 @@
+name: benchmark
+version: 1
+extends: evidence
+description: A measured benchmark run. Evidence for model and runtime decisions.
+fields:
+  model: "model?"
+  suite: string
+  summary: map
+  date: date
+  seq: int
+  hardware: "host?"
+  superseded_by: {type: "benchmark?", propagates: false}

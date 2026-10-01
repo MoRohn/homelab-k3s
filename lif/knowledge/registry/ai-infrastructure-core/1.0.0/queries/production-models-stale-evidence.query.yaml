@@ -1,0 +1,4 @@
+name: production-models-stale-evidence
+description: Production models whose benchmark evidence is older than N days
+params: [days]
+find: {type: benchmark, older_than_days: "{days}"}

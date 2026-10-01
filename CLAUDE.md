@@ -21,6 +21,11 @@ credentials, or private findings. Personal, machine-specific instructions go in
 - `lif/`: the Local Intelligence Fabric. Python package at `lif/lif/`, tests at `lif/tests/`,
   venv at `lif/.venv` (built by `tools/setup.sh`).
   - Run tests with `cd lif && .venv/bin/pytest -q`.
+  - `lif/knowledge/` holds agent repos and the knowledge package registry (docs: `lif/docs/KNOWLEDGE.md`).
+    Keep `knowledge --root lif/knowledge validate` clean. Never edit a published `registry/<pkg>/<version>/`;
+    publish a new version. Operational history (events, incidents, production numbers) goes in
+    `private/knowledge/`, never in the public repos. The `lif-knowledge` MCP server (`.mcp.json`) has
+    resume/context/checkpoint tools.
 - `tools/`: repo-level tooling. `assets/brand/` holds the logo.
 
 ## Production safety

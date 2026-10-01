@@ -1,0 +1,31 @@
+# Context-quality and agent-regression cases for this repo (knowledge eval).
+- name: why-cpu-inference
+  task: "Why do LIF models run on the CPU instead of the GPU?"
+  project: local-intelligence-fabric
+  budget_tokens: 1800
+  must_include: [cpu-tiers-for-local-inference, gpu-admission-too-small-for-llms]
+  relevant: [primary-workload-owns-gpu, cpu-decode-bandwidth-bound, primary-workload-gpu-priority, llama-cpp-no-repack, src-gpu-scheduling-doc, src-architecture-doc, gpu-tiers-question, fast-fallback-model, dgx-spark, gpu-admission, gpu-admission-check]
+  answer:
+    why: cpu-tiers-for-local-inference
+    expect_evidence: [src-architecture-doc, src-gpu-scheduling-doc]
+- name: change-gateway-routing
+  task: "Change how the gateway falls back when local/default is unhealthy"
+  project: local-intelligence-fabric
+  budget_tokens: 1800
+  must_include: [logical-model-aliases, fast-fallback-model]
+  relevant: [gateway, src-model-routing-doc, openai-compatible-api-needed, availability-target-95, private-data-stays-local, src-lif-readme, use-k3s-single-node, cpu-decode-bandwidth-bound]
+- name: knowledge-index-choice
+  task: "Should the knowledge graph move to Neo4j?"
+  project: local-intelligence-fabric
+  budget_tokens: 1500
+  must_include: [knowledge-index-sqlite]
+  relevant: [knowledge-fits-in-text, single-writer-per-database, knowledge-scale-question, knowledge-canonical-typed-markdown, src-sqlite-helper]
+  answer:
+    why: knowledge-index-sqlite
+    expect_evidence: [src-sqlite-helper]
+- name: gpu-claim-trace
+  task: "Which source says no LLM fits on the GPU?"
+  project: local-intelligence-fabric
+  must_include: [gpu-admission-too-small-for-llms]
+  answer:
+    evidence_for: gpu-admission-too-small-for-llms

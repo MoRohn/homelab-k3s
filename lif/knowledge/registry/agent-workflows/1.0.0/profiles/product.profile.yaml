@@ -1,0 +1,11 @@
+name: product
+keywords: [customer, requirement, feature, roadmap, commitment, user story, priority]
+weights:
+  requirement: 3
+  feature: 3
+  commitment: 3
+  decision: 2.5
+  question: 2
+  assumption: 2
+  customer: 2
+default_weight: 1.0

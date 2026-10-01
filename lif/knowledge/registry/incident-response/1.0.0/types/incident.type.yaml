@@ -1,0 +1,14 @@
+name: incident
+version: 1
+extends: evidence
+description: A failure or near miss. Evidence for lessons; its failed assumptions enter the reconsideration queue.
+fields:
+  status: {type: enum, required: true, values: [open, mitigated, resolved, closed]}
+  severity: {type: enum, required: true, values: [sev1, sev2, sev3, sev4]}
+  date: {type: date, required: true}
+  affected: {type: "object[]", propagates: false}
+  timeline: {type: "map[]", description: "{at, what}"}
+  root_cause: text
+  failed_assumptions: {type: "assumption[]", propagates: false}
+  lessons: {type: "lesson[]", propagates: false}
+  synthetic: {type: bool, description: "a drill or test fixture, not a real event"}

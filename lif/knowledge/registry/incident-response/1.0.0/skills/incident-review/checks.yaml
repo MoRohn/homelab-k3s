@@ -1,0 +1,12 @@
+inputs:
+  incident: {type: incident, required: true}
+checks:
+  - id: has-root-cause
+    description: The incident states a root cause
+    object: "{incident}"
+    where: ["root_cause~ "]
+  - id: has-lesson
+    description: A lesson cites this incident as evidence
+    query: {type: lesson, depends_on: "{incident}"}
+    expect: nonempty
+    severity: warning

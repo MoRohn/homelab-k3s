@@ -1,0 +1,4 @@
+name: claims-supported-by
+description: All claims and assumptions resting on a source or evidence object
+params: [source]
+find: {type: claim, depends_on: "{source}"}

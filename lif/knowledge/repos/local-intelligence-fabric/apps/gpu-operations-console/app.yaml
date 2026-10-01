@@ -1,0 +1,4 @@
+name: gpu-operations-console
+title: GPU operations console
+description: GPU constraints, reservations, resource incidents — the knowledge behind the GPU page.
+views: [gpu-capacity, constraints, resource-incidents, open-reconsiderations]

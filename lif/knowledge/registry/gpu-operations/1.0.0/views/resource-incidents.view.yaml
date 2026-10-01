@@ -1,0 +1,6 @@
+name: resource-incidents
+kind: timeline
+title: Resource incidents
+query: {type: incident, where: ["tags~resource"]}
+columns: [title, severity, status, date, root_cause]
+date_field: date

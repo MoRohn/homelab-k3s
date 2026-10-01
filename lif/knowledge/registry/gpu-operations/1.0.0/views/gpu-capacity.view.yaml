@@ -1,0 +1,5 @@
+name: gpu-capacity
+kind: table
+title: GPU capacity — reservations and the constraints behind them
+query: {type: "resource-reservation,assumption", where: ["tags~gpu"]}
+columns: [title, type, status, resource, amount, holder, because]

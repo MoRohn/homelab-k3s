@@ -1,0 +1,4 @@
+name: project-dashboard
+title: LIF project dashboard
+description: Work, decisions, open questions and the reconsideration queue for the Local Intelligence Fabric.
+views: [project-dashboard, decisions, open-reconsiderations, constraints, knowledge-health]

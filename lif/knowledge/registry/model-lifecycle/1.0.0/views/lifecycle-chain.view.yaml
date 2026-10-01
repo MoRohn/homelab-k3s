@@ -1,0 +1,5 @@
+name: lifecycle-chain
+kind: table
+title: Model lifecycle — models, deployments and the decisions behind them
+query: {type: "model,deployment,decision", where: ["kind~model"]}
+columns: [title, type, status, state, model, selected_by, evidence]

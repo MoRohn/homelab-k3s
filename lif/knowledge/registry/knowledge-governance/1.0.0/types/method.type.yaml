@@ -1,0 +1,10 @@
+name: method
+version: 1
+description: How something should be done and WHY. A skill operationalizes a method.
+fields:
+  status: {type: enum, values: [draft, active, retired]}
+  version: int
+  steps: string[]
+  rationale: text
+  derived_from: {type: "object[]", description: "incidents, lessons, decisions that shaped it"}
+  revisions: {type: "map[]", description: "version history: {version, date, change, because}"}

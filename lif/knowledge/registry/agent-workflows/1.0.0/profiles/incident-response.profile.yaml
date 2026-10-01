@@ -1,0 +1,12 @@
+name: incident-response
+keywords: [incident, oom, outage, root cause, postmortem, failure, crash]
+weights:
+  incident: 3
+  lesson: 3
+  method: 2.5
+  deployment: 2.5
+  assumption: 2
+  decision: 2
+  event: 2
+  skill: 1.5
+default_weight: 1.0

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "lif-knowledge": {
+      "command": "lif/.venv/bin/knowledge",
+      "args": [
+        "--root",
+        "lif/knowledge",
+        "mcp",
+        "--agent",
+        "claude-code"
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+name: session
+version: 1
+description: >
+  An agent work session checkpoint. The next session resumes from the graph plus this record,
+  never from a chat transcript.
+fields:
+  agent: string
+  started: string
+  ended: string
+  completed: {type: "object[]", propagates: false}
+  decisions: {type: "decision[]", propagates: false}
+  questions: {type: "question[]", propagates: false}
+  artifacts: {type: "object[]", propagates: false}
+  changed: {type: "object[]", propagates: false}
+  next: string[]
+  resumed_from: {type: "session?", propagates: false}
+  recovered: {type: bool, description: "did the resume package carry the critical context? (context recovery rate)"}

@@ -1,0 +1,16 @@
+name: decision
+version: 1
+description: A choice with its question, alternatives, evidence and assumptions.
+fields:
+  question: text
+  status: {type: enum, required: true, values: [proposed, accepted, rejected, superseded, deprecated]}
+  selected: string
+  alternatives: string[]
+  rationale: text
+  evidence: {type: "evidence[]", min: 1}
+  assumptions: assumption[]
+  affects: {type: "object[]", inverse: true, description: "what this decision shapes (they depend on it)"}
+  supersedes: {type: "decision?", propagates: false, acyclic: true}
+  review_when: {type: "object[]", propagates: false, description: "objects whose appearance triggers a review"}
+  date: {type: date, required: true}
+  deciders: string[]

@@ -30,6 +30,9 @@ CLAUDE.local.md
 !.claude/settings.json
 .claude/settings.local.json
 
+# ---- Derived knowledge index (rebuild: `knowledge rebuild`) ----
+.knowledge/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]

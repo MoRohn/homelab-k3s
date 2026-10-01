@@ -1,0 +1,12 @@
+name: research
+keywords: [paper, source, claim, evidence, research, study, literature, hypothesis]
+weights:
+  claim: 3
+  source: 2.5
+  evidence: 2.5
+  grounding: 2
+  question: 2
+  assumption: 2
+  experiment: 2
+  decision: 1
+default_weight: 1.0

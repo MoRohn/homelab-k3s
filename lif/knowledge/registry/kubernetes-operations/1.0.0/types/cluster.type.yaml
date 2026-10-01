@@ -1,0 +1,6 @@
+name: cluster
+version: 1
+fields:
+  distribution: string
+  version: string
+  nodes: host[]
