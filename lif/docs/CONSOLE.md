@@ -497,7 +497,7 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 5. **First run.** Open `https://labzilla.local`; with no users it goes to **Setup**. On the host, the owner reads the setup code with `cat ~/labzilla/secrets/lif-console-setup.code` (agents never read it) and types it into the setup form with an admin name and a passphrase of at least 10 characters. Without the code, setup is refused.
 6. **Connect a phone.** Desktop → **Connect a phone** (side nav) shows a QR code for `<public_url>/pair#<token>` (single use, 120 s). The phone opens it, both screens show the same 6-digit code, and the desktop approves. Revoke under **Connect → Devices**.
 7. **Optional: trusted HTTPS** (see *TLS* below) to unlock install, voice and notifications.
-8. **Recommended: real client addresses.** Set `externalTrafficPolicy: Local` on the Traefik Service (cluster-wide) so per-IP limits see each client's own address. Rationale: CONSOLE_SECURITY *(private, local only)*.
+8. **Real client addresses (committed, takes effect on push).** `homelab/networking/metallb/config/traefik-ip.yaml` sets `externalTrafficPolicy: Local` on the Traefik Service, so per-IP limits see each client's own address. Argo CD applies it when `main` is pushed; Traefik restarts once (a brief interruption of every LAN ingress). Rationale: CONSOLE_SECURITY *(private, local only)*.
 
 ### Name resolution
 
