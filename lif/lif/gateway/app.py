@@ -353,6 +353,8 @@ async def _route(body: dict, request: Request) -> Route:
 def _prepare(body: dict, route: Route, state: BlerbzState) -> dict:
     out = {k: v for k, v in body.items() if k != "lif"}
     out["model"] = route.profile.name
+    if route.profile.runtime != "llama.cpp":
+        out.pop("return_progress", None)          # llama-server's prompt-progress chunks; others may reject it
     if route.profile.chat_template_kwargs and "chat_template_kwargs" not in out:
         out["chat_template_kwargs"] = route.profile.chat_template_kwargs
     if state == BlerbzState.IMMINENT:

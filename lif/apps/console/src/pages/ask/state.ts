@@ -21,6 +21,7 @@ import type {
   MessageRequest,
   PrivacyChoice,
   Receipt,
+  StreamPhase,
   StreamRoute,
   Thread,
   ThreadEvent,
@@ -59,6 +60,18 @@ const lastBody = new Map<string, MessageRequest>();
 /** Thread ids with a stream running in this tab; components re-render on change. */
 export const streaming = observable<ReadonlySet<string>>(new Set());
 const publish = () => streaming.set(new Set(inflight.keys()));
+
+/** Where an answer is before its first word, per thread (this tab's streams only): waiting for a model
+ *  slot, then reading the prompt. `since` (ms) lets the view show how long that has taken. */
+export type AnswerPhase = StreamPhase & { since: number };
+export const phases = observable<ReadonlyMap<string, AnswerPhase>>(new Map());
+const setPhase = (threadId: string, p: StreamPhase | null) => {
+  const next = new Map(phases.get());
+  const prev = next.get(threadId);
+  if (p) next.set(threadId, { ...p, since: prev?.phase === p.phase ? prev.since : Date.now() });
+  else if (!next.delete(threadId)) return;
+  phases.set(next);
+};
 
 /** A prompt offered to Agents by "Run as Agent", kept out of the URL like shell promptHandoff. */
 export const agentTaskHandoff = observable<string | null>(null);
@@ -179,7 +192,9 @@ export async function send(threadId: string, body: MessageRequest, attachmentNot
           if (r.message_id) job.serverId ??= r.message_id;
           patchMsg(threadId, localId, (m) => ({ ...m, receipt: routeOnly(r) }));
         }),
+        phase: safe((p) => setPhase(threadId, p)),
         delta: safe((d) => {
+          if (!buf) setPhase(threadId, null);
           buf += d.text;
           timer ??= setTimeout(flush, 50);
         }),
@@ -210,6 +225,7 @@ export async function send(threadId: string, body: MessageRequest, attachmentNot
     else finish('error', toHumanError(e));
   } finally {
     clearTimeout(timer);
+    setPhase(threadId, null);
     inflight.delete(threadId);
     publish();
     // After a Stop, stop() refetches once the server has accepted the cancel; refetching here would

@@ -221,7 +221,7 @@ export async function postStream<M>(path: string, body: unknown, handlers: Strea
   }
 }
 
-/** Typed Ask stream: POST /api/ai/threads/{id}/messages → route, delta, receipt, error, done. */
+/** Typed Ask stream: POST /api/ai/threads/{id}/messages → route, phase, delta, receipt, error, done. */
 export function askStream(
   threadId: string,
   body: MessageRequest,

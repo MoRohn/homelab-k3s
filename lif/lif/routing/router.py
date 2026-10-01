@@ -40,6 +40,7 @@ class Profile:
     auth_secret: str | None = None        # secret name sent as Bearer to this upstream
     yield_on_blerbz: bool = False         # shared primary-workload engine: skipped while it is IMMINENT
     vision: bool = False                  # accepts image_url parts (llama.cpp loaded with --mmproj)
+    runtime: str = "llama.cpp"            # llama.cpp-only request fields (return_progress) go nowhere else
 
     @classmethod
     def from_cfg(cls, name: str, c: dict) -> "Profile":
@@ -50,7 +51,7 @@ class Profile:
                    chat_template_kwargs=c.get("chat_template_kwargs") or {},
                    embedding_dim=c.get("embedding_dim"), auth_secret=c.get("auth_secret"),
                    yield_on_blerbz=bool(c.get("yield_on_blerbz", False)),
-                   vision=bool(c.get("mmproj") or c.get("vision")))
+                   vision=bool(c.get("mmproj") or c.get("vision")), runtime=c.get("runtime") or "llama.cpp")
 
 
 @dataclass

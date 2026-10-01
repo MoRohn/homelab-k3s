@@ -777,11 +777,27 @@ export interface StreamDone {
   message_id: string;
 }
 
-export type AskStreamEvent = "route" | "delta" | "receipt" | "error" | "done";
+/**
+ * Before the first word: "waiting" until the gateway has a model slot for this answer, then "reading"
+ * while the model processes the prompt (the whole conversation minus what it had cached). Long prompts on
+ * the CPU tier take tens of seconds here, so the answer shows progress instead of an empty bubble.
+ */
+export interface StreamPhase {
+  phase: "waiting" | "reading";
+  /** prompt tokens */
+  total?: number | null;
+  /** reused from the model's prompt cache (no work) */
+  cached?: number | null;
+  /** of total, done so far (llama.cpp reports per batch) */
+  processed?: number | null;
+}
+
+export type AskStreamEvent = "route" | "phase" | "delta" | "receipt" | "error" | "done";
 
 /** Type map, not a response: the `data` of each SSE event on the Ask stream, keyed by event name. */
 export interface AskStreamPayloads {
   route: StreamRoute;
+  phase: StreamPhase;
   delta: StreamDelta;
   receipt: Receipt;
   error: HumanError;

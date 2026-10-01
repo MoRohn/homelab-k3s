@@ -4,7 +4,8 @@ Spec §7–§11, §18–§21, §64, §67–§70.
 
 Streaming. POST /api/ai/threads/{id}/messages answers with text/event-stream: `route` (as soon as the
 gateway picks a model; an early one with just the mode so the screen isn't blank while a request
-queues), `delta` (text), then `receipt` or `error`, then `done`. The gateway call runs in its own task
+queues), `phase` ("waiting" for a model slot, then "reading" the prompt with llama.cpp's token progress),
+`delta` (text), then `receipt` or `error`, then `done`. The gateway call runs in its own task
 that does not depend on the browser: if the phone locks or the tab closes, the answer keeps arriving,
 is saved, and is pushed to every other device of the owner as hub `thread` events (~1 s cadence), so
 "Open on desktop" shows the same answer (§68). The final message is persisted before `done` is sent.
@@ -57,7 +58,7 @@ from lif.console.contracts import (AiCapabilities, AskMode, Attachment, Attachme
                                    CommandResolution, CreateThreadRequest, DecisionBadge, Fact, HumanError,
                                    HumanErrorAction, MessageRequest, ModeOption, OkResponse, PrivacyChoice,
                                    PrivacyOption, PrivacyUsed, Receipt, RenameThreadRequest, RouteStep, StreamDone,
-                                   StreamRoute, TechDetail, Thread, ThreadEvent, ThreadSummary, TokenUsage, User)
+                                   StreamPhase, StreamRoute, TechDetail, Thread, ThreadEvent, ThreadSummary, TokenUsage, User)
 from lif.console.errors import human
 from lif.console.events import hub
 
@@ -624,6 +625,7 @@ async def produce(run: _Run, body: dict[str, Any], *, mode: AskMode, privacy: Pr
             raise _NotConfigured()
         headers = {"Authorization": f"Bearer {key}", "X-LIF-Data-Class": DATA_CLASS[privacy],
                    "X-LIF-Workload": "console", "Accept": "text/event-stream"}
+        run.emit("phase", StreamPhase(phase="waiting").model_dump())
         async with _client() as c, c.stream("POST", "/v1/chat/completions", json=body, headers=headers) as resp:
             if resp.status_code >= 400:
                 status, error = "error", gateway_error(resp.status_code, await resp.aread(), requested, images=images)
@@ -635,6 +637,8 @@ async def produce(run: _Run, body: dict[str, Any], *, mode: AskMode, privacy: Pr
                     early.append(RouteStep(label=friendly_model(served) or served, kind="model"))
                 run.emit("route", StreamRoute(route=early, privacy="local_only",
                                               message_id=run.message_id).model_dump())
+                # The gateway answers once it holds a model slot; the model then reads the prompt.
+                run.emit("phase", StreamPhase(phase="reading").model_dump())
                 async for line in resp.aiter_lines():
                     kind, val = parse_line(line)
                     if kind == "done":
@@ -648,6 +652,10 @@ async def produce(run: _Run, body: dict[str, Any], *, mode: AskMode, privacy: Pr
                         break
                     if kind != "chunk":
                         continue
+                    pp = val.get("prompt_progress")
+                    if isinstance(pp, dict) and not run.text:
+                        run.emit("phase", StreamPhase(phase="reading", total=pp.get("total"), cached=pp.get("cache"),
+                                                      processed=pp.get("processed")).model_dump())
                     for ch in val.get("choices") or []:
                         delta = (ch.get("delta") or {}).get("content") or ch.get("text") or ""
                         if delta:
@@ -771,7 +779,7 @@ async def send_message(thread_id: str, req: MessageRequest, request: Request,
         if threads.thread_bytes(thread_id) + len(content.encode()) > threads.THREAD_QUOTA_BYTES:
             raise _too_long()
         history = threads.context(thread_id, before=time.time())
-        body = {"model": alias, "stream": True, "messages": [*history, {"role": "user", "content": user_content}]}
+        body = {"model": alias, "stream": True, "return_progress": True, "messages": [*history, {"role": "user", "content": user_content}]}
         if images and len(json.dumps(body)) > GATEWAY_BODY_MAX:      # before anything is stored
             raise human(413, "Too much to send in one message", "The images and files together are over the 4 MB "
                         "the AI gateway accepts. Nothing was sent.", "Remove an image or a file, then send again.")

@@ -1,14 +1,15 @@
 // One prompt or one answer in an Ask thread (§9, §11, §21, §25, §64, §81). Not chat bubbles: the prompt is
 // a quiet header, the answer is the content, and the receipt is one understated line —
 // "Handled by local/default · Qwen3 4B · CPU · 1.4 sec" — with the route, decision and raw facts on demand.
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso/router';
 import { post, toHumanError } from '@/api/client';
 import type { Message, Receipt, Thread, User } from '@/api/contracts.gen';
 import { useCopy } from '@/ui/clipboard';
 import { Badge, Button, DecisionBadge, Drawer, FactList, type FactItem, HumanErrorCard, Icon, Markdown, PrivacyBadge, RouteTrail, TechDetails, cx, fmt, toast } from '@/ui';
 import { fileSize } from './files';
-import { agentTaskHandoff } from './state';
+import { useObservable } from '@/api/observable';
+import { type AnswerPhase, agentTaskHandoff, phases } from './state';
 
 /** "Run as Agent" is offered only once an installed agent takes a free-form task (§21). Today's agents
  *  (Model Scout, the Evaluator) run fixed model checks, so the button would always end at "no agent fits". */
@@ -148,6 +149,34 @@ function DetailsDrawer({ r, open, onClose }: { r: Receipt; open: boolean; onClos
   );
 }
 
+/** "Reading your conversation: 1,700 new tokens (1,200 cached), 40 %, 12 s". Exported for tests. */
+export function phaseText(p: AnswerPhase, now: number): string {
+  const secs = Math.max(0, Math.round((now - p.since) / 1000));
+  const took = secs >= 3 ? ` · ${secs} s` : '';
+  if (p.phase === 'waiting') return `Waiting for a free local model…${took}`;
+  if (p.total == null) return `Reading your conversation…${took}`;
+  const cached = p.cached ?? 0;
+  const fresh = Math.max(0, p.total - cached);
+  const done = p.processed != null && fresh > 0 ? Math.min(1, Math.max(0, (p.processed - cached) / fresh)) : null;
+  const n = (x: number) => x.toLocaleString();
+  return (
+    `Reading your conversation: ${n(fresh)} new token${fresh === 1 ? '' : 's'}` +
+    (cached ? ` (${n(cached)} cached)` : '') +
+    (done != null && done > 0 && done < 1 ? `, ${Math.round(done * 100)} %` : '') +
+    `…${took}`
+  );
+}
+
+/** The live pre-answer line, ticking once a second so a long prompt visibly makes progress. */
+function PhaseLine({ phase }: { phase: AnswerPhase }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return <span class="ask-phase">{phaseText(phase, now)}</span>;
+}
+
 export function AnswerView({ msg, thread, prompt, user, remote, onContinue, onRetry }: AnswerViewProps) {
   const { route } = useLocation();
   const [copied, copy] = useCopy();
@@ -157,6 +186,7 @@ export function AnswerView({ msg, thread, prompt, user, remote, onContinue, onRe
   const routeSoFar = msg.receipt?.route ?? [];
   const streaming = msg.status === 'streaming';
   const finished = !streaming && msg.content.length > 0;
+  const phase = useObservable(phases).get(thread.id);
 
   const save = async () => {
     setSaving(true);
@@ -186,6 +216,12 @@ export function AnswerView({ msg, thread, prompt, user, remote, onContinue, onRe
             </>
           ) : (
             'Choosing a local model…'
+          )}
+          {phase && (
+            <>
+              <br />
+              <PhaseLine phase={phase} />
+            </>
           )}
         </p>
       )}

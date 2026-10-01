@@ -169,6 +169,25 @@ def happy_stream(provider: str = "rules", alias: str = "local/fast") -> httpx.Re
     return httpx.Response(200, headers=HAPPY_HEADERS, content=body.encode())
 
 
+def test_ask_stream_reports_waiting_then_reading_progress(client, env):
+    """Before the first word the browser hears where the answer is: waiting for a slot, then reading the
+    prompt with llama.cpp's own progress (total / cached / processed). Progress after text starts is dropped."""
+    seen: list[httpx.Request] = []
+    prog = lambda total, cache, done: f"data: {json.dumps({'choices': [], 'prompt_progress': {'total': total, 'cache': cache, 'processed': done, 'time_ms': 1}})}\n\n"
+    body = prog(1700, 1200, 1200) + prog(1700, 1200, 1700) + chunk("Hi") + prog(1700, 1200, 1700) + "data: [DONE]\n\n"
+    gateway(httpx.Response(200, headers=HAPPY_HEADERS, content=body.encode()), seen)
+    t = client.post("/api/ai/threads", json={"mode": "auto", "privacy": "local_only"}).json()
+    evs = sse(client.post(f"/api/ai/threads/{t['id']}/messages",
+                          json={"content": "hello", "mode": "auto", "privacy": "local_only"}).text)
+    phases = [d for e, d in evs if e == "phase"]
+    assert [p["phase"] for p in phases] == ["waiting", "reading", "reading", "reading"]
+    assert phases[2] == {"phase": "reading", "total": 1700, "cached": 1200, "processed": 1200}
+    assert phases[3]["processed"] == 1700
+    kinds = [e for e, _ in evs]
+    assert kinds.index("phase") < kinds.index("delta") and "phase" not in kinds[kinds.index("delta"):]
+    assert json.loads(seen[0].content)["return_progress"] is True
+
+
 # ── command bar: every spec example (§7, §8, §33, §50, §103) ─────────────────────────────────
 
 INTENTS = [

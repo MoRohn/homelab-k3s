@@ -313,7 +313,7 @@ No new Python dependencies: `hashlib.scrypt`, `secrets`, stdlib `sqlite3` (WAL),
 | ai | `GET /api/ai/capabilities` | `AiCapabilities` | read |
 | ai | `GET/POST /api/ai/threads`, `GET/DELETE /api/ai/threads/{id}` | `ThreadSummary[]` / `Thread` | ask |
 | ai | `PATCH /api/ai/threads/{id}` (`{title}`, ≤ 120 characters; doesn't reorder the list) | `ThreadSummary` | ask |
-| ai | `POST /api/ai/threads/{id}/messages` | SSE: `route`, `delta`, `receipt`, `error`, `done` | ask |
+| ai | `POST /api/ai/threads/{id}/messages` | SSE: `route`, `phase` (waiting → reading, with prompt-token progress), `delta`, `receipt`, `error`, `done` | ask |
 | ai | `POST /api/ai/threads/{id}/messages/{mid}/cancel` | `OkResponse` | ask |
 | command | `POST /api/command` | `CommandResolution` | read |
 | jobs | `GET /api/jobs?status=`, `GET /api/jobs/{id}` | `JobsResponse` / `Job` | read |

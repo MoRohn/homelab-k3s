@@ -165,6 +165,20 @@ def test_engine_key_sent_to_shared_gpu_profile(client, monkeypatch):
     assert auth_seen[-1] == ("http://bridge.test:18102/v1/chat/completions", "Bearer engine-secret")
 
 
+def test_return_progress_only_reaches_llama_cpp(client):
+    """The console asks for llama-server's prompt-progress chunks; another runtime may reject the field."""
+    _, gw = client
+    from types import SimpleNamespace
+    from lif.gpu.state import BlerbzState
+    from lif.routing.router import Profile
+    body = {"model": "local/fast", "stream": True, "return_progress": True, "messages": []}
+    for runtime, kept in (("llama.cpp", True), ("vllm", False)):
+        prof = Profile.from_cfg("p", {"endpoint": "http://x", "runtime": runtime})
+        out = gw._prepare(body, SimpleNamespace(profile=prof), BlerbzState.LOW)
+        assert ("return_progress" in out) is kept, runtime
+    assert Profile.from_cfg("p", {"endpoint": "http://x"}).runtime == "llama.cpp"
+
+
 # ── vision: images route deterministically, never to a text-only model ──────
 
 IMG = {"role": "user", "content": [{"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgo="}},
