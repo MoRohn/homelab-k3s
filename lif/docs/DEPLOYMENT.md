@@ -36,6 +36,7 @@ cd ~/labzilla/lif
 .venv/bin/python -m pytest tests -q                       # 54 tests
 TAG=$(date +%Y%m%d-%H%M)
 docker build -t 127.0.0.1:5000/lif/fabric:$TAG . && docker push 127.0.0.1:5000/lif/fabric:$TAG
+kubectl kustomize . | sed "s/IMAGE_TAG/$TAG/g" | kubectl diff -f -   # review first
 kubectl kustomize . | sed "s/IMAGE_TAG/$TAG/g" | kubectl apply -f -
 for d in controller gateway decision-fabric batch; do kubectl -n ai-system rollout status deploy/$d; done
 ```
@@ -46,7 +47,7 @@ for d in controller gateway decision-fabric batch; do kubectl -n ai-system rollo
 
 ### After every apply
 
-1. **Check host headroom.** The kustomization sets `tier0-small` back to 1 replica. The memory guard re-sheds it within about 60 s if MemAvailable is below 9 GiB.
+1. **Check host headroom.** `tier0-small` and `embedding` have no `replicas:` in their manifests, so an apply leaves the memory guard's count alone. LIF workloads still roll, and `gpu-engine-bridge` restarts, because it uses the same image.
    ```bash
    cd ~/bnn/apps/blerbz-news-network && .venv/bin/python -m bnn.gpusched status | sed -n 2,3p
    ```

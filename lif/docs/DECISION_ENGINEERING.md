@@ -232,7 +232,7 @@ The executive dashboard (Control Center → Decision Engineering → Overview) i
 | L | questions versioned | `test_ready_L_new_version_does_not_move_bare_name` |
 | M | rollback restores the previous implementation | `test_ready_M_promote_then_rollback_restores_previous` |
 | N | fan-out reduces repeated state | `test_ready_N_fanout_reduces_repeated_state_submission` |
-| O | Kubernetes workloads healthy | **not verified**: manifests render (`kubectl kustomize`) but are not deployed |
+| O | Kubernetes workloads healthy | **verified 2026-10-01**: image `20261001-1030-de` deployed. All LIF pods are Running with 0 restarts, and `local-ai doctor` shows no new failures. A live `/de/decide` was answered by Jev in 405 ms (`auto`) with provenance stored, `/v1/de` requires the admin key, and the nightly backup now includes `decision-eng.db` |
 | P | primary workload unaffected | **not verified**. Decision Engineering uses no GPU. But the 2026-10-01 benchmark drove the CPU tier while host MemAvailable was about 6 GiB, causing about 1.1 GB/s page-ins and 25% iowait until it was stopped; any effect on the primary workload is unknown. Since then, local-inference benchmark arms also wait for 8 GiB of MemAvailable |
 | Q | completion never relies only on Jev | `test_ready_Q_completion_needs_acceptance_checks_not_just_jev` |
 | R | irreversible stays human/policy | `test_ready_R_irreversible_decisions_stay_human`, `test_ready_R_tool_policy_is_deterministic` |
