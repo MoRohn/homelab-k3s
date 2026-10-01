@@ -14,6 +14,9 @@ your browser is closed.
 | Look at Quick Ask's status | **Online**, **Not reachable**, or **Certificate not trusted** (install the CA, below) |
 
 Linux AppIndicator trays don't report clicks, so on Linux use the menu's **Ask Labzilla…** or the shortcut.
+AppIndicator doesn't report where the icon is either: Quick Ask drops from just beneath the top bar where you
+clicked in the tray menu (which hangs under the icon) and remembers that spot for the shortcut. Before the
+first menu click it opens at the right-hand end of the top bar. (Needs X11; Wayland doesn't let apps place windows.)
 
 ## Install
 

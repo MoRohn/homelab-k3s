@@ -30,6 +30,7 @@ use tauri_plugin_positioner::{Position, WindowExt};
 const DEFAULT_URL: &str = "https://labzilla.local";
 const QUICK_SHORTCUT: &str = "CommandOrControl+Shift+Space";
 const TRAY_ID: &str = "labzilla";
+const QUICK_WIDTH: f64 = 440.0; // logical px, as in tauri.conf.json
 const PROBE_EVERY: Duration = Duration::from_secs(20);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 
@@ -60,6 +61,9 @@ struct AppState {
     settings: Mutex<Settings>,
     online: Mutex<Option<bool>>,
     status_item: MenuItem<Wry>,
+    /// Linux: where the tray icon is, horizontally (physical px), learned from the pointer when the
+    /// tray menu's "Ask Labzilla…" is clicked. AppIndicator never reports the icon's position.
+    anchor_x: Mutex<Option<f64>>,
 }
 
 // ── settings ──────────────────────────────────────────────────────────────────────────────────
@@ -149,21 +153,68 @@ fn show_main(app: &AppHandle, target: Option<Url>) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Toggle Quick Ask. `near_tray`: place it under/over the tray icon (only known after a tray click).
-fn toggle_quick(app: &AppHandle, near_tray: bool) {
+/// How Quick Ask was opened: it decides where the popover goes.
+#[derive(Clone, Copy, PartialEq)]
+enum Opener {
+    /// A click on the tray icon (Windows, macOS): its position is known.
+    TrayClick,
+    /// The tray menu's "Ask Labzilla…": on Linux the pointer is in the menu that dropped from the icon.
+    Menu,
+    Shortcut,
+}
+
+/// Toggle Quick Ask, dropping it from just beneath the tray icon.
+fn toggle_quick(app: &AppHandle, opener: Opener) {
     let Some(w) = app.get_webview_window("quick") else { return };
     if w.is_visible().unwrap_or(false) {
         let _ = w.hide();
         return;
     }
-    let pos = if near_tray { Position::TrayCenter } else { Position::TopCenter };
-    if w.move_window(pos).is_err() {
-        let _ = w.move_window(Position::TopCenter);
-    }
+    place_quick(app, &w, opener);
     let _ = w.emit("status", status(app));
     let _ = w.show();
     let _ = w.set_focus();
     let _ = w.emit("focus-input", ());
+}
+
+fn place_quick(app: &AppHandle, w: &tauri::WebviewWindow, opener: Opener) {
+    // Windows / macOS: the positioner knows the tray icon's rectangle after any tray event (click,
+    // hover), and puts the popover under it (menu bar) or above it (taskbar at the bottom).
+    if !cfg!(target_os = "linux") && w.move_window(Position::TrayCenter).is_ok() {
+        return;
+    }
+    let anchor = *app.state::<AppState>().anchor_x.lock().unwrap();
+    let anchor = if cfg!(target_os = "linux") && opener == Opener::Menu {
+        let x = w.cursor_position().ok().map(|p| p.x);
+        if x.is_some() {
+            *app.state::<AppState>().anchor_x.lock().unwrap() = x;
+        }
+        x.or(anchor)
+    } else {
+        anchor
+    };
+    if place_under_top_bar(w, anchor).is_err() {
+        let _ = w.move_window(Position::TopRight);
+    }
+}
+
+/// Just beneath the top bar (the monitor's work area starts below it), centred on `anchor_x`, or at
+/// the right-hand end where trays sit when the icon's position isn't known yet.
+fn place_under_top_bar(w: &tauri::WebviewWindow, anchor_x: Option<f64>) -> tauri::Result<()> {
+    let cursor = w.cursor_position()?;
+    let monitor = match w.monitor_from_point(cursor.x, cursor.y)? {
+        Some(m) => m,
+        None => w.primary_monitor()?.ok_or(tauri::Error::WindowNotFound)?,
+    };
+    let area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let (left, top) = (area.position.x as f64, area.position.y as f64);
+    // Not outer_size(): GTK reports a placeholder size for a window that hasn't been shown yet.
+    let (width, popover) = (area.size.width as f64, QUICK_WIDTH * scale);
+    let margin = 8.0 * scale;
+    let max_x = left + width - popover - margin;
+    let x = anchor_x.map(|a| a - popover / 2.0).unwrap_or(max_x).clamp(left + margin, max_x.max(left + margin));
+    w.set_position(tauri::PhysicalPosition::new(x.round() as i32, (top + 4.0 * scale).round() as i32))
 }
 
 // ── availability ──────────────────────────────────────────────────────────────────────────────
@@ -286,7 +337,7 @@ pub fn run() {
                 .expect("valid shortcut")
                 .with_handler(|app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
-                        toggle_quick(app, false);
+                        toggle_quick(app, Opener::Shortcut);
                     }
                 })
                 .build(),
@@ -326,6 +377,7 @@ pub fn run() {
                 settings: Mutex::new(settings),
                 online: Mutex::new(None),
                 status_item: status_item.clone(),
+                anchor_x: Mutex::new(None),
             });
 
             let login_toggle = login_item.clone();
@@ -335,7 +387,7 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(move |app, event| match event.id().as_ref() {
-                    "ask" => toggle_quick(app, false),
+                    "ask" => toggle_quick(app, Opener::Menu),
                     "open" => {
                         let _ = show_main(app, None);
                     }
@@ -351,7 +403,7 @@ pub fn run() {
                 .on_tray_icon_event(|tray, event| {
                     tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
                     if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-                        toggle_quick(tray.app_handle(), true);
+                        toggle_quick(tray.app_handle(), Opener::TrayClick);
                     }
                 });
             #[cfg(target_os = "macos")]
