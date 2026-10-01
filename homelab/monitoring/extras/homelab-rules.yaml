@@ -63,6 +63,20 @@ spec:
           labels: {severity: warning}
           annotations:
             summary: Volume {{ $labels.volume }} has not been backed up in over 2 days
+        # LonghornBackupStale can't see a volume that was never backed up (last_backup_at = 0).
+        # The daily job runs at 03:15, so a volume with no backup after 30 h means it isn't running.
+        - alert: LonghornVolumeNeverBackedUp
+          expr: longhorn_volume_last_backup_at == 0
+          for: 30h
+          labels: {severity: warning}
+          annotations:
+            summary: Volume {{ $labels.volume }} has never been backed up (check RecurringJob backup-daily)
+        - alert: LonghornNoRecurringBackupJob
+          expr: absent(longhorn_volume_last_backup_at > 0)
+          for: 30h
+          labels: {severity: warning}
+          annotations:
+            summary: No Longhorn volume has a backup; scheduled backups are not running
 
     - name: homelab.offsite
       rules:

@@ -1,0 +1,17 @@
+# Scheduled Longhorn backups to MinIO (s3://longhorn-backups, see values.yaml backupTarget).
+# Every volume without its own recurring-job labels is in the `default` group, so new
+# Longhorn PVCs are backed up automatically. MinIO is on this host's disk: these protect
+# against volume loss/corruption, and backup/offsite-sync.sh copies them off the machine.
+# Applied by scripts/install-longhorn.sh. Restore drill: scripts/test-backup.sh.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-daily
+  namespace: longhorn-system
+spec:
+  task: backup
+  cron: "15 3 * * *"          # 03:15 local, before the off-site timer's next hourly check
+  retain: 14                  # two weeks of daily restore points per volume
+  concurrency: 1              # one volume at a time: keep disk I/O low next to the primary workload
+  groups: [default]
+  labels: {schedule: daily}
