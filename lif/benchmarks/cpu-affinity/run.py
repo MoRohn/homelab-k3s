@@ -43,7 +43,13 @@ ARMS = {
     "x925x10": ("0xF83E0", 10),
     "x925x5": ("0x3E0", 5),         # one X925 cluster
     "x925x8": ("0xF83E0", 8),       # leave two X925 cores free
+    # Repacked weights unlock llama.cpp's ARM GEMM kernels (prompt processing is compute-bound: a 1,700-token
+    # prompt read at ~26 tok/s on tier0, 2026-10-01) at the cost of ~2.4 GiB anonymous (unreclaimable) memory,
+    # the same as an mlock'd mmap. These arms need that much more headroom.
+    "a725x10-repack": ("0x7C1F", 10),
+    "x925x10-repack": ("0xF83E0", 10),
 }
+REPACK_EXTRA_MIB = 2560
 
 
 def mem_available_mib() -> float:
@@ -65,14 +71,16 @@ def workload_state() -> str:
         return "UNKNOWN"
 
 
-def gate() -> tuple[bool, str]:
+def gate(extra_mib: int = 0) -> tuple[bool, str]:
     st, mem = workload_state(), mem_available_mib()
-    ok = st in ("LOW", "MODERATE") and mem >= MIN_HEADROOM_MIB
-    return ok, f"primary workload {st}, MemAvailable {mem:.0f} MiB (need ≥ {MIN_HEADROOM_MIB}, LOW/MODERATE)"
+    need = MIN_HEADROOM_MIB + extra_mib
+    ok = st in ("LOW", "MODERATE") and mem >= need
+    return ok, f"primary workload {st}, MemAvailable {mem:.0f} MiB (need ≥ {need}, LOW/MODERATE)"
 
 
-def job(name: str, mask: str, threads: int) -> dict:
-    args = ["bench", "-m", MODEL, "-C", mask, "--cpu-strict", "1", "-t", str(threads), "--repack", "0",
+def job(name: str, mask: str, threads: int, repack: bool = False) -> dict:
+    mem = "6144Mi" if repack else "3584Mi"
+    args = ["bench", "-m", MODEL, "-C", mask, "--cpu-strict", "1", "-t", str(threads), "--repack", str(int(repack)),
             "-fa", "on", "-ctk", "q8_0", "-ctv", "q8_0", "-p", "512", "-n", "128", "-r", "3", "-o", "json"]
     return {
         "apiVersion": "batch/v1", "kind": "Job",
@@ -88,8 +96,8 @@ def job(name: str, mask: str, threads: int) -> dict:
                          "securityContext": {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True,
                                              "capabilities": {"drop": ["ALL"]}},
                          # weights 2,381 MiB + a 640-token context and buffers + headroom
-                         "resources": {"requests": {"cpu": "500m", "memory": "3584Mi"},
-                                       "limits": {"cpu": "10", "memory": "3584Mi"}},
+                         "resources": {"requests": {"cpu": "500m", "memory": mem},
+                                       "limits": {"cpu": "10", "memory": mem}},
                          "volumeMounts": [{"name": "models", "mountPath": "/models", "readOnly": True}]}],
                      "volumes": [{"name": "models",
                                   "persistentVolumeClaim": {"claimName": "model-store", "readOnly": True}}]}}}}
@@ -103,7 +111,7 @@ def kubectl(*a: str, stdin: str | None = None, timeout: int = 60) -> str:
 def run_arm(arm: str) -> list[dict]:
     mask, threads = ARMS[arm]
     name = f"cpu-affinity-{arm}-{int(time.time())}"
-    kubectl("apply", "-f", "-", stdin=json.dumps(job(name, mask, threads)))
+    kubectl("apply", "-f", "-", stdin=json.dumps(job(name, mask, threads, repack=arm.endswith("-repack"))))
     try:
         kubectl("-n", NS, "wait", "--for=condition=complete", f"job/{name}", "--timeout=900s", timeout=960)
         logs = kubectl("-n", NS, "logs", f"job/{name}", timeout=60)
@@ -125,7 +133,7 @@ def main() -> None:
     arms = [x for x in (os.environ.get("ARMS") or ",".join(ARMS)).split(",") if x]
     results, deadline = {}, time.time() + a.max_wait_min * 60
     for arm in arms:
-        while not (g := gate())[0]:
+        while not (g := gate(REPACK_EXTRA_MIB if arm.endswith("-repack") else 0))[0]:
             if time.time() > deadline:
                 print(f"gave up waiting: {g[1]}", flush=True)
                 break
@@ -134,7 +142,8 @@ def main() -> None:
         else:
             print(f"{arm}: {g[1]}", flush=True)
             rows = run_arm(arm)
-            results[arm] = {"mask": ARMS[arm][0], "threads": ARMS[arm][1], "gate": g[1], "rows": [
+            results[arm] = {"mask": ARMS[arm][0], "threads": ARMS[arm][1], "repack": arm.endswith("-repack"),
+                            "gate": g[1], "rows": [
                 {k: r.get(k) for k in ("n_prompt", "n_gen", "avg_ts", "stddev_ts", "n_threads", "cpu_mask")}
                 for r in rows]}
             for r in results[arm]["rows"]:
