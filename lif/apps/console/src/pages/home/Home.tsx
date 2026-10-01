@@ -1,14 +1,12 @@
-// Home: the command center (§6). Desktop/tablet: one status block, an attention strip only when
-// something needs action (§39), and one activity list — everything else is a drill-down (§4).
-// Compact widths get the Mobile Gateway instead (§12), loaded as its own chunk.
+// Home: the command center (§6). Desktop/tablet: the status block (eager, first paint), then the cockpit
+// as its own chunk: KPI tiles with 6-hour trends, recent conversations, attention, services and grouped
+// activity — each a drill-down into its area (§4). Compact widths get the Mobile Gateway instead (§12).
 import { useSystemStatus } from '@/api/status';
 import { applyDensity } from '@/pages/system/prefs';
 import { useLazy } from '@/pages/system/shared';
 import { useBreakpoint } from '@/shell/useBreakpoint';
 import { usePageTitle } from '@/shell/usePageTitle';
 import { HumanErrorCard, Skeleton } from '@/ui';
-import { Attention } from './Attention';
-import { RecentActivity } from './RecentActivity';
 import { StatusPanel } from './StatusPanel';
 import './home.css';
 
@@ -18,16 +16,25 @@ applyDensity();
 function DesktopHome() {
   const status = useSystemStatus();
   const s = status.data;
+  // The cockpit is its own chunk: the status block paints first, inside the initial-JS budget (§92).
+  const Cockpit = useLazy(() => import('./Cockpit').then((m) => m.default));
   return (
-    <div class="page lz-home">
+    <div class="page page-wide lz-home">
       {!s && <h1 class="sr-only">Home</h1>}
       {!s && status.error ? (
         <HumanErrorCard error={status.error} onRetry={() => void status.refresh()} />
       ) : (
         <StatusPanel status={s} />
       )}
-      {s && <Attention status={s} />}
-      <RecentActivity />
+      {s && Cockpit ? (
+        <Cockpit status={s} />
+      ) : (
+        <div class="lz-tiles" aria-hidden="true">
+          {Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} height="112px" radius="var(--radius)" />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

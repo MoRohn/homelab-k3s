@@ -80,6 +80,25 @@ test('Ask answers questions about Labzilla from live state, and the model on req
   await expectHumanText(page, 'ask routing');
 });
 
+test('Home cockpit: KPI tiles with trends, recent conversations, services, folded activity (§6)', async ({ page }) => {
+  await page.goto('/');
+  const kpis = page.getByRole('region', { name: 'Last 24 hours' });
+  await expect(kpis).toBeVisible({ timeout: 20_000 });
+  for (const label of ['Answers in Ask', 'Answer speed', 'First word (p90)', 'Availability', 'Free memory', 'DGX GPU load', 'AI requests', 'Value (estimate)'])
+    await expect(kpis.getByText(label, { exact: true })).toBeVisible();
+  // Trends speak in words, not only lines (§57): the free-memory sparkline names the safety margin.
+  await expect(kpis.getByRole('img', { name: /Free memory over the last 6 hours: now .* GB.*8 GB safety margin/ })).toBeVisible();
+  // Every tile with a destination is a drill-down.
+  await expect(kpis.getByRole('link', { name: /Free memory/ })).toHaveAttribute('href', '/system/compute');
+  await expect(page.getByRole('region', { name: 'Recent conversations' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Services' })).toContainText(/services healthy|need a look/);
+  // Repeats fold into one row with a count instead of a wall of identical lines.
+  const titles = await page.getByRole('list', { name: 'Recent activity' }).locator('li').allInnerTexts();
+  const firstLines = titles.map((t) => t.split('\n')[0]);
+  expect(new Set(firstLines).size, 'adjacent activity rows repeat').toBe(firstLines.length);
+  await expectHumanText(page, 'home cockpit');
+});
+
 test('understand why AI fell back: Home explains, the role page shows the cause (§81, §82)', async ({ page }) => {
   await setScenario('fallback');
   await page.goto('/');

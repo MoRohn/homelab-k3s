@@ -17,7 +17,7 @@ The spec section numbers (§) below refer to the owner's UI/UX brief for the con
 
 | Rule | What it means in the console |
 |---|---|
-| Minimum information for the next decision (§4) | Home is one status block and one activity list. No card walls, no dashboards of charts |
+| Minimum information for the next decision (§4) | Home is the owner's cockpit (§6, changed 2026-10-01 at the owner's request): the status block, then eight KPI tiles with 6-hour trend lines, recent conversations, attention, services and folded activity. Every tile and row is a drill-down. No chart library: trends are inline SVG |
 | Five-second comprehension (§110) | Every screen leads with a sentence in plain language ("Running on fallback model") before any detail |
 | Know before you act (§98, §110) | Every action button states its consequence, as a subtitle or an `ActionPreview`. Dangerous ops use `ConfirmDialog`; routine safe actions never confirm (§41) |
 | Detail on demand (§42, §79) | Raw states, pod names, revisions and request ids live only in `tech: TechDetail[]`, shown by the Technical Details drawer |
@@ -32,7 +32,7 @@ The spec section numbers (§) below refer to the owner's UI/UX brief for the con
 
 | Desktop / tablet side nav | Phone bottom nav | Purpose |
 |---|---|---|
-| Home | Home | Is Labzilla healthy, what AI is ready, what the DGX is doing, what happened |
+| Home | Home | Is Labzilla healthy, what AI is ready, how fast and available it is, what the DGX is doing, what I asked, what happened |
 | Ask | Ask | Prompt → route → stream, with the receipt |
 | Agents | Agents | Agent work, approvals, runnable agents |
 | Models | More → Models | Roles first (Fast, Balanced, Deep, Code…), then discovery and candidates |
@@ -349,9 +349,9 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 | 1 | See, understand, use, control, review, intervene | Partial | Whole console | Review and intervention are limited by the backends: review tickets are after-the-fact labels (§40), and there is no use-fallback (§82) |
 | 2 | Always answerable: what, why, wrong, next | Done | Home status block, headline, notifications, command bar | |
 | 3 | USE / OBSERVE / OPERATE modes | Done | Ask + Mobile Gateway / Home + System / Models, Jobs, Settings | OPERATE needs admin; phones get safe operations |
-| 4 | Minimum information | Done | Design rule; Home = 1 status block + 1 activity list | |
+| 4 | Minimum information | Done | Design rule; Home = status block + cockpit (§6) | Changed 2026-10-01: the owner asked for an executive cockpit |
 | 5 | Compact left nav; technical areas contextual | Done | `shell/SideNav`, `shell/nav.ts` | See the table in section 2 |
-| 6 | Home command center | Done | `pages/home` | "Agents running" counts synthesized runs (§22). Every resource row (GPU load, memory, BLERBZ) drills down to System → Compute and says when its data is out of date. Live state (who answers, GPU owner, reviews) is not shown once its upstream has been silent for three of its poll intervals (at least 30 s) |
+| 6 | Home command center | Done | `pages/home`, `GET /api/home` | Status block (eager), then the cockpit chunk (`Cockpit.tsx`, ~4.5 KB gz): KPI tiles (Ask answers, answer speed, first word p90, availability, free memory with the 8 GB margin, GPU load, AI requests, value estimate) with 6-hour inline-SVG trends where no data is a gap, never 0; recent conversations; attention full-width when something needs the owner, otherwise "Nothing needs you"; services; activity with repeats folded ("· 8×"). `/api/home` refreshes every 60 s while visible and on `thread` events; its shared upstream parts are cached (trends 60 s, value 120 s) and each part degrades with its own reason. "Agents running" counts synthesized runs (§22). Every resource row (GPU load, memory, BLERBZ) drills down to System → Compute and says when its data is out of date. Live state (who answers, GPU owner, reviews) is not shown once its upstream has been silent for three of its poll intervals (at least 30 s) |
 | 7 | Persistent command bar | Done | `shell/CommandBar`, `POST /api/command` | Desktop: bottom of the content column. Phone: above the bottom nav. On phone Home the gateway prompt replaces it and goes through the same resolver |
 | 8 | Command kinds | Partial | `intent.py` | Rules cover every §7/§8 example, in the command bar and in Ask's composer (Auto mode, short prompts). Other text falls back to "Ask Labzilla". No local-model classifier in v1 |
 | 9 | Ask screen with route, privacy, receipt | Done | `pages/ask`, `routes/ai.py` | Latency is measured by the console. The gateway's streaming metadata has no latency |
