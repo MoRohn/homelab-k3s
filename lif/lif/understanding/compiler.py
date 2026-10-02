@@ -1,4 +1,6 @@
-"""The Understanding Compiler: request → knowledge model → ExplanationSpec → route → render → critic (spec §2, §47–§49, §76, §80, §92–§94, §97, §130).
+"""The Understanding Compiler: request → knowledge model → ExplanationSpec → route → render → critic.
+
+Spec §2, §47–§49, §76, §80, §92–§94, §97, §130.
 
 `Compiler.explain()` is an async generator of events, so callers (SSE, CLI, MCP) show results as they
 arrive:
@@ -20,12 +22,14 @@ import re
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
+from itertools import pairwise
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from lif.common import log
-from lif.understanding import analysis, critic, knowledge_model as km_mod, router
+from lif.understanding import analysis, critic, router
+from lif.understanding import knowledge_model as km_mod
 from lif.understanding.registry import Registry
 from lif.understanding.render import base
 from lif.understanding.render.base import OK, RenderRequest, RenderResult
@@ -162,7 +166,7 @@ async def gpusched_probe() -> router.ResourceState:
         return router.ResourceState("UNKNOWN")
 
 
-def gateway_generate(alias: str = "local/default", max_tokens: int = 2500) -> Generate:
+def gateway_generate(alias: str = "local/default", max_tokens: int = 1200) -> Generate:
     """Local generation through the LIF gateway. CONFIDENTIAL, never external."""
     import os
 
@@ -177,9 +181,13 @@ def gateway_generate(alias: str = "local/default", max_tokens: int = 2500) -> Ge
             headers["Authorization"] = f"Bearer {key}"
         async with httpx.AsyncClient(timeout=180) as c:
             r = await c.post(f"{url}/v1/chat/completions", headers=headers,
-                             json={"model": alias, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1})
+                             json={"model": alias, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1,
+                                   "response_format": {"type": "json_object"}})   # grammar-constrained JSON
             r.raise_for_status()
-            return r.json()["choices"][0]["message"].get("content") or ""
+            choice = r.json()["choices"][0]
+            if choice.get("finish_reason") == "length":
+                raise km_mod.Truncated()
+            return choice["message"].get("content") or ""
     return gen
 
 
@@ -229,7 +237,7 @@ class Compiler:
         self.collectors = collectors if collectors is not None else {}
         self.resolver = resolver
         self.use_cache = use_cache
-        self.builder_calls = 0           # how many times a knowledge model was built (Acceptance F/G: zero on overrides)
+        self.builder_calls = 0           # knowledge models built (Acceptance F/G: overrides add none)
 
     # build ────────────────────────────────────────────────────────────────────────────────────
 
@@ -260,7 +268,7 @@ class Compiler:
         state = {"features": f.public_state()}
         got = await asyncio.gather(*(self.judge(n, state) for n in DECISIONS), return_exceptions=True)
         out = {}
-        for name, g in zip(DECISIONS, got):
+        for name, g in zip(DECISIONS, got, strict=True):
             if isinstance(g, tuple) and g[1] and g[0]:
                 out[name] = g[0]
         return out
@@ -280,7 +288,8 @@ class Compiler:
         r = self.registry.get(name)
         req = RenderRequest(spec, depth=pres["depth"], audience=Audience(**pres["audience"]), viewport=pres["viewport"],
                             selected=pres.get("selected") or [], interactivity=pres["interaction"],
-                            options={**(options or {}), **({"comprehension": True} if pres.get("comprehension") else {})})
+                            options={**(options or {}),
+                                     **({"comprehension": True} if pres.get("comprehension") else {})})
         caps = r.capabilities()
         key = artifact_key(spec, caps.name, caps.version, req)
         if self.use_cache and (hit := self.store.get_artifact(key)) is not None:
@@ -411,7 +420,8 @@ class Compiler:
                             "extend it")
             return
         self.builder_calls += 1
-        focus_txt = "; ".join(getattr(spec.get(i), "text", "") or getattr(spec.get(i), "label", "") for i in focus or [])
+        focus_txt = "; ".join(getattr(spec.get(i), "text", "") or getattr(spec.get(i), "label", "")
+                              for i in focus or [])
         km = await km_mod.from_llm(spec.question + (f" (go deeper on: {focus_txt})" if focus_txt else ""),
                                    self.generate, context=spec.summary.headline, model="local")
         new = km_mod.plan(km, Audience(**pres["audience"]), parent=spec.id)
@@ -434,7 +444,7 @@ class Compiler:
 
     def history(self, spec_id: str) -> list[dict]:
         line = self.store.lineage(spec_id)
-        return [{"from": a.id, "to": b.id, "changes": semantic_diff(a, b)} for a, b in zip(line, line[1:])]
+        return [{"from": a.id, "to": b.id, "changes": semantic_diff(a, b)} for a, b in pairwise(line)]
 
 
 async def collect_all(it: AsyncIterator[dict]) -> list[dict]:

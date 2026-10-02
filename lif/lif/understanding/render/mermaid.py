@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from itertools import pairwise
 
 from lif.understanding.analysis import analyze
 from lif.understanding.render.base import RendererCapabilities, RenderRequest, RenderResult, Segment, SemanticGap
@@ -73,14 +74,14 @@ def plan(req: RenderRequest) -> DiagramPlan:
     if fam == "causal":
         ch = next(c for c in spec.causal_chains if req.visible(c))
         p.source = ch.id
-        for a, b in zip(ch.steps, ch.steps[1:]):
+        for a, b in pairwise(ch.steps):
             add(a), add(b)
             p.edges.append((a, b, "", ch.id, dashed_claim(ch.claim)))
         rels = [r for r in spec.relationships if req.visible(r) and (r.source in p.nodes or r.target in p.nodes)]
     elif fam == "process":
         pr = next(x for x in spec.processes if req.visible(x))
         p.source = pr.id
-        for a, b in zip(pr.steps, pr.steps[1:]):
+        for a, b in pairwise(pr.steps):
             add(a), add(b)
             p.edges.append((a, b, "", pr.id, False))
         if len(pr.steps) == 1:

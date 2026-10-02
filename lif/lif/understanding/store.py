@@ -132,8 +132,8 @@ class Store:
     def latest_session(self, spec_id: str) -> str | None:
         """The newest session showing this spec or a spec derived from it (deepen moves a session to the child)."""
         row = self.db.one("WITH RECURSIVE d(id) AS (SELECT ? UNION SELECT s.id FROM specs s JOIN d ON s.parent = d.id) "
-                          "SELECT id FROM sessions WHERE spec_id IN (SELECT id FROM d) ORDER BY updated_at DESC LIMIT 1",
-                          (spec_id,))
+                          "SELECT id FROM sessions WHERE spec_id IN (SELECT id FROM d) "
+                          "ORDER BY updated_at DESC LIMIT 1", (spec_id,))
         return row["id"] if row else None
 
     def session_belongs(self, sid: str, spec_id: str) -> bool:

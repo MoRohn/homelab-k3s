@@ -23,6 +23,8 @@ COPY evals ./evals
 COPY apps ./apps
 COPY --from=ui /ui/dist ./apps/console/dist
 COPY decision-packages ./decision-packages
+# Generic, public explanation packages for the Understanding Compiler (lif/understanding/packages.py).
+COPY explanation-packages ./explanation-packages
 # Public knowledge repos only (data_class PUBLIC), for the console's read-only Knowledge pages.
 # The private repo lives outside lif/ (../private/knowledge), so it is never in the build context;
 # .dockerignore drops the derived index (knowledge/.knowledge), which may have indexed it.

@@ -13,8 +13,7 @@ from __future__ import annotations
 import re
 
 from lif.understanding.render.base import RendererCapabilities, RenderRequest, RenderResult, Segment
-from lif.understanding.render.common import (canonical_terms, claims_in_order, gloss, headline, pct,
-                                             uncertainty_segments)
+from lif.understanding.render.common import canonical_terms, claims_in_order, gloss, headline, pct, uncertainty_segments
 from lif.understanding.spec import Claim, ExplanationSpec
 
 MAX_WORDS = 25

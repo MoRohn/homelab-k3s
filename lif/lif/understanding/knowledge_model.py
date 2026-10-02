@@ -220,8 +220,8 @@ def from_gpu_state(question: str, st: dict[str, Any]) -> KnowledgeModel:
                                     definition="Labzilla component that stops starting work when free memory is low."))
             claims.append(Claim(id="c-cause-mem", kind="inferred", importance="primary",
                                 concepts=["memory-guard", "gpu-idle"], evidence=["e-mem"],
-                                text=f"Free memory is {mem_avail / GIB:.1f} GiB, below the 8 GiB floor, so new GPU work "
-                                     "is held back until memory frees up."))
+                                text=f"Free memory is {mem_avail / GIB:.1f} GiB, below the 8 GiB floor, "
+                                     "so new GPU work is held back until memory frees up."))
             chains.append(CausalChain(id="chain-mem", label="Why the GPU is idle", claim="c-cause-mem",
                                       steps=["memory-guard", "gpu-idle", "low-util"]))
             causes.append((0.7, "c-cause-mem"))
@@ -231,7 +231,8 @@ def from_gpu_state(question: str, st: dict[str, Any]) -> KnowledgeModel:
                            text=f"{len(loaded)} resident model(s) are loaded in GPU memory."))
         concepts.append(Concept(id="residents", level=1, label="Resident models", kind="entity",
                                 definition="Models kept loaded in memory so they answer quickly."))
-        claims.append(Claim(id="c-res", level=2, kind="observed", importance="supporting", concepts=["residents", "gpu"],
+        claims.append(Claim(id="c-res", level=2, kind="observed", importance="supporting",
+                            concepts=["residents", "gpu"],
                             evidence=["e-res"],
                             text=f"{len(loaded)} resident model(s) are loaded in GPU memory."))
         concepts.append(Concept(id="memory-vs-compute", level=2, label="Memory is not compute", kind="idea",
@@ -264,7 +265,8 @@ def from_gpu_state(question: str, st: dict[str, Any]) -> KnowledgeModel:
                                   steps=["no-demand", "gpu-idle", "low-util"]))
         causes.append((0.75 if not running else 0.6, "c-cause-demand"))
     if util is not None and util >= 70:
-        claims.append(Claim(id="c-not-low", kind="observed", importance="primary", concepts=["gpu"], evidence=["e-util"],
+        claims.append(Claim(id="c-not-low", kind="observed", importance="primary", concepts=["gpu"],
+                            evidence=["e-util"],
                             text=f"GPU utilization is {util:g}%, which is not low."))
         causes.insert(0, (0.95, "c-not-low"))
     causes.sort(key=lambda x: -x[0])
@@ -295,6 +297,11 @@ def from_gpu_state(question: str, st: dict[str, Any]) -> KnowledgeModel:
 
 Generate = Callable[[list[dict]], Awaitable[str]]
 
+
+class Truncated(Exception):
+    """The model stopped at its token limit, so its JSON is incomplete. The gateway caps completions while the
+    primary workload is live (yield.max_tokens_blerbz), so this is expected, not a fault."""
+
 LLM_INSTRUCTIONS = """You build a knowledge model for an explanation. Return ONLY one JSON object, no prose.
 Schema (all ids lowercase-kebab, unique across the object):
 {"question": str, "headline": <claim id that answers the question>,
@@ -309,7 +316,86 @@ Schema (all ids lowercase-kebab, unique across the object):
  "misconceptions": [{"id","text","correction": claim id}],
  "uncertainties": [{"id","about": claim id,"confidence": same as the claim,"reason": str}]}
 Rules: short, plain sentences. Every claim names at least one concept. Any claim with confidence below 0.9 has an
-uncertainty. Use only what you are confident is true; do not invent measurements. 4-12 concepts."""
+uncertainty. Use only what you are confident is true; do not invent measurements.
+Be compact: the whole object must stay under 350 tokens. 3-6 concepts, 2-5 claims, one short sentence each;
+include only the lists that help this question (omit the rest). For a "how" or "teach me" question include one
+process (its steps in order); for a "why" question include one causal_chain. Steps are concept ids."""
+SHORTER = ("Your previous answer was cut off at the length limit. Return a smaller JSON object: at most 4 concepts "
+           "and 3 claims, one short sentence each, and only the lists you need.")
+
+
+_ELEMENT_TYPES = {"concepts": Concept, "claims": Claim, "relationships": Relationship, "causal_chains": CausalChain,
+                  "processes": Process, "examples": Example, "misconceptions": Misconception,
+                  "uncertainties": Uncertainty}
+# None = drop the element (an edge of unknown type means nothing); otherwise the neutral value.
+_ENUM_DEFAULTS = {"concepts": {"kind": "idea"}, "claims": {"kind": "general", "importance": "supporting"},
+                  "relationships": {"type": None}}
+
+
+def normalize(raw: dict) -> dict:
+    """Deterministic fixes for the shape mistakes small models make. It never adds a fact: it re-points the
+    headline at an existing claim, drops references to elements that do not exist, and records that an
+    unexplained low confidence is unexplained."""
+    raw = {k: v for k, v in raw.items() if k in KnowledgeModel.model_fields}
+    for key, cls in _ELEMENT_TYPES.items():          # unknown keys out, unknown enum values to safe defaults
+        items = []
+        for it in raw.get(key) or []:
+            if not isinstance(it, dict):
+                continue
+            it = {k: v for k, v in it.items() if k in cls.model_fields or k in ("from", "to")}
+            for fld, default in _ENUM_DEFAULTS.get(key, {}).items():
+                allowed = cls.model_fields[fld].annotation.__args__
+                if fld in it and it[fld] not in allowed:
+                    if default is None:
+                        it = None
+                        break
+                    it[fld] = default
+            if it is not None:
+                items.append(it)
+        raw[key] = items
+    concepts = [c for c in raw.get("concepts") or [] if isinstance(c, dict) and c.get("id")]
+    cids = {c["id"] for c in concepts}
+    claims = []
+    for c in raw.get("claims") or []:
+        if not isinstance(c, dict) or not c.get("id") or not c.get("text"):
+            continue
+        c = {**c, "concepts": [x for x in c.get("concepts") or [] if x in cids]}
+        if not c["concepts"] and concepts:
+            continue                                   # an orphan claim: nothing to attach it to
+        claims.append(c)
+    ids = {c["id"] for c in claims}
+    head = raw.get("headline")
+    if head not in ids:
+        by_text = next((c["id"] for c in claims if c["text"].strip().lower() == str(head or "").strip().lower()), None)
+        primary = next((c["id"] for c in claims if c.get("importance") == "primary"), None)
+        head = by_text or primary or (claims[0]["id"] if claims else head)
+    raw.update(concepts=concepts, claims=claims, headline=head)
+    raw["relationships"] = [r for r in raw.get("relationships") or []
+                            if isinstance(r, dict) and r.get("from") in cids and r.get("to") in cids]
+    chains = []
+    for ch in raw.get("causal_chains") or []:
+        steps = [s for s in (ch.get("steps") or []) if s in cids] if isinstance(ch, dict) else []
+        if len(steps) >= 2:
+            chains.append({**ch, "steps": steps, "claim": ch.get("claim") if ch.get("claim") in ids else ""})
+    raw["causal_chains"] = chains
+    raw["processes"] = [{**p, "steps": [s for s in p.get("steps") or [] if s in cids]}
+                        for p in raw.get("processes") or [] if isinstance(p, dict)
+                        and any(s in cids for s in p.get("steps") or [])]
+    raw["examples"] = [{**e, "illustrates": [x for x in e.get("illustrates") or [] if x in ids | cids]}
+                       for e in raw.get("examples") or [] if isinstance(e, dict) and e.get("id") and e.get("text")]
+    raw["misconceptions"] = [m for m in raw.get("misconceptions") or [] if isinstance(m, dict)
+                             and m.get("correction") in ids]
+    uncs = [u for u in raw.get("uncertainties") or [] if isinstance(u, dict) and u.get("about") in ids]
+    conf = {c["id"]: float(c.get("confidence", 1.0)) for c in claims}
+    for u in uncs:
+        u["confidence"] = conf[u["about"]]             # the claim's number is the one shown everywhere
+    have = {u["about"] for u in uncs}
+    for c in claims:
+        if conf[c["id"]] < 0.9 and c["id"] not in have:
+            uncs.append({"id": f"u-{c['id']}", "about": c["id"], "confidence": conf[c["id"]],
+                         "reason": "The local model gave this lower confidence without saying why."})
+    raw["uncertainties"] = uncs
+    return raw
 
 
 def _extract_json(text: str) -> dict:
@@ -323,10 +409,18 @@ async def from_llm(question: str, generate: Generate, context: str = "", model: 
     msgs = [{"role": "system", "content": LLM_INSTRUCTIONS},
             {"role": "user", "content": (f"Context:\n{context}\n\n" if context else "") + f"Question: {question}"}]
     last = ""
-    for attempt in range(2):
-        text = await generate(msgs)
+    repairs, cuts = 0, 0
+    while repairs < 2 and cuts < 2:
         try:
-            raw = _extract_json(text)
+            text = await generate(msgs)
+        except Truncated:
+            cuts += 1                                  # its own budget: a cut-off is not a schema mistake
+            last = "the output was cut off at the model's token limit"
+            msgs = [*msgs[:2], {"role": "user", "content": msgs[1]["content"] + "\n\n" + SHORTER}]
+            continue
+        repairs += 1
+        try:
+            raw = normalize(_extract_json(text))
             raw["question"] = question
             raw.setdefault("builder", f"llm:{model or 'local'}")
             raw["model"] = model
@@ -339,4 +433,7 @@ async def from_llm(question: str, generate: Generate, context: str = "", model: 
             last = str(e)[:800]
         msgs += [{"role": "assistant", "content": text},
                  {"role": "user", "content": f"That JSON is invalid: {last}. Return the corrected JSON object only."}]
+    if "token limit" in last:
+        raise ValueError("the local model could not fit an explanation in its token limit (completions are capped "
+                         "while the primary workload is busy); try again later or use a shorter question")
     raise ValueError(f"model output did not validate after repair: {last}")

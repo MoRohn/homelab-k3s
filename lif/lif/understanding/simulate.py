@@ -106,14 +106,14 @@ def _values(v: Variable) -> list[Any]:
     step = v.step or (1 if v.kind == "int" else (v.max - v.min) / 10 or 1)
     out, x = [], float(v.min)
     while x <= float(v.max) + 1e-9:
-        out.append(int(round(x)) if v.kind == "int" else round(x, 6))
+        out.append(round(x) if v.kind == "int" else round(x, 6))
         x += step
     return out
 
 
 def _cast(kind: str, val: Any) -> Any:
     if kind == "int":
-        return int(round(float(val)))
+        return round(float(val))
     if kind == "float":
         return float(val)
     return str(val)
@@ -158,6 +158,6 @@ def grid(spec: ExplanationSpec) -> dict[str, Any]:
         raise ValueError(f"control grid has {size} points (max {MAX_GRID}); widen the steps")
     table = {}
     for idx in itertools.product(*(range(len(a)) for a in axes)):
-        vals = {v.id: axes[k][i] for k, (v, i) in enumerate(zip(controls, idx))}
+        vals = {v.id: axes[k][i] for k, (v, i) in enumerate(zip(controls, idx, strict=True))}
         table[grid_key(list(idx))] = run(spec, vals)
     return {"controls": [v.id for v in controls], "axes": axes, "results": table}

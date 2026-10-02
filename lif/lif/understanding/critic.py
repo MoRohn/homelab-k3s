@@ -15,6 +15,8 @@ Presentation (advisory unless a renderer marked it failed):
 """
 from __future__ import annotations
 
+from itertools import pairwise
+
 from lif.understanding.render.base import OK, RenderResult
 from lif.understanding.spec import DEPTH_LEVEL, ExplanationSpec
 
@@ -22,9 +24,9 @@ from lif.understanding.spec import DEPTH_LEVEL, ExplanationSpec
 def spec_edges(spec: ExplanationSpec) -> set[tuple[str, str]]:
     e: set[tuple[str, str]] = set()
     for ch in spec.causal_chains:
-        e.update(zip(ch.steps, ch.steps[1:]))
+        e.update(pairwise(ch.steps))
     for p in spec.processes:
-        e.update(zip(p.steps, p.steps[1:]))
+        e.update(pairwise(p.steps))
     for r in spec.relationships:
         e.add((r.source, r.target))
     for h in spec.hierarchies:

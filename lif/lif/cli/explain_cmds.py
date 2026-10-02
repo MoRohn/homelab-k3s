@@ -85,7 +85,8 @@ async def _print(events, args) -> int:
         elif name == "evaluation.ready":
             obj = d["objectives_covered"]
             print(f"· critic: semantic {'ok' if d['semantic_ok'] else 'FAILED'}, objectives covered "
-                  f"{sum(obj.values())}/{len(obj)}, claims {d['summary']['claims_cited']}/{d['summary']['claims_total']}",
+                  f"{sum(obj.values())}/{len(obj)}, "
+                  f"claims {d['summary']['claims_cited']}/{d['summary']['claims_total']}",
                   file=sys.stderr)
             for c in d["contradictions"]:
                 print(f"  ! {c['renderer']}: {c['detail']}", file=sys.stderr)
@@ -100,7 +101,8 @@ async def _print(events, args) -> int:
 
 
 def cmd_explain(api, args) -> int:
-    from lif.understanding import packages, validate as V
+    from lif.understanding import packages
+    from lif.understanding import validate as V
     from lif.understanding.compiler import ExplanationRequest, default_compiler
     from lif.understanding.store import Store
 

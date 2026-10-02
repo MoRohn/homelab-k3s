@@ -173,6 +173,8 @@ def _describe(f: Features, caps: RendererCapabilities) -> str:
         bits.append(f"outcomes that change with {f.variable_count} parameters")
     if st.get("definition", 0) >= 0.5 and "definition" in caps.best_for:
         bits.append(f"a definition with {f.concept_count} concepts and few relationships")
+    if not bits and caps.target in PROSE:
+        return "little structure to draw: a short answer says it best"
     return " and ".join(bits) or "the best overall fit"
 
 
@@ -213,9 +215,9 @@ def route(spec: ExplanationSpec, f: Features, registry: Registry, ctx: RouteCont
     ranked = sorted(usable.values(), key=lambda s: (-s.utility, s.renderer))
     why: list[str] = []
     options: dict[str, str] = {}
-    if fam := ctx.judgments.get("understanding-diagram-family"):
-        if fam in ("causal", "process", "dependency", "timeline"):
-            options["diagram_family"] = fam
+    fam = ctx.judgments.get("understanding-diagram-family")
+    if fam in ("causal", "process", "dependency", "timeline"):
+        options["diagram_family"] = fam
     wanted = FORMAT_ALIASES.get(ctx.format.lower(), ctx.format.upper()) if ctx.format not in ("", "auto") else ""
     if wanted:
         pick = next((s for s in ranked if s.target == wanted), None)

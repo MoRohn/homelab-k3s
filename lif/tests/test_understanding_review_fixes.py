@@ -153,3 +153,27 @@ def test_gpusched_token_file_env(monkeypatch, tmp_path):
     tok.write_text("abc\n")
     monkeypatch.setenv("LIF_GPUSCHED_TOKEN_FILE", str(tok))
     assert GpuStateWatcher().token == "abc"
+
+
+async def test_llm_builder_asks_for_less_when_the_gateway_cuts_it_off():
+    good = {"headline": "c1", "concepts": [{"id": "attn", "label": "Attention", "kind": "idea"}],
+            "claims": [{"id": "c1", "text": "Attention weighs tokens.", "kind": "general", "concepts": ["attn"],
+                        "importance": "primary"}]}
+    calls = []
+
+    async def gen(msgs):
+        calls.append(msgs)
+        if len(calls) == 1:
+            raise K.Truncated()
+        return json.dumps(good)
+    km = await K.from_llm("Teach me attention", gen)
+    assert km.headline == "c1" and "cut off" in calls[1][-1]["content"]
+
+    async def always_cut(msgs):
+        raise K.Truncated()
+    try:
+        await K.from_llm("Teach me attention", always_cut)
+    except ValueError as e:
+        assert "token limit" in str(e)
+    else:
+        raise AssertionError("expected a ValueError")

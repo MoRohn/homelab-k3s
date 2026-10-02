@@ -37,7 +37,8 @@ class Declared:
 
 
 DECLARED = (
-    RendererCapabilities(name="manim", version="0", target="ANIMATION", best_for=("process", "quantitative", "temporal"),
+    RendererCapabilities(name="manim", version="0", target="ANIMATION",
+                         best_for=("process", "quantitative", "temporal"),
                          outputs=("video/mp4",), latency_class="minutes", resource_class="GPU", requires_gpu=False,
                          permissions=("filesystem",), clarity=0.85, consume_seconds=120, available=False,
                          unavailable_reason="no Manim SceneIR compiler in this build (phase 8)"),

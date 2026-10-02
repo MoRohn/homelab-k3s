@@ -15,6 +15,7 @@ in the console origin. Pages follow prefers-color-scheme and prefers-reduced-mot
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 
 from lif.understanding import simulate
 from lif.understanding.render.base import RendererCapabilities, RenderRequest, RenderResult, Segment, SemanticGap
@@ -226,7 +227,7 @@ class StepThrough:
         doc = p.doc(_title(req), CSP_SCRIPT, STEP_JS)
         caps = self.capabilities()
         return RenderResult(caps.name, caps.version, caps.target, doc, "text/html", p.segs, emphasis=[head.id],
-                            edges=list(zip(steps, steps[1:])), verification=verify_html(doc, True))
+                            edges=list(pairwise(steps)), verification=verify_html(doc, True))
 
 
 SIM_JS = """
@@ -234,7 +235,8 @@ const D=JSON.parse(document.getElementById('grid').textContent);
 const ins=D.controls.map(id=>document.getElementById('c-'+id));
 const idx=el=>el.dataset.kind==='enum'?el.selectedIndex:+el.value;
 function update(){const r=D.results[ins.map(idx).join('|')];
-ins.forEach((el,k)=>{const o=document.getElementById('v-'+D.controls[k]);if(o)o.textContent=String(D.axes[k][idx(el)])});
+ins.forEach((el,k)=>{const o=document.getElementById('v-'+D.controls[k]);
+if(o)o.textContent=String(D.axes[k][idx(el)])});
 document.querySelectorAll('[data-out]').forEach(e=>{e.textContent=r?String(r[e.dataset.out]):'–'});}
 ins.forEach(el=>el.addEventListener('input',update));
 document.querySelectorAll('[data-scenario]').forEach(b=>b.addEventListener('click',()=>{

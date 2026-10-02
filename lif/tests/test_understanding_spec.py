@@ -6,7 +6,8 @@ import copy
 import pytest
 from pydantic import ValidationError
 
-from lif.understanding import packages, simulate, validate as V
+from lif.understanding import packages, simulate
+from lif.understanding import validate as V
 from lif.understanding.spec import ExplanationSpec, load, migrate
 
 GPU_Q = "Why are these Kubernetes pods not reaching available GPUs?"

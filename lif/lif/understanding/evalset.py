@@ -74,7 +74,8 @@ def synthetic_spec(question: str, shape: dict) -> ExplanationSpec:
         doc["variables"] = doc.get("variables") or []
         doc["variables"][:4] = [
             {"id": "v0", "symbol": "M", "label": "Total", "default": 128, "level": 1},
-            {"id": "v1", "symbol": "R", "label": "Held back", "min": 0, "max": 64, "step": 16, "default": 32, "level": 1},
+            {"id": "v1", "symbol": "R", "label": "Held back", "min": 0, "max": 64, "step": 16, "default": 32,
+             "level": 1},
             {"id": "v2", "symbol": "m", "label": "Per job", "min": 8, "max": 32, "step": 8, "default": 16, "level": 1}]
         doc["simulation"] = {"primitive": "gpu-reservation-throughput/v1", "variables": ["v0", "v1", "v2"],
                              "bindings": {"v0": "total_mem_gb", "v1": "reserved_gb", "v2": "job_mem_gb"},

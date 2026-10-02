@@ -22,7 +22,8 @@ from lif.decision.mcp import PROTOCOL, _schema
 INSTRUCTIONS = ("Adaptive Understanding Compiler. explanation_create turns a question into one canonical "
                 "ExplanationSpec and the representations that explain it best (summary, diagram, table, interactive "
                 "page). Overrides (render/simplify/deepen) reuse the same spec. Renderers never add facts.")
-S, A, B, I = {"type": "string"}, {"type": "array", "items": {"type": "string"}}, {"type": "boolean"}, {"type": "integer"}
+S, A, B = {"type": "string"}, {"type": "array", "items": {"type": "string"}}, {"type": "boolean"}
+INT = {"type": "integer"}
 INLINE = ("text/plain", "text/markdown", "text/vnd.mermaid")
 
 _comp = None
@@ -96,7 +97,7 @@ async def renderers(a: dict) -> dict:
     return {"renderers": [c.to_dict() for c in comp().registry.capabilities()]}
 
 
-REQ = {"question": S, "audience": S, "expertise": S, "profile": S, "depth": S, "time_budget_seconds": I,
+REQ = {"question": S, "audience": S, "expertise": S, "profile": S, "depth": S, "time_budget_seconds": INT,
        "format": S, "viewport": S, "comprehension": B, "context": {"type": "object"}}
 REF = {"explanation_id": S, "session": S}
 TOOLS: list[dict[str, Any]] = [

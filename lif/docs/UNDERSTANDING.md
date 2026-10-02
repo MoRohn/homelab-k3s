@@ -37,7 +37,7 @@ Code: `lif/lif/understanding/`. Packages: `lif/explanation-packages/`. Decisions
 | A: "What is Kubernetes?" gets prose, no video | Pass (an available fake video renderer is not picked) | `test_acceptance_a_*` |
 | B: pods not reaching GPUs gets prose + causal diagram from cluster state | Pass. "These pods…", "right now" and "this cluster" questions go to the live `state:gpu` builder; the general phrasing gets the generic package. Checked on the host 2026-10-02 (builder `state:gpu`). Without `LIF_GPUSCHED_TOKEN_FILE` the host run cannot read gpusched, so it says less and with lower confidence | `test_acceptance_b_*`, `test_live_state_builder_dogfood` |
 | C: reservation vs throughput gets a simulation | Pass | `test_acceptance_c_*` |
-| D: "Teach me attention" gets progressive explanation + diagram + animation | Partial: needs the local model (LLM builder). No animation renderer | `test_llm_builder_repairs_once_and_validates` |
+| D: "Teach me attention" gets progressive explanation + diagram + animation | Partial: summary + step diagram from the real local model (`local/default`, a 4B CPU model; checked 2026-10-02 with the primary workload live, about 45 s per run, n=3 runs while fixing it). No animation renderer. Accuracy is bounded by the local model | `test_llm_builder_*` |
 | E: four formats from one spec are consistent | Pass, including detection of an emphasis contradiction and an invented edge | `test_acceptance_e_*` |
 | F: simpler, without re-research | Pass (`builder_calls` stays 1) | `test_acceptance_f_and_g_*` |
 | G: engineer → executive from the same semantics | Pass | `test_acceptance_g_*` |
@@ -164,7 +164,7 @@ returns `failed`, and the compiler falls back (simulation/interactive → static
 |---|---|---|
 | `state:gpu` | "GPU utilization … now / on the DGX", or `context.kind = "gpu"` | none. Reads gpusched, nvidia-smi, /proc/meminfo, `kubectl get pods`, all read-only |
 | `package:<pkg>/<name>` | a pattern in `explanation-packages/` matches | none |
-| `llm:local` | otherwise | the local gateway (`local/default`), CONFIDENTIAL, never external. One validated repair round |
+| `llm:local` | otherwise | the local gateway (`local/default`), CONFIDENTIAL, never external. Asks for compact, grammar-constrained JSON (`response_format: json_object`); `normalize()` fixes shape mistakes without adding facts (headline text → claim id, dangling references dropped, unknown enum values → neutral, an unexplained low confidence gets an uncertainty saying so); one repair round. While the primary workload is live the gateway caps completions at `yield.max_tokens_blerbz` (512); a cut-off answer gets its own retry asking for less, then a plain error |
 
 On the host, set `LIF_GPUSCHED_TOKEN_FILE` to a readable copy of gpusched's metrics token. `GpuStateWatcher`
 prefers it over the configured `gpusched.token_file`, and it is unset in the cluster. The collector and the

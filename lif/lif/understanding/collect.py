@@ -19,9 +19,9 @@ async def _run(*cmd: str, timeout: float = 8.0) -> str:
     proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     try:
         out, err = await asyncio.wait_for(proc.communicate(), timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
-        raise RuntimeError(f"{cmd[0]} timed out")
+        raise RuntimeError(f"{cmd[0]} timed out") from None
     if proc.returncode != 0:
         raise RuntimeError(f"{cmd[0]} exited {proc.returncode}: {err.decode()[:200]}")
     return out.decode()

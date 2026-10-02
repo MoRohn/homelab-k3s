@@ -70,7 +70,8 @@ async def test_acceptance_f_and_g_overrides_never_rebuild(tmp_path):
     assert comp.store.get_spec(spec_id).semantic_hash() == h
     for evs2 in (simpler, exec_, text):
         assert evs2[-1]["event"] == "done" and evs2[-1]["data"]["explanation_id"] == spec_id
-    assert comp.store.get_session(sid)["presentation"]["depth"] == "learn"     # simplify stepped deep → learn; later overrides keep it
+    # simplify stepped deep → learn; later overrides keep it
+    assert comp.store.get_session(sid)["presentation"]["depth"] == "learn"
     assert next(e for e in text if e["event"] == "route.ready")["data"]["primary"] == "ste-prose"
     fb = comp.evaluate(sid)["feedback"]
     assert [f["kind"] for f in fb] == ["simplify", "override"]
@@ -179,7 +180,7 @@ async def test_artifact_cache_hits_on_repeat(tmp_path):
     evs = await run(comp.explain(C.ExplanationRequest(question=GPU)))
     sid = evs[0]["data"]["session"]
     again = await run(comp.rerender(sid))
-    ready = [e for e in again if e["event"] == "mermaid.ready"][0]
+    ready = next(e for e in again if e["event"] == "mermaid.ready")
     assert ready["data"]["render_metrics"].get("cache") == "hit"
 
 
@@ -234,10 +235,12 @@ async def test_acceptance_b_questions_about_this_cluster_use_live_state(tmp_path
     assert evs[1]["data"]["builder"] == "state:gpu"
     route = next(e for e in evs if e["event"] == "route.ready")["data"]
     assert route["primary"] == "mermaid" and "ste-prose" in route["supporting"]
-    general = await run(live.explain(C.ExplanationRequest(question="Why can Kubernetes pods fail to reach available GPUs?")))
+    general = await run(live.explain(C.ExplanationRequest(
+        question="Why can Kubernetes pods fail to reach available GPUs?")))
     assert general[1]["data"]["builder"].startswith("package:")
     no_collector = make(tmp_path, collectors={})
-    assert (await run(no_collector.explain(C.ExplanationRequest(question=GPU))))[1]["data"]["builder"].startswith("package:")
+    offline = await run(no_collector.explain(C.ExplanationRequest(question=GPU)))
+    assert offline[1]["data"]["builder"].startswith("package:")
 
 
 def test_shipped_packages_make_no_claims_about_a_live_system():
