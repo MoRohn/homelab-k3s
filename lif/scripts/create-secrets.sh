@@ -5,6 +5,8 @@
 #   * gateway/admin keys: generated once into labzilla/secrets/lif-*.key (git-ignored, 0600)
 #   * console setup code: generated once into labzilla/secrets/lif-console-setup.code; the owner
 #     reads it on the host to create the first console admin (docs/CONSOLE.md → Deploy & access)
+#   * earn gateway key: labzilla/secrets/earn-gateway.key, written by the arbies earning system's own
+#     scripts/create-secrets.sh. Optional: when present it becomes gateway client `earn`
 set -euo pipefail
 # secrets/ and .env.local live, git-ignored, at the labzilla repo root (two levels up).
 cd "${LABZILLA_DIR:-$(dirname "$(readlink -f "$0")")/../..}"
@@ -25,6 +27,8 @@ K_PROBE=$(gen probe); K_BATCH=$(gen batch); K_DEC=$(gen decision); K_BNN=$(gen b
 K_ADMIN=$(gen admin); K_INTERNAL=$(gen internal); K_ENGINE=$(gen engine)   # engine = primary-workload vLLM LIF door
 # Labzilla Console: its own controller admin key and gateway client key (audited as `console`).
 K_CON_ADMIN=$(gen console-admin); K_CON_GW=$(gen console-gateway); C_SETUP=$(gen_code console-setup)
+# Earning system (arbies): read, never generated here, so LIF keeps working without it.
+K_EARN=$(cat "$SECRETS/earn-gateway.key" 2>/dev/null || true)
 
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT; umask 077
 printf '%s' "$JEV" > "$tmp/TYPE_SAFE_JEV_API_KEY"
@@ -35,6 +39,7 @@ EXTRA=()
 if [ -n "$MOONSHOT" ]; then printf '%s' "$MOONSHOT" > "$tmp/MOONSHOT_API_KEY"; EXTRA+=(--from-file="$tmp/MOONSHOT_API_KEY"); fi
 printf 'controller-probe:%s\nbatch:%s\ndecision-fabric:%s\nbnn:%s\noperator:%s\nconsole:%s\n' \
   "$K_PROBE" "$K_BATCH" "$K_DEC" "$K_BNN" "$K_OPS" "$K_CON_GW" > "$tmp/LIF_GATEWAY_KEYS"
+if [ -n "$K_EARN" ]; then printf 'earn:%s\n' "$K_EARN" >> "$tmp/LIF_GATEWAY_KEYS"; fi
 printf 'operator:%s\nconsole:%s\n' "$K_ADMIN" "$K_CON_ADMIN" > "$tmp/LIF_ADMIN_KEYS"
 printf '%s' "$K_PROBE" > "$tmp/LIF_PROBE_KEY"
 printf '%s' "$K_BATCH" > "$tmp/LIF_BATCH_GATEWAY_KEY"
