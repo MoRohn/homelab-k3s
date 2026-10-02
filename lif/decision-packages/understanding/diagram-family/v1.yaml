@@ -1,0 +1,28 @@
+# Which diagram layout fits the structure? Code still checks the chosen structure is visible.
+name: understanding-diagram-family
+version: v1
+primitive: choice
+stage: designed
+risk: low
+reversible: true
+owner: understanding
+data_class: PUBLIC
+instructions: >
+  Choose the diagram layout that best fits the explanation structure in `features.structure`,
+  given the question type in `features.question_kind`.
+criteria:
+  causal: "the causal strength in `features.structure` is the highest, or `features.question_kind` is causal or debug and the causal strength is 0.5 or above"
+  process: "the process strength in `features.structure` is the highest and the question asks how something works or what the steps are"
+  dependency: "the dependency or spatial strength in `features.structure` is the highest: components and what they connect to"
+  timeline: "the temporal strength in `features.structure` is the highest, or `features.question_kind` is temporal"
+  none: "every causal, process, dependency, spatial and temporal strength in `features.structure` is below 0.25"
+exits: [none]
+state_schema:
+  features.question_kind: str
+  features.structure: dict
+default: none
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

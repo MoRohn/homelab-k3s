@@ -131,3 +131,52 @@ def gpu_admission(s: dict) -> tuple[str, float] | None:
     if s.get("can_wait"):
         return "queue", 0.75
     return "load_default", 0.70
+
+
+# ── understanding router (decision-packages/understanding) ──
+# State is {"features": analysis.Features.public_state()}: derived numbers only.
+_VISUAL = ("causal", "process", "temporal", "comparison", "dependency", "parameter")
+
+
+def _features(s: dict) -> tuple[dict, str]:
+    f = s.get("features") or s
+    return f.get("structure") or {}, str(f.get("question_kind") or "other")
+
+
+@rules.register("understanding-prose-sufficient")
+def understanding_prose_sufficient(s: dict) -> tuple[str, float] | None:
+    st, qk = _features(s)
+    strongest = max((float(st.get(k, 0)) for k in _VISUAL + ("hierarchy", "spatial")), default=0.0)
+    if strongest >= 0.5:
+        return "no", 0.85
+    if qk in ("definition", "other") and strongest < 0.25:
+        return "yes", 0.85
+    return None
+
+
+@rules.register("understanding-interaction-worthwhile")
+def understanding_interaction_worthwhile(s: dict) -> tuple[str, float] | None:
+    f = s.get("features") or s
+    st, qk = _features(s)
+    if not f.get("has_simulation"):
+        return "no", 0.95
+    if qk in ("parameter", "teach") or float(st.get("parameter", 0)) >= 0.7:
+        return "yes", 0.85
+    return None
+
+
+@rules.register("understanding-diagram-family")
+def understanding_diagram_family(s: dict) -> tuple[str, float] | None:
+    st, qk = _features(s)
+    cand = {"causal": float(st.get("causal", 0)), "process": float(st.get("process", 0)),
+            "dependency": max(float(st.get("dependency", 0)), float(st.get("spatial", 0))),
+            "timeline": float(st.get("temporal", 0))}
+    if max(cand.values()) < 0.25:
+        return "none", 0.85
+    if qk == "temporal" and cand["timeline"] >= 0.25:
+        return "timeline", 0.8
+    if qk in ("causal", "debug") and cand["causal"] >= 0.5:
+        return "causal", 0.85
+    best = max(cand, key=lambda k: (cand[k], k == "causal"))
+    ties = sum(1 for v in cand.values() if v == cand[best])
+    return best, 0.8 if ties == 1 else 0.6

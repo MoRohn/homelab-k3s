@@ -1,0 +1,25 @@
+# "Is a short text answer enough?" The router asks before adding any visual artifact.
+name: understanding-prose-sufficient
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: understanding
+data_class: PUBLIC
+instructions: >
+  Judge whether a short text answer alone lets a reader grasp the answer, given the question type in
+  `features.question_kind` and the structure strengths in `features.structure`.
+criteria: >
+  Yes when `features.question_kind` is definition or other and every strength in `features.structure`
+  other than definition and narrative is below 0.25. No when the causal, process, temporal, comparison,
+  dependency or parameter strength in `features.structure` is 0.5 or above.
+state_schema:
+  features.question_kind: str
+  features.structure: dict
+default: "no"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

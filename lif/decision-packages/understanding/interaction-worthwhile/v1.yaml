@@ -1,0 +1,26 @@
+# "Would changing inputs teach something a static picture cannot?"
+name: understanding-interaction-worthwhile
+version: v1
+primitive: noul
+stage: designed
+risk: low
+reversible: true
+owner: understanding
+data_class: PUBLIC
+instructions: >
+  Judge whether letting the reader change inputs would show something a static picture cannot,
+  given `features.has_simulation`, `features.question_kind` and `features.structure`.
+criteria: >
+  Yes when `features.has_simulation` is true and either `features.question_kind` is parameter or teach,
+  or the parameter strength in `features.structure` is 0.7 or above. No when `features.has_simulation`
+  is false, because outcomes would then have to be invented rather than computed.
+state_schema:
+  features.has_simulation: bool
+  features.question_kind: str
+  features.structure: dict
+default: "no"
+fallback: [rules, local_llm]
+policy:
+  mode: three_zone
+  middle_route: [local_reasoning]
+  low_route: [safe_default]

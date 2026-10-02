@@ -279,6 +279,6 @@ def route(spec: ExplanationSpec, f: Features, registry: Registry, ctx: RouteCont
             why.append(f"{name} {next(d['reason'] for d in deferred if d['renderer'] == s.renderer)}.")
         elif s.utility >= THRESHOLD:
             why.append(f"{name} not generated: it adds little beyond what is already shown.")
-        if len(why) >= 4:
+        if len(why) >= 3:
             break
     return RoutePlan(primary.renderer, supporting, deferred, excluded, scores, why, options, dict(ctx.judgments))
