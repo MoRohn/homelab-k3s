@@ -140,8 +140,9 @@ def run(spec: ExplanationSpec, values: dict[str, Any] | None = None) -> dict[str
     return PRIMITIVES[sim.primitive].fn(inputs_for(spec, values or {}))
 
 
-def grid_key(values: list[Any]) -> str:
-    return "|".join(str(v) for v in values)
+def grid_key(indices: list[int]) -> str:
+    """Grid cells are keyed by control-value indices, so the page never formats numbers itself."""
+    return "|".join(str(i) for i in indices)
 
 
 def grid(spec: ExplanationSpec) -> dict[str, Any]:
@@ -156,7 +157,7 @@ def grid(spec: ExplanationSpec) -> dict[str, Any]:
     if size > MAX_GRID:
         raise ValueError(f"control grid has {size} points (max {MAX_GRID}); widen the steps")
     table = {}
-    for combo in itertools.product(*axes):
-        vals = {v.id: x for v, x in zip(controls, combo)}
-        table[grid_key(list(combo))] = run(spec, vals)
+    for idx in itertools.product(*(range(len(a)) for a in axes)):
+        vals = {v.id: axes[k][i] for k, (v, i) in enumerate(zip(controls, idx))}
+        table[grid_key(list(idx))] = run(spec, vals)
     return {"controls": [v.id for v in controls], "axes": axes, "results": table}
