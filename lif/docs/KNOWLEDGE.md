@@ -253,7 +253,7 @@ Shipped packages, all at 1.0.0:
 | Step | Status |
 |---|---|
 | Local: CLI, MCP, `knowledge serve` | Works now |
-| Cluster: `lif/deploy/k8s/knowledge/knowledge.yaml` | Written, **not** in `lif/kustomization.yaml` and **not applied**. It mounts the host Git tree, keeps the index on an emptyDir (rebuilt at start), runs as uid 1000 so files keep the owner's uid, and routes `lif.tiny-dgx.lan/v1/knowledge` to the service |
+| Cluster: `lif/deploy/k8s/knowledge/knowledge.yaml` | Applied and running in `ai-system`. It is **not** in `lif/kustomization.yaml`, so a LIF deploy doesn't roll it: apply it on its own with the same tag (`sed "s/IMAGE_TAG/$TAG/g" deploy/k8s/knowledge/knowledge.yaml \| kubectl apply -f -`). It mounts the host Git tree, keeps the index on an emptyDir (rebuilt at start), runs as uid 1000 so files keep the owner's uid, and routes `lif.tiny-dgx.lan/v1/knowledge` to the service |
 
 ## Observability
 
