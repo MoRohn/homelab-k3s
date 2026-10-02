@@ -13,6 +13,7 @@ decide how politely its CPU tiers and batch work must behave.
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import time
 from dataclasses import asdict, dataclass, field
@@ -146,7 +147,9 @@ class GpuStateWatcher:
     def __init__(self, url: str | None = None, token: str | None = None, client: httpx.AsyncClient | None = None):
         c = config.get("gpusched") or {}
         self.url = (url or c.get("url", "http://10.42.0.1:8770")).rstrip("/")
-        self.token = token if token is not None else _read_token(c.get("token_file"))
+        # $LIF_GPUSCHED_TOKEN_FILE lets host-side tools use a readable copy; in the cluster it is unset.
+        self.token = token if token is not None else _read_token(os.environ.get("LIF_GPUSCHED_TOKEN_FILE")
+                                                                 or c.get("token_file"))
         self.poll = float(c.get("poll_sec", 5))
         self.stale = float(c.get("stale_after_sec", 30))
         self.client = client or httpx.AsyncClient(timeout=3)

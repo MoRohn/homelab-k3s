@@ -59,9 +59,3 @@ def gloss(spec: ExplanationSpec, concept_id: str) -> str:
 def esc(s: str) -> str:
     return html.escape(s, quote=True)
 
-
-def chain_concepts(req: RenderRequest) -> list[str]:
-    for ch in req.spec.causal_chains:
-        if req.visible(ch):
-            return list(ch.steps)
-    return []

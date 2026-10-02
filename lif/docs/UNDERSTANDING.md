@@ -166,8 +166,10 @@ returns `failed`, and the compiler falls back (simulation/interactive → static
 | `package:<pkg>/<name>` | a pattern in `explanation-packages/` matches | none |
 | `llm:local` | otherwise | the local gateway (`local/default`), CONFIDENTIAL, never external. One validated repair round |
 
-On the host, set `LIF_GPUSCHED_TOKEN_FILE` to a readable copy of gpusched's metrics token; in the cluster the
-configured `gpusched.token_file` is used. The GPU builder never states what it could not read. With gpusched unreadable it drops lease and state
+On the host, set `LIF_GPUSCHED_TOKEN_FILE` to a readable copy of gpusched's metrics token. `GpuStateWatcher`
+prefers it over the configured `gpusched.token_file`, and it is unset in the cluster. The collector and the
+router's resource probe share one gpusched read per 5 s, so both see the same primary-workload state. Only pods
+the scheduler marked `PodScheduled=False` count as unschedulable; a pod pulling its image does not. The GPU builder never states what it could not read. With gpusched unreadable it drops lease and state
 claims, lowers confidence and lists "gpusched metrics (read failed)" as evidence needed.
 
 ## Interfaces
@@ -176,13 +178,13 @@ claims, lowers confidence and lists "gpusched metrics (read failed)" as evidence
 |---|---|
 | CLI | `local-ai explain "Q" [--format F] [--profile quick\|standard\|deep\|teach] [--audience A] [--mobile] [--offline]`, `local-ai explain ID --simplify \| --deepen \| --interactive \| --video \| --show-ir \| --evaluate \| --history`, `local-ai explain --renderers \| --lint-packages`. `labzilla explain …` forwards on the host |
 | HTTP | `uvicorn lif.understanding.api:app --host 127.0.0.1 --port 18084`: `POST /v1/explain` (`?stream=1` for SSE), `GET /v1/explanations/{id}[/history]`, `POST /v1/explanations/{id}/render\|simplify\|deepen\|evaluate`, `POST /v1/sessions/{sid}/feedback`, `GET /v1/sessions/{sid}/artifacts/{renderer}`, `GET /v1/renderers` |
-| Console | set `LIF_CONSOLE_UNDERSTANDING=1` to mount the same routes under `/api/v1/…` behind session auth (`ask`); off by default |
+| Console | set `LIF_CONSOLE_UNDERSTANDING=1` to mount the same routes under `/api/v1/…` behind session auth (`ask`); off by default. Inside the console the store defaults to `understanding.db` next to `LIF_CONSOLE_DB`, and local generation uses `LIF_CONSOLE_GATEWAY_KEY` |
 | MCP | `lif-understanding` in `.mcp.json`: `explanation_create`, `_get`, `_render`, `_simplify`, `_deepen`, `_evaluate`, `_renderers` |
 
 Stream events: `analysis.started`, `knowledge_model.ready`, `explanation_ir.ready`, `summary.ready`,
 `route.ready`, `<target>.rendering`, `<target>.ready`, `<target>.failed`, `evaluation.ready`, `done`, `error`.
 
-Storage: `$LIF_UNDERSTANDING_DB` (default `~/.local/share/lif/understanding.db`) holds specs, artifacts
+Storage: `$LIF_UNDERSTANDING_DB` (default: next to `$LIF_CONSOLE_DB` when set, else `~/.local/share/lif/understanding.db`) holds specs, artifacts
 (keyed by semantic hash, renderer and version, theme, audience, depth, viewport, selection), sessions and
 feedback. Specs built from live state are CONFIDENTIAL. Keep saved ones under
 `private/lif/understanding/` *(private, local only)*.
@@ -192,7 +194,7 @@ feedback. Specs built from live state are CONFIDENTIAL. Keep saved ones under
 | Concern | Control |
 |---|---|
 | Generated pages | CSP meta `default-src 'none'`, `connect-src 'none'`; no external URLs; static check for network APIs |
-| Serving | `GET …/artifacts/…` adds `Content-Security-Policy: sandbox allow-scripts …` (opaque origin). Never inline artifacts in the console origin |
+| Serving | `GET …/artifacts/…` adds `Content-Security-Policy: sandbox allow-scripts …; frame-ancestors 'self'` and `X-Frame-Options: SAMEORIGIN`: an opaque origin that only a same-origin page may frame. Never inline artifacts in the console origin |
 | Secrets | renderers take only the spec; no credentials or environment reach a page |
 | Data class | Jev gets derived features (PUBLIC); builders run local only |
 

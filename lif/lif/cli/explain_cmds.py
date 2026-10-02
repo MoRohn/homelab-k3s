@@ -129,8 +129,7 @@ def cmd_explain(api, args) -> int:
     fmt = "simulation" if args.interactive else "video" if args.video else args.format
     if t.startswith(("x-", "s-")) and " " not in t:
         if t.startswith("x-"):
-            row = comp.store.db.one("SELECT id FROM sessions WHERE spec_id=? ORDER BY updated_at DESC LIMIT 1", (t,))
-            spec_id, sid = t, row["id"] if row else ""
+            spec_id, sid = t, comp.store.latest_session(t) or ""
         else:
             s = comp.store.get_session(t)
             spec_id, sid = (s["spec_id"] if s else ""), t
@@ -154,8 +153,12 @@ def cmd_explain(api, args) -> int:
         aud = {"role": {"engineer": "software_engineer"}.get(args.audience, args.audience)} if args.audience else None
         if aud and args.expertise:
             aud["expertise"] = args.expertise
-        return asyncio.run(_print(comp.rerender(sid, format=fmt, depth=args.depth, audience=aud,
-                                                viewport="mobile" if args.mobile else None), args))
+        try:
+            return asyncio.run(_print(comp.rerender(sid, format=fmt, depth=args.depth, audience=aud,
+                                                    viewport="mobile" if args.mobile else None), args))
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
     req = ExplanationRequest(question=t, audience=args.audience, expertise=args.expertise, profile=args.profile,
                              depth=args.depth, time_budget_seconds=args.time_budget, format=fmt,
                              viewport="mobile" if args.mobile else "desktop", comprehension=args.check)

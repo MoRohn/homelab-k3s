@@ -140,7 +140,8 @@ def from_gpu_state(question: str, st: dict[str, Any]) -> KnowledgeModel:
     gpu, bl, pods = st.get("gpu") or {}, st.get("blerbz") or {}, st.get("pods") or []
     util = gpu.get("util_percent")
     mem_avail = gpu.get("mem_available_mib")
-    pending = [p for p in pods if p.get("phase") == "Pending" and p.get("gpu")]
+    pending = [p for p in pods if p.get("phase") == "Pending" and p.get("gpu")
+               and (p.get("unschedulable") or p.get("reason") == "Unschedulable")]
     running = [p for p in pods if p.get("phase") == "Running" and p.get("gpu")]
     leases_p, leases_b = int(bl.get("production_leases") or 0), int(bl.get("background_leases") or 0)
     state = str(bl.get("state") or "UNKNOWN")
@@ -240,7 +241,19 @@ def from_gpu_state(question: str, st: dict[str, Any]) -> KnowledgeModel:
                             text="Loaded models hold GPU memory but use no compute until a request arrives."))
         rels.append(Relationship(id="r-res-gpu", level=2, source="residents", target="gpu", type="consumes",
                                  label="hold memory on"))
-    if not causes:
+    hot = util is not None and util >= 70
+    if not causes and not hot and known and (leases_p or leases_b):
+        concepts.append(Concept(id="light-work", level=0, label="Leased work uses little compute", kind="state",
+                                definition="GPU work holds leases but is waiting on memory, I/O or requests."))
+        claims.append(Claim(id="c-cause-light", kind="inferred", importance="primary",
+                            concepts=["light-work", "leases", "gpu-idle"],
+                            evidence=["e-leases"] + (["e-util"] if util is not None else []),
+                            text="GPU work holds leases but uses little compute while sampled, for example while "
+                                 "it waits on memory, I/O or incoming requests."))
+        chains.append(CausalChain(id="chain-light", label="Why the GPU is idle", claim="c-cause-light",
+                                  steps=["light-work", "gpu-idle", "low-util"]))
+        causes.append((0.6, "c-cause-light"))
+    if not causes and not hot:
         concepts.append(Concept(id="no-demand", level=0, label="No GPU work queued", kind="state"))
         claims.append(Claim(id="c-cause-demand", kind="inferred", importance="primary",
                             concepts=["no-demand", "gpu-idle"], evidence=["e-leases"] if known else

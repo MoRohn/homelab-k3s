@@ -18,7 +18,7 @@ import json
 
 from lif.understanding import simulate
 from lif.understanding.render.base import RendererCapabilities, RenderRequest, RenderResult, Segment, SemanticGap
-from lif.understanding.render.common import claims_in_order, esc, headline, pct, uncertainty_segments
+from lif.understanding.render.common import claims_in_order, esc, headline, uncertainty_segments
 from lif.understanding.render.prose import _mode, claim_text
 from lif.understanding.spec import ExplanationSpec
 

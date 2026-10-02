@@ -91,17 +91,34 @@ class ExplanationRequest(BaseModel):
             depth, budget = "deep", 600
         depth = self.depth or depth or "learn"
         budget = self.time_budget_seconds or budget or DEPTH_SECONDS[depth]
-        if isinstance(self.audience, Audience):
-            aud = self.audience
-        else:
-            role = {"engineer": "software_engineer", "dev": "developer", "exec": "executive", "ops": "operator",
-                    "user": "general", None: "general"}.get(self.audience, self.audience)
-            aud = Audience(role=role if role in Audience.model_fields["role"].annotation.__args__ else "general")
+        aud = audience_of(self.audience)
         if self.expertise:
             aud = aud.model_copy(update={"expertise": self.expertise})
         elif aud.role == "executive" and "expertise" not in aud.model_fields_set:
             aud = aud.model_copy(update={"expertise": "novice"})
         return depth, budget, aud
+
+
+ROLE_WORDS = {"engineer": "software_engineer", "dev": "developer", "exec": "executive", "ops": "operator",
+              "user": "general"}
+ROLES = Audience.model_fields["role"].annotation.__args__
+
+
+def audience_of(value: Audience | dict | str | None) -> Audience:
+    """An Audience from a full object, a dict ({"role": "engineer"}) or a word. Unknown roles become
+    "general"; unknown fields or expertise values raise ValueError."""
+    if isinstance(value, Audience):
+        return value
+    if value is None or isinstance(value, str):
+        role = ROLE_WORDS.get(value or "general", value or "general")
+        return Audience(role=role if role in ROLES else "general")
+    d = dict(value)
+    role = ROLE_WORDS.get(d.get("role", "general"), d.get("role", "general"))
+    d["role"] = role if role in ROLES else "general"
+    try:
+        return Audience(**d)
+    except Exception as e:                           # noqa: BLE001 - pydantic detail is not for end users
+        raise ValueError(f"invalid audience {value!r}") from e
 
 
 def ev(event: str, **data: Any) -> dict:
@@ -123,10 +140,13 @@ async def rules_judge(name: str, state: dict) -> tuple[str, bool]:
 def fabric_judge(url: str | None = None, timeout: float = 3.0) -> Judge:
     """The Decision Fabric (cascade: rules → Jev → local), with a short timeout. Unreachable → no judgment."""
     from lif.decision.sdk import RemoteIntelligence
+    remote: list[RemoteIntelligence] = []           # one client for the judge's lifetime, created on first use
 
     async def judge(name: str, state: dict) -> tuple[str, bool]:
         try:
-            d = await asyncio.wait_for(RemoteIntelligence(url).decide(name, state, data_class="PUBLIC"), timeout)
+            if not remote:
+                remote.append(RemoteIntelligence(url))
+            d = await asyncio.wait_for(remote[0].decide(name, state, data_class="PUBLIC"), timeout)
             return d.answer, bool(d.actionable)
         except Exception:                           # noqa: BLE001 - routing must not depend on Jev being up
             return await rules_judge(name, state)
@@ -135,8 +155,8 @@ def fabric_judge(url: str | None = None, timeout: float = 3.0) -> Judge:
 
 async def gpusched_probe() -> router.ResourceState:
     try:
-        from lif.gpu.state import GpuStateWatcher
-        snap = await asyncio.wait_for(GpuStateWatcher().refresh(), 3.0)
+        from lif.understanding.collect import gpusched_snapshot
+        snap = await gpusched_snapshot()
         return router.ResourceState(snap.state.name if snap.reachable else "UNKNOWN")
     except Exception:                               # noqa: BLE001
         return router.ResourceState("UNKNOWN")
@@ -149,7 +169,7 @@ def gateway_generate(alias: str = "local/default", max_tokens: int = 2500) -> Ge
     import httpx
 
     url = os.environ.get("LIF_GATEWAY_URL", "http://127.0.0.1:18080").rstrip("/")
-    key = os.environ.get("LIF_API_KEY", "")
+    key = os.environ.get("LIF_API_KEY") or os.environ.get("LIF_CONSOLE_GATEWAY_KEY", "")
 
     async def gen(messages: list[dict]) -> str:
         headers = {"X-LIF-Data-Class": "CONFIDENTIAL", "X-LIF-Workload": "understanding"}
@@ -273,8 +293,8 @@ class Compiler:
 
     async def compile(self, spec: ExplanationSpec, pres: dict, sid: str) -> AsyncIterator[dict]:
         """Route and render an existing spec. Shared by explain() and every override."""
-        summary = self.render_one(spec, "ste-prose", {**pres, "depth": "glance" if DEPTH_LEVEL[pres["depth"]] < 2
-                                                      else "summary"})
+        summary = await asyncio.to_thread(self.render_one, spec, "ste-prose",
+                                          {**pres, "depth": "glance" if DEPTH_LEVEL[pres["depth"]] < 2 else "summary"})
         yield ev("summary.ready", session=sid, artifact=summary.artifact, referenced_ids=summary.referenced_ids)
         f, plan = await self.route(spec, pres)
         yield ev("route.ready", session=sid, primary=plan.primary, supporting=plan.supporting, deferred=plan.deferred,
@@ -306,8 +326,9 @@ class Compiler:
                 yield ev(f"{res.target.lower()}.ready", session=sid, renderer=name, media_type=res.media_type,
                          artifact=res.artifact, referenced_ids=res.referenced_ids, verification=res.verification,
                          render_metrics=res.render_metrics)
-        report = critic.evaluate(spec, results, pres["depth"])
-        self.store.put_session(sid, spec.id, pres.get("request") or {}, pres, plan.to_dict(), outputs, report)
+        report = await asyncio.to_thread(critic.evaluate, spec, results, pres["depth"])
+        await asyncio.to_thread(self.store.put_session, sid, spec.id, pres.get("request") or {}, pres, plan.to_dict(),
+                                outputs, report)
         yield ev("evaluation.ready", session=sid, **{k: report[k] for k in
                                                      ("ok", "semantic_ok", "presentation_ok", "contradictions",
                                                       "objectives_covered", "missing_primary_claims", "summary")})
@@ -327,11 +348,11 @@ class Compiler:
             return
         yield ev("knowledge_model.ready", session=sid, builder=builder, concepts=len(spec.concepts),
                  claims=len(spec.claims))
-        result = validate(spec, self.resolver)
+        result = await asyncio.to_thread(validate, spec, self.resolver)
         if not result.ok:
             yield ev("error", session=sid, stage="explanation_ir", issues=[i.to_dict() for i in result.errors])
             return
-        self.store.put_spec(spec)
+        await asyncio.to_thread(self.store.put_spec, spec)
         yield ev("explanation_ir.ready", session=sid, explanation_id=spec.id, semantic_hash=spec.semantic_hash(),
                  warnings=[i.to_dict() for i in result.warnings])
         async for e in self.compile(spec, pres, sid):
@@ -350,6 +371,10 @@ class Compiler:
     async def rerender(self, sid: str, **changes: Any) -> AsyncIterator[dict]:
         """Recompile the session's spec with presentation changes (format, audience, depth, viewport…)."""
         s, spec = self._session(sid)
+        if changes.get("audience") is not None:
+            changes["audience"] = audience_of(changes["audience"]).model_dump()
+        if changes.get("depth") is not None and changes["depth"] not in DEPTHS:
+            raise ValueError(f"depth must be one of {DEPTHS}")
         pres = {**s["presentation"], **{k: v for k, v in changes.items() if v is not None}}
         if "format" in changes and changes["format"] not in (None, "auto"):
             self.store.feedback(sid, "override", {"format": changes["format"], "was": s["plan"].get("primary")})
@@ -361,7 +386,7 @@ class Compiler:
         s, _ = self._session(sid)
         pres = s["presentation"]
         aud = {**pres["audience"], "expertise": "novice"}
-        depth = DEPTHS[max(1, DEPTHS.index(pres["depth"]) - 1)]
+        depth = DEPTHS[max(0, DEPTHS.index(pres["depth"]) - 1)]
         self.store.feedback(sid, "simplify", {"from_depth": pres["depth"]})
         async for e in self.rerender(sid, audience=aud, depth=depth, budget=min(pres["budget"], DEPTH_SECONDS[depth]),
                                      format="auto"):

@@ -19,20 +19,21 @@ same router under /api when LIF_CONSOLE_UNDERSTANDING=1, behind its session auth
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from lif.understanding.compiler import Compiler, ExplanationRequest, default_compiler
+from lif.understanding.compiler import DEPTHS, Compiler, ExplanationRequest, audience_of, default_compiler
 from lif.understanding.validate import validate
 
 # Served artifacts get their own sandbox: an opaque origin with no network, whatever page embeds them (§83).
 SANDBOX_CSP = ("sandbox allow-scripts; default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
-               "img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'")
+               "img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'")
 
 
 class OverrideBody(BaseModel):
@@ -89,14 +90,13 @@ def make_router(get_compiler: Callable[[], Compiler], dependencies: list | None 
 
     def session_for(comp: Compiler, spec_id: str, sid: str | None) -> str:
         if sid:
-            s = comp.store.get_session(sid)
-            if s is None or s["spec_id"] != spec_id and comp.store.get_spec(s["spec_id"]).metadata.parent != spec_id:
+            if not comp.store.session_belongs(sid, spec_id):
                 raise HTTPException(404, "no such session for this explanation")
             return sid
-        row = comp.store.db.one("SELECT id FROM sessions WHERE spec_id=? ORDER BY updated_at DESC LIMIT 1", (spec_id,))
-        if row is None:
+        found = comp.store.latest_session(spec_id)
+        if found is None:
             raise HTTPException(404, "no session for this explanation; POST /v1/explain first")
-        return row["id"]
+        return found
 
     @r.post("/v1/explain")
     async def explain(req: ExplanationRequest, stream: bool = Query(False)):
@@ -124,7 +124,15 @@ def make_router(get_compiler: Callable[[], Compiler], dependencies: list | None 
     async def render(spec_id: str, body: OverrideBody, stream: bool = Query(False)):
         comp = get_compiler()
         sid = session_for(comp, spec_id, body.session)
-        ev = comp.rerender(sid, format=body.format, depth=body.depth, audience=body.audience, viewport=body.viewport,
+        try:                               # reject a bad override before the stream starts, not halfway through it
+            audience = audience_of(body.audience).model_dump() if body.audience is not None else None
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        if body.depth is not None and body.depth not in DEPTHS:
+            raise HTTPException(422, f"depth must be one of {list(DEPTHS)}")
+        if body.viewport is not None and body.viewport not in ("desktop", "mobile"):
+            raise HTTPException(422, "viewport must be desktop or mobile")
+        ev = comp.rerender(sid, format=body.format, depth=body.depth, audience=audience, viewport=body.viewport,
                            selected=body.selected)
         return sse(ev) if stream else await finish(ev)
 
@@ -160,10 +168,15 @@ def make_router(get_compiler: Callable[[], Compiler], dependencies: list | None 
         if s is None or renderer not in s["outputs"]:
             raise HTTPException(404, "no such artifact")
         spec = comp.store.get_spec(s["spec_id"])
-        res = comp.render_one(spec, renderer, s["presentation"], (s["plan"] or {}).get("options"))
+        if spec is None:
+            raise HTTPException(404, "no such artifact")
+        # A cache hit in practice (the session rendered it); off the event loop either way.
+        res = await asyncio.to_thread(comp.render_one, spec, renderer, s["presentation"],
+                                      (s["plan"] or {}).get("options"))
         headers = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
         if res.media_type == "text/html":
             headers["Content-Security-Policy"] = SANDBOX_CSP
+            headers["X-Frame-Options"] = "SAMEORIGIN"     # framable by the console page that shows it, nobody else
         return Response(res.artifact, media_type=res.media_type, headers=headers)
 
     @r.get("/v1/renderers")

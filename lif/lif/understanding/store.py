@@ -45,7 +45,11 @@ CREATE INDEX IF NOT EXISTS feedback_session ON feedback(session_id);
 
 
 def default_path() -> str:
-    return os.environ.get("LIF_UNDERSTANDING_DB") or str(Path.home() / ".local/share/lif/understanding.db")
+    if os.environ.get("LIF_UNDERSTANDING_DB"):
+        return os.environ["LIF_UNDERSTANDING_DB"]
+    if os.environ.get("LIF_CONSOLE_DB"):              # inside the console: its writable data volume
+        return str(Path(os.environ["LIF_CONSOLE_DB"]).parent / "understanding.db")
+    return str(Path.home() / ".local/share/lif/understanding.db")
 
 
 def artifact_key(spec: ExplanationSpec, renderer: str, version: str, req: RenderRequest) -> str:
@@ -125,9 +129,19 @@ class Store:
             row[k] = json.loads(row[k])
         return row
 
-    def sessions(self, limit: int = 20) -> list[dict]:
-        return self.db.q("SELECT s.id, s.spec_id, s.created_at, p.question FROM sessions s JOIN specs p "
-                         "ON p.id = s.spec_id ORDER BY s.updated_at DESC LIMIT ?", (limit,))
+    def latest_session(self, spec_id: str) -> str | None:
+        """The newest session showing this spec or a spec derived from it (deepen moves a session to the child)."""
+        row = self.db.one("WITH RECURSIVE d(id) AS (SELECT ? UNION SELECT s.id FROM specs s JOIN d ON s.parent = d.id) "
+                          "SELECT id FROM sessions WHERE spec_id IN (SELECT id FROM d) ORDER BY updated_at DESC LIMIT 1",
+                          (spec_id,))
+        return row["id"] if row else None
+
+    def session_belongs(self, sid: str, spec_id: str) -> bool:
+        s = self.get_session(sid)
+        if s is None:
+            return False
+        line = {x.id for x in self.lineage(s["spec_id"])}
+        return spec_id in line
 
     # feedback (§104: override rate, abandonment, comprehension)
     def feedback(self, sid: str, kind: str, detail: dict[str, Any]) -> None:

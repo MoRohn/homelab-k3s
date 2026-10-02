@@ -46,11 +46,14 @@ class DiagramPlan:
 
 
 def choose_family(req: RenderRequest) -> str:
+    vis = req.visible
+    have = {"causal": any(vis(c) for c in req.spec.causal_chains), "process": any(vis(p) for p in req.spec.processes),
+            "timeline": any(vis(t) for t in req.spec.timelines),
+            "dependency": any(vis(r) for r in req.spec.relationships)}
     fam = req.options.get("diagram_family")
-    if fam in FAMILIES:
+    if fam in FAMILIES and have[fam]:
         return fam
     s = analyze(req.spec, req.depth).structure
-    vis = req.visible
     ranked = sorted(
         [("causal", s["causal"] if any(vis(c) for c in req.spec.causal_chains) else 0.0),
          ("process", s["process"] if any(vis(p) for p in req.spec.processes) else 0.0),

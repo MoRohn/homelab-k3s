@@ -55,11 +55,10 @@ async def _finish(events) -> dict:
 def _sid(a: dict) -> str:
     if a.get("session"):
         return a["session"]
-    row = comp().store.db.one("SELECT id FROM sessions WHERE spec_id=? ORDER BY updated_at DESC LIMIT 1",
-                              (a.get("explanation_id", ""),))
-    if row is None:
+    sid = comp().store.latest_session(a.get("explanation_id", ""))
+    if sid is None:
         raise KeyError("pass `session`, or an `explanation_id` that has a session")
-    return row["id"]
+    return sid
 
 
 async def create(a: dict) -> dict:

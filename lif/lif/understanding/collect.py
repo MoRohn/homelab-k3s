@@ -48,22 +48,36 @@ def pods_from_json(doc: dict) -> list[dict]:
         cond = next((c for c in st.get("conditions", []) if c.get("type") == "PodScheduled"
                      and c.get("status") == "False"), {})
         out.append({"ns": p["metadata"].get("namespace"), "name": p["metadata"].get("name"),
-                    "phase": st.get("phase"), "gpu": True, "reason": cond.get("reason", ""),
-                    "message": cond.get("message", "")})
+                    "phase": st.get("phase"), "gpu": True, "unschedulable": bool(cond),
+                    "reason": cond.get("reason", ""), "message": cond.get("message", "")})
     return out
+
+
+_SNAP: tuple[float, Any] = (0.0, None)
+SNAP_TTL = 5.0
+
+
+async def gpusched_snapshot(max_age: float = SNAP_TTL):
+    """One gpusched read shared by the router's resource probe and the GPU collector, cached briefly.
+    The watcher's HTTP client is closed after each read."""
+    global _SNAP
+    if _SNAP[1] is not None and time.time() - _SNAP[0] < max_age:
+        return _SNAP[1]
+    from lif.gpu.state import GpuStateWatcher
+    w = GpuStateWatcher()
+    try:
+        snap = await asyncio.wait_for(w.refresh(), 3.0)
+    finally:
+        await w.client.aclose()
+    _SNAP = (time.time(), snap)
+    return snap
 
 
 async def gpu_state() -> dict[str, Any]:
     st: dict[str, Any] = {"collected_at": time.time(), "gpu": {}, "blerbz": {}, "pods": [], "residents": {},
                           "errors": {}}
     try:
-        import os
-
-        from lif.gpu.state import GpuStateWatcher, _read_token
-        # On the host (outside the cluster) point this at a readable copy of gpusched's metrics token.
-        tf = os.environ.get("LIF_GPUSCHED_TOKEN_FILE")
-        w = GpuStateWatcher(token=_read_token(tf)) if tf else GpuStateWatcher()
-        snap = await w.refresh()
+        snap = await gpusched_snapshot()
         if snap.reachable:
             st["gpu"]["util_percent"] = snap.gpu_util_percent
             st["gpu"]["util_source"] = "gpusched_gpu_util_percent"

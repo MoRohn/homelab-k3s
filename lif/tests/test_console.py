@@ -923,3 +923,4 @@ def test_understanding_api_mounts_behind_console_auth(world: World, tmp_path: Pa
     assert art.status_code == 200
     csp = art.headers.get_list("content-security-policy")
     assert csp and all(c.startswith("sandbox allow-scripts") for c in csp), csp   # the console's own CSP must not stack
+    assert art.headers.get_list("x-frame-options") == ["SAMEORIGIN"]           # framable by the console, not DENY
