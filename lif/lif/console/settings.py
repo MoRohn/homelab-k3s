@@ -72,6 +72,12 @@ def knowledge_url() -> str | None:
     return v.rstrip("/") or None
 
 
+def earn_url() -> str | None:
+    """Earning service base URL (namespace earn); None → the Earn page says it isn't configured."""
+    v = os.environ.get("LIF_EARN_URL", "").strip()
+    return v.rstrip("/") or None
+
+
 def knowledge_root() -> Path:
     return Path(_env("LIF_KNOWLEDGE_ROOT", str(LIF_ROOT / "knowledge")))
 
@@ -101,6 +107,17 @@ def admin_key() -> str | None:
 def gateway_key() -> str | None:
     """Gateway client key (name `console` in LIF_GATEWAY_KEYS)."""
     return config.secret("LIF_CONSOLE_GATEWAY_KEY") or None
+
+
+def earn_read_key() -> str | None:
+    """Earning service read key (EARN_READ_KEY there): status only."""
+    return config.secret("LIF_EARN_READ_KEY") or None
+
+
+def earn_admin_key() -> str | None:
+    """Earning service control key (EARN_ADMIN_KEY there): pause/stop/kill/resume. Never moves money or
+    enables live trading — the earn API has no such endpoint."""
+    return config.secret("LIF_EARN_ADMIN_KEY") or None
 
 
 def setup_code() -> str | None:

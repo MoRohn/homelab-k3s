@@ -4,7 +4,7 @@
 import type { IconName } from '@/ui/Icon';
 
 export interface NavItem {
-  id: 'home' | 'ask' | 'agents' | 'models' | 'jobs' | 'knowledge' | 'system';
+  id: 'home' | 'ask' | 'agents' | 'models' | 'jobs' | 'earn' | 'knowledge' | 'system';
   label: string;
   href: string;
   icon: IconName;
@@ -16,6 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'agents', label: 'Agents', href: '/agents', icon: 'agents' },
   { id: 'models', label: 'Models', href: '/models', icon: 'models' },
   { id: 'jobs', label: 'Jobs', href: '/jobs', icon: 'jobs' },
+  { id: 'earn', label: 'Earn', href: '/earn', icon: 'benchmark' },
   { id: 'knowledge', label: 'Knowledge', href: '/knowledge', icon: 'knowledge' },
   { id: 'system', label: 'System', href: '/system', icon: 'system' },
 ];
@@ -27,6 +28,7 @@ export const BOTTOM_NAV: NavItem['id'][] = ['home', 'ask', 'agents'];
 export const MORE_ITEMS: { label: string; href: string; icon: IconName; hint: string }[] = [
   { label: 'Models', href: '/models', icon: 'models', hint: 'Which model handles each kind of request' },
   { label: 'Jobs', href: '/jobs', icon: 'jobs', hint: 'Batch and background work' },
+  { label: 'Earn', href: '/earn', icon: 'benchmark', hint: 'Earning system: paper/live state, safety stops, P&L' },
   { label: 'Knowledge', href: '/knowledge', icon: 'knowledge', hint: 'Decisions, evidence and project memory' },
   { label: 'System', href: '/system', icon: 'system', hint: 'Compute, services, storage and logs' },
   { label: 'Connect a phone', href: '/connect', icon: 'qr', hint: 'Pair a phone or tablet, manage paired devices' },

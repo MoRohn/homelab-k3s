@@ -1108,3 +1108,192 @@ class HomeOverview(Contract):
     trends: list[Trend] = []
     trends_hours: int = 6
     trends_note: str | None = None           # why trends are missing
+
+
+# ── Earn (the earning system in namespace earn; GET /api/earn, POST /api/earn/control) ─────────────
+# Money arrives from the earn service as exact decimal strings and stays a string here (never a float),
+# so the page shows what the ledger says. Reward ESTIMATES are kept apart from credited rewards everywhere.
+
+class EarnBootStep(Contract):
+    """One step of the earn boot sequence (policy → leadership → clock → rules → reconcile → feeds → modes)."""
+    step: str = ""
+    label: str = ""                          # "Verify rule documents"
+    ok: bool = False
+    detail: str = ""
+
+
+class EarnLiveStatus(Contract):
+    """Whether live trading is permitted for one engine on one venue, and every reason it isn't."""
+    engine: str = ""
+    venue: str = ""
+    allowed: bool = False
+    reasons: list[str] = []
+
+
+class EarnVenue(Contract):
+    venue: str = ""
+    label: str = ""                          # "Kalshi", "Polymarket US"
+    health: Health = "unknown"
+    markets: int = 0
+    feed_age_s: float | None = None          # seconds since market data last arrived and validated
+    clock_skew_s: float | None = None
+    committed_usd: str | None = None         # worst-case collateral: open orders + positions
+    paper_cash_usd: str | None = None        # paper book only
+    unresolved_orders: int = 0               # orders whose venue state is unknown (capital stays reserved)
+    last_error: str | None = None
+
+
+class EarnMarket(Contract):
+    """A tracked market and the engine's decision for it, with the exact reasons when it abstains."""
+    venue: str = ""
+    market: str = ""
+    title: str = ""
+    best_bid: str | None = None
+    best_ask: str | None = None
+    book_age_s: float | None = None
+    quoting: bool = False
+    eligible: bool | None = None
+    return_per_collateral_hour: str | None = None
+    reward_per_hour_usd: str | None = None   # ESTIMATE from the venue's reward simulator
+    program: str | None = None               # "$500 pool · target 1000 · discount 0.5"
+    quotes: list[str] = []                   # "Buy 10 at 0.45"
+    reasons: list[str] = []
+
+
+class EarnPnl(Contract):
+    """Realized economics for one engine (or "all"); income and costs as recorded in the ledger."""
+    engine: str = ""
+    realized_trading_usd: str | None = None
+    rewards_recognized_usd: str | None = None
+    rebates_usd: str | None = None
+    fees_usd: str | None = None
+    net_incremental_usd: str | None = None   # power and new costs only
+    net_fully_loaded_usd: str | None = None  # plus allocated infrastructure
+
+
+class EarnRewardEstimate(Contract):
+    """ESTIMATE, not cash: a sampled share of a venue's reward pool with its uncertainty band."""
+    venue: str = ""
+    market: str = ""
+    estimate_usd: str | None = None
+    low_usd: str | None = None
+    high_usd: str | None = None
+    method: str = ""
+
+
+class EarnTrip(Contract):
+    """An automatic safety stop that holds until its cause clears or an operator clears it."""
+    scope: str = ""
+    trigger: str = ""
+    effect: str = ""                         # paused | close_only | stopped
+    detail: str = ""
+    since: float | None = None
+
+
+class EarnControlState(Contract):
+    scope: str = ""
+    state: str = ""                          # running | close_only | paused | stopped
+    reason: str = ""
+    actor: str = ""
+    updated_at: float | None = None
+
+
+class EarnExposure(Contract):
+    """Worst-case collateral reserved by open orders, grouped by correlated event."""
+    event_group: str = ""
+    amount_usd: str | None = None
+
+
+class EarnArbCandidate(Contract):
+    ts: float | None = None
+    kind: str = ""
+    group: str = ""
+    classification: str = ""                 # arbitrage | arbitrage_resolution_only | not_arbitrage | unverifiable
+    size: str | None = None
+    net_edge_usd: str | None = None
+    reason: str = ""
+
+
+class EarnSynth(Contract):
+    """The Synth (Bittensor SN50) forecasting worker. Registration is the operator's decision, never automatic."""
+    available: bool = False
+    reason: str | None = None
+    mode: str = ""
+    champion_model: str | None = None
+    registration_state: str = "unknown"
+    miner_enabled: bool = False
+    notes: list[str] = []
+    last_benchmark: list[Fact] = []
+
+
+class EarnLearning(Contract):
+    """Champion/challenger experiments: proposals, gates and rollbacks."""
+    by_status: list[Fact] = []
+    champions: list[Fact] = []
+    recent: list[str] = []
+
+
+class EarnAvailability(Contract):
+    """Month-to-date availability. `kind` keeps this service's own uptime apart from upstream outages."""
+    component: str = ""
+    label: str = ""
+    kind: str = ""                           # control | feed | venue_api | model
+    ratio: float | None = None               # 0..1
+    observed_minutes: int = 0
+
+
+class EarnCosts(Contract):
+    cpu_seconds: float | None = None
+    max_rss_mib: float | None = None
+    electricity: str = ""                    # a measured cost, or why it is unverified
+
+
+class EarnOverview(Contract):
+    """GET /api/earn: everything the Earn page shows. When the service isn't configured or isn't answering,
+    `available` is false and `lead`/`reason` say so; nothing else is invented."""
+    configured: bool = False
+    available: bool = False
+    reason: str | None = None
+    lead: str = ""                           # one plain sentence first ("Paper trading — not safe to trade: …")
+    health: Health = "unknown"
+    book: str = ""                           # paper | live
+    modes: list[Fact] = []                   # engine → mode
+    trading_safe: bool = False
+    not_trading: list[str] = []              # every reason it isn't trading, in words
+    warm: bool = False
+    boot: list[EarnBootStep] = []
+    live: list[EarnLiveStatus] = []
+    venues: list[EarnVenue] = []
+    markets: list[EarnMarket] = []
+    quoting_markets: int = 0
+    pnl: list[EarnPnl] = []
+    marked_unrealized_usd: str | None = None
+    rewards_estimated: list[EarnRewardEstimate] = []
+    rewards_estimated_usd: str | None = None      # ESTIMATE total
+    rewards_estimated_low_usd: str | None = None
+    rewards_estimated_high_usd: str | None = None
+    rewards_credited_usd: str | None = None       # what venues actually credited
+    rewards_note: str = ""
+    costs: EarnCosts = EarnCosts()
+    committed_usd: str | None = None
+    exposures: list[EarnExposure] = []
+    trips: list[EarnTrip] = []
+    controls: list[EarnControlState] = []
+    arbitrage_total: int = 0
+    arbitrage_counts: list[Fact] = []
+    arbitrage_recent: list[EarnArbCandidate] = []
+    synth: EarnSynth = EarnSynth()
+    learning: EarnLearning = EarnLearning()
+    availability: list[EarnAvailability] = []
+    loop_errors: list[str] = []
+    updated_at: float | None = None
+    tech: list[TechDetail] = []
+
+
+class EarnControlRequest(Contract):
+    """POST /api/earn/control. pause/stop/kill only reduce risk and run directly; resume and close_only are
+    admin-only and need the typed confirmation from GET /api/earn/control/preview (confirm == the scope)."""
+    action: Literal["pause", "close_only", "resume", "stop", "kill"] = "pause"
+    scope: str = "global"                    # global | engine:<name> | venue:<name> | market:<venue>:<id>
+    reason: str = ""
+    confirm: str | None = None

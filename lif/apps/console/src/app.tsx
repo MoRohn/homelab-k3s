@@ -25,6 +25,7 @@ const Discovery = lazy(() => import('@/pages/models/Discovery'));
 const Candidate = lazy(() => import('@/pages/models/Candidate'));
 const Jobs = lazy(() => import('@/pages/jobs/Jobs'));
 const JobDetail = lazy(() => import('@/pages/jobs/JobDetail'));
+const Earn = lazy(() => import('@/pages/earn/Earn'));
 const Knowledge = lazy(() => import('@/pages/knowledge/Knowledge'));
 const KnowledgeObject = lazy(() => import('@/pages/knowledge/KnowledgeObject'));
 const System = lazy(() => import('@/pages/system/System'));
@@ -113,6 +114,7 @@ function Shell() {
           <Route path="/models/candidates/:id" component={Candidate} />
           <Route path="/jobs" component={Jobs} />
           <Route path="/jobs/:id" component={JobDetail} />
+          <Route path="/earn" component={Earn} />
           <Route path="/knowledge" component={Knowledge} />
           <Route path="/knowledge/o/:objectKey+" component={KnowledgeObject} />
           <Route path="/system" component={System} />
