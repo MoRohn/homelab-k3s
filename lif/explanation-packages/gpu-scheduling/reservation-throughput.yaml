@@ -1,0 +1,64 @@
+# Synthetic: memory held back for a primary workload vs. batch throughput. The simulation computes
+# every number shown; the spec only states the relationship.
+package: gpu-scheduling
+name: reservation-throughput
+version: 1
+match:
+  - '\b(gpu|memory)\b.*\breserv\w*\b.*\b(throughput|jobs|capacity)\b'
+  - '\breserv\w*\b.*\baffect\w*\b.*\bthroughput\b'
+spec:
+  id: gpu-scheduling.reservation-throughput
+  question: How does changing GPU reservation affect throughput?
+  audience: {role: operator, expertise: intermediate}
+  terms:
+    - {canonical: reservation, synonyms: [GPU reserve, reserve], plain: "memory kept free for the primary workload"}
+    - {canonical: batch job, synonyms: [job]}
+  learning_objectives:
+    - {id: obj-tradeoff, level: 0, text: "Say how a larger reservation changes batch throughput", claims: [c-tradeoff]}
+    - {id: obj-steps, level: 2, text: "Explain why throughput changes in steps", claims: [c-steps]}
+  summary: {headline: c-tradeoff, claims: [c-tradeoff, c-steps]}
+  concepts:
+    - {id: reservation, level: 0, label: "Reservation", term: reservation, kind: quantity,
+       definition: "GPU memory held back for the primary workload."}
+    - {id: free-memory, level: 1, label: "Free memory", kind: quantity, definition: "Memory left for batch jobs."}
+    - {id: slots, level: 0, label: "Concurrent jobs", kind: quantity, definition: "How many batch jobs fit at once."}
+    - {id: throughput, level: 0, label: "Throughput", kind: quantity, definition: "Batch jobs completed per hour."}
+    - {id: job, level: 1, label: "Batch job", term: batch job, kind: entity}
+  claims:
+    - {id: c-tradeoff, level: 0, kind: general, importance: primary, concepts: [reservation, throughput],
+       text: "A larger reservation leaves less memory for batch jobs, so fewer jobs run at once and throughput falls."}
+    - {id: c-steps, level: 1, kind: general, importance: supporting, concepts: [slots, job, free-memory],
+       text: "Throughput changes in steps, because a job only starts when its whole memory request fits."}
+  relationships:
+    - {id: r-res-free, level: 1, from: reservation, to: free-memory, type: limits, label: "reduces"}
+    - {id: r-free-slots, level: 1, from: free-memory, to: slots, type: limits, label: "sets"}
+    - {id: r-slots-tp, level: 1, from: slots, to: throughput, type: causes, label: "sets"}
+  causal_chains:
+    - {id: chain-tp, level: 0, label: "Reservation to throughput", claim: c-tradeoff,
+       steps: [reservation, free-memory, slots, throughput]}
+  variables:
+    - {id: v-total, level: 1, symbol: M, label: "Total GPU memory", unit: GB, kind: float, default: 128}
+    - {id: v-reserved, level: 0, symbol: R, label: "Reservation", unit: GB, kind: float, min: 0, max: 96, step: 8, default: 48,
+       concept: reservation}
+    - {id: v-job, level: 1, symbol: m, label: "Memory per job", unit: GB, kind: float, min: 4, max: 32, step: 4, default: 16,
+       concept: job}
+    - {id: v-minutes, level: 1, symbol: t, label: "Minutes per job", unit: min, kind: float, min: 5, max: 60, step: 5, default: 20}
+  equations:
+    - {id: eq-slots, level: 2, expr: 'slots = floor((M - R) / m)', meaning: c-steps, variables: [v-total, v-reserved, v-job]}
+  simulation:
+    primitive: gpu-reservation-throughput/v1
+    variables: [v-total, v-reserved, v-job, v-minutes]
+    bindings: {v-total: total_mem_gb, v-reserved: reserved_gb, v-job: job_mem_gb, v-minutes: job_minutes}
+    controls:
+      - {variable: v-reserved, widget: slider}
+      - {variable: v-job, widget: slider}
+      - {variable: v-minutes, widget: slider}
+    outputs:
+      - {key: slots, label: "Concurrent jobs", concept: slots}
+      - {key: jobs_per_hour, label: "Jobs per hour", unit: jobs/h, concept: throughput}
+      - {key: idle_gb, label: "Unused memory", unit: GB, concept: free-memory}
+    scenarios:
+      - {id: sc-small, label: "Small reservation", values: {v-reserved: 16}}
+      - {id: sc-large, label: "Large reservation", values: {v-reserved: 80}}
+    claims: [c-tradeoff, c-steps]
+  metadata: {data_class: PUBLIC, builder: 'package:gpu-scheduling/reservation-throughput'}

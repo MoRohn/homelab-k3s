@@ -1,0 +1,61 @@
+package: labzilla
+name: jev-cascade
+version: 1
+match:
+  - '\bjev\b.*\b(reduce|cut|avoid|fewer|lower)\w*\b.*\b(heavy|kimi|expensive|frontier)\b'
+  - '\bhow does (the )?(decision )?cascade work\b'
+spec:
+  id: labzilla.jev-cascade
+  question: How does Jev reduce heavy model calls in Labzilla?
+  audience: {role: developer, expertise: intermediate}
+  terms:
+    - {canonical: Jev, plain: "a fast service that answers a fixed-choice question"}
+    - {canonical: cascade, synonyms: [decision cascade]}
+    - {canonical: heavy model, synonyms: [Kimi], plain: "a large, slow, costly model"}
+  learning_objectives:
+    - {id: obj-why, level: 0, text: "Say why most judgments never reach a heavy model", claims: [c-cascade]}
+    - {id: obj-order, level: 2, text: "Name the tiers in order", claims: [c-order]}
+  summary: {headline: c-cascade, claims: [c-cascade, c-escalate]}
+  concepts:
+    - {id: decision, level: 0, label: "Bounded judgment", kind: idea, definition: "A question with a fixed set of answers."}
+    - {id: code, level: 1, label: "Code", kind: entity, definition: "Deterministic rules and calculations."}
+    - {id: jev, level: 0, label: "Jev", term: Jev, kind: entity, source_refs: [src-jev-decision]}
+    - {id: local, level: 1, label: "Local model", kind: entity}
+    - {id: heavy, level: 0, label: "Heavy model", term: heavy model, kind: entity}
+    - {id: confidence, level: 1, label: "Confidence zone", kind: idea,
+       definition: "The band a tier's confidence falls in; it decides whether the answer is used or escalated."}
+  claims:
+    - {id: c-cascade, level: 0, kind: general, importance: primary, concepts: [decision, jev, heavy],
+       text: "Labzilla sends each bounded judgment to the cheapest tier that can answer it confidently, so the heavy model only sees the hard cases."}
+    - {id: c-escalate, level: 1, kind: general, importance: primary, concepts: [confidence, heavy],
+       text: "A tier escalates only when its confidence falls in the middle zone."}
+    - {id: c-order, level: 1, kind: general, importance: supporting, concepts: [code, jev, local, heavy],
+       text: "The tiers run in order code, Jev, local model, heavy model."}
+  relationships:
+    - {id: r-code-jev, level: 1, from: code, to: jev, type: routes_to, label: "unsure →"}
+    - {id: r-jev-local, level: 1, from: jev, to: local, type: routes_to, label: "middle zone →"}
+    - {id: r-local-heavy, level: 1, from: local, to: heavy, type: routes_to, label: "still unsure →"}
+  processes:
+    - {id: proc-cascade, level: 0, name: Decision cascade, steps: [decision, code, jev, local, heavy]}
+  comparisons:
+    - id: cmp-tiers
+      level: 2
+      label: "Cascade tiers"
+      items: [code, jev, local, heavy]
+      dimensions: [{id: speed, label: "Speed"}, {id: cost, label: "Cost per call"}, {id: scope, label: "Handles"}]
+      cells:
+        - {item: code, dimension: speed, value: fastest}
+        - {item: code, dimension: cost, value: none}
+        - {item: code, dimension: scope, value: exact rules}
+        - {item: jev, dimension: speed, value: fast}
+        - {item: jev, dimension: cost, value: low}
+        - {item: jev, dimension: scope, value: fixed-choice judgments}
+        - {item: local, dimension: speed, value: moderate}
+        - {item: local, dimension: cost, value: local compute}
+        - {item: local, dimension: scope, value: open reasoning}
+        - {item: heavy, dimension: speed, value: slowest}
+        - {item: heavy, dimension: cost, value: highest}
+        - {item: heavy, dimension: scope, value: hard cases}
+  source_refs:
+    - {id: src-jev-decision, kind: knowledge, ref: 'local-intelligence-fabric::jev-decision-fabric', title: Decision Fabric decision}
+  metadata: {data_class: PUBLIC, builder: 'package:labzilla/jev-cascade'}

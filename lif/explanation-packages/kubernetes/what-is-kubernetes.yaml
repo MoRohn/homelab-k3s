@@ -1,0 +1,44 @@
+package: kubernetes
+name: what-is-kubernetes
+version: 1
+match:
+  - '^\s*(what|who)(''s| is| are)\s+(kubernetes|k8s|k3s)\b'
+  - '^\s*define\s+(kubernetes|k8s)\b'
+spec:
+  id: kubernetes.what-is-kubernetes
+  question: What is Kubernetes?
+  audience: {role: general, expertise: novice}
+  terms:
+    - {canonical: Kubernetes, abbreviation: k8s, plain: "a system that runs containers on a group of machines"}
+    - {canonical: container, plain: "a packaged program with everything it needs to run"}
+    - {canonical: cluster, plain: "the group of machines Kubernetes manages"}
+  learning_objectives:
+    - {id: obj-what, level: 0, text: "Say what Kubernetes does", claims: [c-what]}
+    - {id: obj-desired, level: 2, text: "Explain how Kubernetes keeps programs running", claims: [c-desired]}
+  summary: {headline: c-what, claims: [c-what, c-desired]}
+  concepts:
+    - {id: kubernetes, level: 0, label: "Kubernetes", term: Kubernetes, kind: entity,
+       definition: "An open-source system that runs and manages containers across a cluster of machines.",
+       source_refs: [src-k8s-docs]}
+    - {id: container, level: 1, label: "Container", term: container, kind: entity,
+       definition: "A packaged program that includes everything it needs to run."}
+    - {id: cluster, level: 1, label: "Cluster", term: cluster, kind: entity,
+       definition: "A group of machines that Kubernetes manages as one pool."}
+    - {id: desired-state, level: 2, label: "Desired state", kind: idea,
+       definition: "The configuration you declare; Kubernetes works to make the cluster match it."}
+  claims:
+    - {id: c-what, level: 0, kind: definition, importance: primary, concepts: [kubernetes, container, cluster],
+       text: "Kubernetes runs containers on a cluster of machines and keeps them running."}
+    - {id: c-desired, level: 1, kind: definition, importance: supporting, concepts: [kubernetes, desired-state],
+       text: "You declare the desired state and Kubernetes restarts or moves containers until the cluster matches it."}
+  relationships:
+    - {id: r-runs, from: kubernetes, to: container, type: produces, label: "runs", level: 2}
+    - {id: r-on, from: container, to: cluster, type: scheduled_on, label: "runs on", level: 2}
+  examples:
+    - {id: ex-restart, level: 2, text: "If a container crashes, Kubernetes starts a new copy of it.", illustrates: [c-desired]}
+  checkpoints:
+    - {id: cp-what, level: 2, question: "What does Kubernetes do when a container crashes?", answer_claims: [c-desired],
+       objective: obj-desired}
+  source_refs:
+    - {id: src-k8s-docs, kind: url, ref: 'https://kubernetes.io/docs/concepts/overview/', title: Kubernetes overview}
+  metadata: {data_class: PUBLIC, builder: 'package:kubernetes/what-is-kubernetes'}
