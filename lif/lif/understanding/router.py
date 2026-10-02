@@ -272,6 +272,8 @@ def route(spec: ExplanationSpec, f: Features, registry: Registry, ctx: RouteCont
         if s.renderer in (primary.renderer, *supporting):
             continue
         name = NAMES.get(s.target, s.target)
+        if len(why) >= 3 and s.target not in ("NARRATED_VIDEO", "ANIMATION"):
+            continue                     # keep "why not video" even when the list is full
         if not s.available:
             if s.target in ("NARRATED_VIDEO", "ANIMATION"):
                 why.append(f"{name} not generated: {s.reason}.")
@@ -279,6 +281,4 @@ def route(spec: ExplanationSpec, f: Features, registry: Registry, ctx: RouteCont
             why.append(f"{name} {next(d['reason'] for d in deferred if d['renderer'] == s.renderer)}.")
         elif s.utility >= THRESHOLD:
             why.append(f"{name} not generated: it adds little beyond what is already shown.")
-        if len(why) >= 3:
-            break
     return RoutePlan(primary.renderer, supporting, deferred, excluded, scores, why, options, dict(ctx.judgments))
