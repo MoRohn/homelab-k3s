@@ -8,7 +8,7 @@ building one from scratch. This works offline and needs no model.
 | Package | Entries | Domain |
 |---|---|---|
 | `kubernetes/` | `what-is-kubernetes` | Definitions |
-| `gpu-scheduling/` | `pods-not-reaching-gpus`, `reservation-throughput` | Kubernetes GPU placement, memory reservation |
+| `gpu-scheduling/` | `pods-not-reaching-gpus` (v2, generic), `reservation-throughput` | Kubernetes GPU placement, memory reservation |
 | `labzilla/` | `jev-cascade` | How Labzilla routes judgments |
 
 Rules:

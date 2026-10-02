@@ -174,7 +174,9 @@ def test_acceptance_j_invented_claim_is_rejected():
     # Uncited content, unknown ids, invented numbers and dropped uncertainty are each rejected.
     cases = [([Segment("Affinity.", [])], "uncited"), ([Segment("Affinity.", ["c-nope"])], "unknown ids"),
              ([Segment("GPU utilization on node B was 0% for 9 minutes.", ["c-idle"])], "numbers"),
-             ([Segment("Node affinity keeps the pending pods off node B.", ["c-root"])], "without its uncertainty")]
+             ([Segment("Node affinity keeps the pending pods off node B.", ["c-root"])], "without its uncertainty"),
+             ([Segment("Node affinity does not keep the pending pods off node B.", ["c-root", "u-root"])], "words"),
+             ([Segment("All GPU pods are pending.", ["c-pending"])], "words")]
     for segs, needle in cases:
         problems = base.check_contract(s, RenderResult("x", "1", "STE_PROSE", "", segments=segs))
         assert any(needle in p for p in problems), (needle, problems)

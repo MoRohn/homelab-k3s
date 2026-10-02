@@ -182,11 +182,13 @@ WORD = re.compile(r"[A-Za-z][A-Za-z'\-]{2,}")
 LIST_MARKER = re.compile(r"^\s*(?:[-*]|\d+\.)\s+", re.M)
 NUMBER = re.compile(r"(?<![A-Za-z_])\d+(?:\.\d+)?")
 
-# Structural words any renderer may add. Kept deliberately small: no nouns that could carry a new fact.
+# Structural words any renderer may add. Kept deliberately small: no nouns that could carry a new fact, and no
+# negations, quantifiers or modals (not, no, all, only, must, will…): those change a claim's meaning, so they
+# must come from the cited text.
 CONNECTIVES = frozenset("""
-the and but for with without from into onto that this these those then than there their they them its
-because so therefore leads lead causes cause caused which who what why how when where while also only
-not yet are was were has have had does did will can may might could should must would been being
+the and but for with from into onto that this these those then than there their they them its
+because so therefore leads lead causes cause caused which who what why how when where while also
+are was were has have had does did can been being
 observed inferred assumption general definition evidence sources source uncertain uncertainty confidence
 needed need unresolved resolved short version summary diagram explore details detail more deeper simpler
 step steps next previous first last example examples counterexample misconception correction check
@@ -194,7 +196,7 @@ understanding question answer answers objective objectives learn learning goal g
 factor factors contributing involved shows show see view open table timeline process chain relationship
 relationships concept concepts term terms means meaning control controls output outputs scenario scenarios
 result results value values scale set reset play pause slider drag change changes changed try explanation
-known unknown about over after before during each all any one two three none yes no use uses used via
+known unknown about over after before during each one use uses used via
 limits blocks depends contains routes competes precedes follows consumes produces supports contradicts
 maps scheduled part per out off down
 """.split())

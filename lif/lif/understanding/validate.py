@@ -231,6 +231,9 @@ def validate(spec: ExplanationSpec, resolver: Resolver | None = syntax_resolver)
         if need(u.about, CL, u.id, "uncertainty claim"):
             referenced_claims.add(u.about)
             cl = spec.claim(u.about)
+            if cl is not None and u.level > cl.level:
+                err("uncertainty-too-deep", f"uncertainty {u.id} (level {u.level}) would be hidden where claim "
+                    f"{cl.id} (level {cl.level}) is shown", u.id)
             if cl is not None and abs(cl.confidence - u.confidence) > 1e-9:
                 err("confidence-mismatch", f"uncertainty {u.id} says {u.confidence}, claim {u.about} says "
                     f"{cl.confidence}", u.id)

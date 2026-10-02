@@ -68,6 +68,7 @@ def test_semantic_hash_ignores_metadata_and_hints():
     (lambda d: d["timelines"][0]["events"].reverse(), "unordered-timeline"),
     (lambda d: d["uncertainties"].clear(), "hidden-uncertainty"),
     (lambda d: d["uncertainties"][0].update({"confidence": 0.5}), "confidence-mismatch"),
+    (lambda d: d["uncertainties"][0].update({"level": 3}), "uncertainty-too-deep"),
     (lambda d: d["summary"].update({"headline": "affinity"}), "wrong-kind"),
     (lambda d: d["evidence"][0].update({"source": "src-nowhere"}), "unknown-ref"),
     (lambda d: d["terms"].append({"canonical": "Other", "synonyms": ["scheduler"]}), "term-collision"),

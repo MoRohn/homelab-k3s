@@ -53,6 +53,10 @@ FALLBACK = {"SIMULATION": "STATIC_VISUAL_EXPLAINER", "INTERACTIVE_HTML": "STATIC
 GPU_NOW = re.compile(r"\bgpu\b.*\b(utili[sz]ation|usage|busy|idle|under-?used|under-?utili[sz]ed)\b.*"
                      r"\b(now|currently|right now|today|at the moment|on (the )?(dgx|spark|host|this))\b"
                      r"|\bwhy is (the )?gpu (idle|so low|under-?used|not busy)\b", re.I)
+# "these pods", "our GPU", "right now", "this cluster": a question about the live system, not the general idea.
+ABOUT_THIS_SYSTEM = re.compile(r"\b(these|those|my|our|this cluster|this node|this host|right now|currently|"
+                               r"at the moment|today)\b", re.I)
+GPU_TOPIC = re.compile(r"\b(gpus?|pods?|schedul\w*)\b", re.I)
 UNDERSTAND = re.compile(r"^\s*(explain|why\b|how (does|do|did|is|are|can)\b|help me understand|walk me through|"
                         r"what causes|what caused|teach me|what changed|make me understand)", re.I)
 
@@ -212,7 +216,8 @@ class Compiler:
     async def build(self, req: ExplanationRequest, audience: Audience) -> tuple[ExplanationSpec, str]:
         q = req.question
         kind = str(req.context.get("kind") or "")
-        if (kind == "gpu" or GPU_NOW.search(q)) and "gpu" in self.collectors:
+        live = GPU_NOW.search(q) or (ABOUT_THIS_SYSTEM.search(q) and GPU_TOPIC.search(q))
+        if (kind == "gpu" or live) and "gpu" in self.collectors:
             self.builder_calls += 1
             state = req.context.get("state") or await self.collectors["gpu"]()
             return km_mod.plan(km_mod.from_gpu_state(q, state), audience), "state:gpu"

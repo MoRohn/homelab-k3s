@@ -226,3 +226,23 @@ def test_request_profiles_and_audience():
     assert (d, b, a.role, a.expertise) == ("summary", 30, "executive", "novice")
     d, b, a = C.ExplanationRequest(question="x", audience="engineer", time_budget_seconds=90).resolved()
     assert (d, b, a.role) == ("learn", 90, "software_engineer")
+
+
+async def test_acceptance_b_questions_about_this_cluster_use_live_state(tmp_path):
+    live = make(tmp_path)
+    evs = await run(live.explain(C.ExplanationRequest(question=GPU)))       # "these pods" → this cluster
+    assert evs[1]["data"]["builder"] == "state:gpu"
+    route = next(e for e in evs if e["event"] == "route.ready")["data"]
+    assert route["primary"] == "mermaid" and "ste-prose" in route["supporting"]
+    general = await run(live.explain(C.ExplanationRequest(question="Why can Kubernetes pods fail to reach available GPUs?")))
+    assert general[1]["data"]["builder"].startswith("package:")
+    no_collector = make(tmp_path, collectors={})
+    assert (await run(no_collector.explain(C.ExplanationRequest(question=GPU))))[1]["data"]["builder"].startswith("package:")
+
+
+def test_shipped_packages_make_no_claims_about_a_live_system():
+    from lif.understanding import packages
+    for e in packages.entries(packages.SHIPPED):
+        s = e.spec
+        assert not s.evidence and not [c for c in s.claims if c.kind == "observed"], e.ref
+        assert s.metadata.data_class == "PUBLIC", e.ref

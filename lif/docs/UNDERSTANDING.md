@@ -29,12 +29,13 @@ Code: `lif/lif/understanding/`. Packages: `lif/explanation-packages/`. Decisions
 | 7 SimulationSpec + mini-app | Partial: deterministic simulations; generated mini-apps are off | `simulate.py`, `render/html.py` |
 | 8 Manim / video | Not built. Declared in the registry as unavailable, so the router explains why it did not pick them | `registry.py` |
 | 9 Critic + consistency | Done: contract (per artifact), critic (across artifacts). No vision critic | `render/base.py`, `critic.py` |
+| Feedback → routing (§130 last step) | Partial: overrides, simplify/deepen and helpful/abandoned feedback are recorded, with override rate per primary renderer. Nothing adjusts the weights automatically yet | `store.py` |
 | 10 Ask/UI integration | Partial: API, CLI and MCP. The console mounts the API only with `LIF_CONSOLE_UNDERSTANDING=1`, and there is no UI yet | `api.py` |
 
 | Acceptance test | State | Test |
 |---|---|---|
 | A: "What is Kubernetes?" gets prose, no video | Pass (an available fake video renderer is not picked) | `test_acceptance_a_*` |
-| B: pods not reaching GPUs gets prose + causal diagram from cluster state | Pass on a synthetic package and on synthetic collected state. The live collector runs read-only on the host | `test_acceptance_b_*`, `test_live_state_builder_dogfood` |
+| B: pods not reaching GPUs gets prose + causal diagram from cluster state | Pass. "These pods…", "right now" and "this cluster" questions go to the live `state:gpu` builder; the general phrasing gets the generic package. Checked on the host 2026-10-02 (builder `state:gpu`). Without `LIF_GPUSCHED_TOKEN_FILE` the host run cannot read gpusched, so it says less and with lower confidence | `test_acceptance_b_*`, `test_live_state_builder_dogfood` |
 | C: reservation vs throughput gets a simulation | Pass | `test_acceptance_c_*` |
 | D: "Teach me attention" gets progressive explanation + diagram + animation | Partial: needs the local model (LLM builder). No animation renderer | `test_llm_builder_repairs_once_and_validates` |
 | E: four formats from one spec are consistent | Pass, including detection of an emphasis contradiction and an invented edge | `test_acceptance_e_*` |
@@ -42,7 +43,7 @@ Code: `lif/lif/understanding/`. Packages: `lif/explanation-packages/`. Decisions
 | G: engineer → executive from the same semantics | Pass | `test_acceptance_g_*` |
 | H: offline: prose, Mermaid, Excalidraw, HTML, simulation | Pass for package and live-state questions. Novel questions need the local model | `test_acceptance_h_*` |
 | I: GPU renderers yield to the primary workload | Pass with a fake GPU renderer. No real GPU renderer exists yet | `test_acceptance_i_*` |
-| J: a renderer that introduces a claim is rejected | Pass | `test_acceptance_j_*` |
+| J: a renderer that introduces a claim is rejected | Pass for new words, new numbers, added negations or quantifiers ("does not", "all"), unknown ids and dropped uncertainty. Reordering existing words is not caught (see the contract limits) | `test_acceptance_j_*` |
 
 ## ExplanationSpec/v1
 
@@ -103,7 +104,9 @@ primary workload as HIGH, IMMINENT or unknown.
 | `understanding-diagram-family` | `features.question_kind`, `features.structure` | Mermaid/Excalidraw layout |
 
 Jev sees only derived features (PUBLIC), never question text or cluster state. Non-actionable answers are
-ignored. Offline, the rules in `lif/decision/rules.py` answer.
+ignored. The three decisions are at `stage: designed`, and a bare decision name only resolves to a
+`production` version, so until a person promotes them the rules in `lif/decision/rules.py` answer, online and
+offline.
 
 ## Renderers
 
@@ -146,7 +149,8 @@ Mermaid output was checked once with mermaid.min.js in headless Chromium (2026-1
 | uses a content word or number its cited elements do not contain | "memory fragmentation", "9 minutes" |
 | shows a claim without that claim's uncertainty | headline without "Confidence 78%" |
 
-Structural words ("because", "observed", "confidence") come from a fixed vocabulary. Terminology from `terms`
+Structural words ("because", "observed", "confidence") come from a fixed vocabulary. It has no negations,
+quantifiers or modals, so "not", "all", "only" and "must" have to come from the cited text. Terminology from `terms`
 is always allowed. Limits: the check works on words and numbers, so it catches new facts. It does not catch
 a rearrangement of existing words into a different claim. The critic's emphasis and edge checks cover the
 most important case of that (§68): every artifact must lead with the headline and draw only spec edges.
@@ -212,5 +216,5 @@ deploying any of this is the owner's call.
 |---|---|
 | A renderer | a class with `capabilities()`, `accepts(spec)`, `render(RenderRequest)` emitting `Segment`s, registered in `registry.default_renderers()`. The router needs no change |
 | A simulation primitive | `@simulate.primitive(name, inputs, outputs)` on a pure function |
-| An explanation package | `explanation-packages/<pkg>/<name>.yaml`, then `local-ai explain --lint-packages` |
+| An explanation package | `explanation-packages/<pkg>/<name>.yaml`, then `local-ai explain --lint-packages`. Shipped packages are generic: no evidence, no observed claims (a test enforces this). Synthetic scenarios with invented observations go in `tests/fixtures/understanding/` |
 | A router case | `evals/understanding/router_cases.yaml`, then `pytest tests/test_understanding_interfaces.py` |

@@ -1,0 +1,94 @@
+# TEST FIXTURE (not shipped): a synthetic two-node scenario with invented observations, used to exercise
+# observed/inferred handling, evidence and uncertainty. Shipped packages must not contain measurements.
+package: gpu-scheduling
+name: pods-not-reaching-gpus
+version: 1
+match:
+  - '\bpods?\b.*\b(not|never|aren''t|can''t)\b.*\b(reach|reaching|use|using|get|scheduled|placed)\b.*\bgpus?\b'
+  - '\bgpu\b.*\b(under-?utili[sz]ed|under-?utili[sz]ation|idle)\b.*\bschedul'
+  - '\bschedul\w*\b.*\bgpu\b.*\b(under-?utili[sz]ation|idle|low)\b'
+spec:
+  id: gpu-scheduling.pods-not-reaching-gpus
+  question: Why are these Kubernetes pods not reaching available GPUs?
+  audience: {role: software_engineer, expertise: intermediate}
+  terms:
+    - {canonical: Kubernetes scheduler, abbreviation: scheduler, synonyms: [kube-scheduler]}
+    - {canonical: node affinity, synonyms: [nodeAffinity]}
+    - {canonical: GPU node}
+  learning_objectives:
+    - {id: obj-cause, level: 0, text: "Say why a GPU can stay idle while pods wait", claims: [c-root]}
+    - {id: obj-constraints, level: 2, text: "Name the scheduling constraints involved", claims: [c-affinity, c-memory]}
+    - {id: obj-inspect, level: 2, text: "Know which configuration to inspect next", claims: [c-inspect]}
+  summary: {headline: c-root, claims: [c-root, c-idle, c-pending]}
+  concepts:
+    - {id: pod, level: 0, label: "GPU pod", kind: entity, definition: "A pod that requests a GPU."}
+    - {id: scheduler, level: 0, label: "Scheduler", term: Kubernetes scheduler, kind: entity,
+       definition: "The component that picks a node for each pending pod."}
+    - {id: node-a, level: 1, label: "Node A", kind: entity, definition: "GPU node labelled pool=train."}
+    - {id: node-b, level: 1, label: "Node B", kind: entity, definition: "GPU node with no pool label."}
+    - {id: affinity, level: 1, label: "Node affinity", term: node affinity, kind: idea,
+       definition: "A pod rule that limits which nodes it may run on."}
+    - {id: memory-request, level: 2, label: "GPU memory request", kind: quantity,
+       definition: "Memory a pod asks for; a node must have that much free."}
+    - {id: filter, level: 1, label: "Filter fails", kind: event, definition: "No node passes the scheduler's filters."}
+    - {id: pending, level: 0, label: "Pods pending", kind: state}
+    - {id: gpu-idle, level: 0, label: "GPU idle", kind: state}
+    - {id: low-util, level: 0, label: "Low GPU utilization", kind: state}
+    - {id: pod-created, level: 2, label: "Pod created", kind: event}
+    - {id: filtered, level: 2, label: "Nodes filtered", kind: event}
+    - {id: scored, level: 2, label: "Nodes scored", kind: event}
+    - {id: bound, level: 2, label: "Pod bound", kind: event}
+  evidence:
+    - {id: e-events, level: 1, source: src-events,
+       text: 'Scheduler events report 0/2 nodes available: 1 node did not match node affinity, 1 node had insufficient GPU memory.'}
+    - {id: e-util, level: 1, source: src-util, text: "GPU utilization on node B was 0% for 8 minutes.", value: 0, unit: '%'}
+    - {id: e-pending, level: 1, source: src-pods, text: "3 pods requesting a GPU are pending.", value: 3}
+  claims:
+    - {id: c-root, level: 0, kind: inferred, importance: primary, concepts: [affinity, pending, gpu-idle],
+       evidence: [e-events], confidence: 0.78,
+       text: "Node affinity keeps the pending pods off node B, so its GPU stays idle while they wait."}
+    - {id: c-idle, level: 1, kind: observed, importance: primary, concepts: [gpu-idle, node-b], evidence: [e-util],
+       text: "GPU utilization on node B was 0% for 8 minutes."}
+    - {id: c-pending, level: 1, kind: observed, importance: primary, concepts: [pending, pod], evidence: [e-pending],
+       text: "3 pods requesting a GPU are pending."}
+    - {id: c-affinity, level: 1, kind: observed, importance: supporting, concepts: [affinity, node-b], evidence: [e-events],
+       text: "The pending pods require pool=train and node B has no pool label."}
+    - {id: c-memory, level: 1, kind: observed, importance: supporting, concepts: [memory-request, node-a], evidence: [e-events],
+       text: "Node A does not have enough free GPU memory for another pod."}
+    - {id: c-inspect, level: 2, kind: general, importance: supporting, concepts: [affinity, node-b],
+       text: "Inspect the pods' nodeAffinity and the labels on node B."}
+  relationships:
+    - {id: r-req, level: 1, from: affinity, to: node-a, type: limits, label: "allows only"}
+    - {id: r-mem, level: 1, from: memory-request, to: node-a, type: blocks, label: "does not fit on", claim: c-memory}
+    - {id: r-excl, level: 1, from: affinity, to: node-b, type: blocks, label: "excludes", claim: c-affinity}
+  causal_chains:
+    - {id: chain-idle, level: 0, label: "Why the GPU is idle", claim: c-root,
+       steps: [affinity, filter, pending, gpu-idle, low-util]}
+  processes:
+    - {id: proc-schedule, level: 2, name: GPU pod scheduling, steps: [pod-created, filtered, scored, bound]}
+  timelines:
+    - id: tl-attempt
+      level: 3
+      label: "One scheduling attempt"
+      unit: s
+      events:
+        - {id: t-created, t: 0, label: "Pod created", concept: pod-created}
+        - {id: t-filtered, t: 2, label: "Nodes filtered", concept: filtered}
+        - {id: t-failed, t: 5, label: "Scheduling failed", concept: filter, claim: c-affinity}
+  examples:
+    - {id: ex-strict, level: 2, text: 'A pod that requires pool=train can only run on node A.', illustrates: [c-affinity]}
+    - {id: ex-relaxed, level: 2, counter: true,
+       text: 'A pod that prefers pool=train, but does not require it, can fall back to node B.', illustrates: [affinity]}
+  misconceptions:
+    - {id: m-capacity, level: 2, text: "An idle GPU means the cluster has spare capacity for every pod.", correction: c-affinity}
+  uncertainties:
+    - {id: u-root, level: 0, about: c-root, confidence: 0.78, reason: "Scheduler logs cover only the last attempt.",
+       evidence_needed: [kube-scheduler trace for the pending pods]}
+  checkpoints:
+    - {id: cp-cause, level: 2, question: "Why does node B stay idle while pods are pending?", answer_claims: [c-affinity],
+       objective: obj-constraints}
+  source_refs:
+    - {id: src-events, kind: k8s, ref: 'events/pod', title: Scheduler events}
+    - {id: src-util, kind: metric, ref: 'avg_over_time(gpu_utilization{node="b"}[8m])', title: GPU utilization}
+    - {id: src-pods, kind: k8s, ref: 'pods', title: Pending pods}
+  metadata: {data_class: PUBLIC, builder: 'package:gpu-scheduling/pods-not-reaching-gpus'}

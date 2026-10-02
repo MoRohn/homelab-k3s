@@ -918,3 +918,8 @@ def test_understanding_api_mounts_behind_console_auth(world: World, tmp_path: Pa
     assert owner.get("/api/v1/renderers").status_code == 200
     r = post(owner, "/api/v1/explain", {"question": "What is Kubernetes?"})
     assert r.status_code == 200 and r.json()["primary"] == "ste-prose"
+    sim = post(owner, "/api/v1/explain", {"question": "How does changing GPU reservation affect throughput?"}).json()
+    art = owner.get(f"/api/v1/sessions/{sim['session']}/artifacts/simulation")
+    assert art.status_code == 200
+    csp = art.headers.get_list("content-security-policy")
+    assert csp and all(c.startswith("sandbox allow-scripts") for c in csp), csp   # the console's own CSP must not stack
