@@ -5,7 +5,7 @@ import { get } from '@/api/client';
 import type { AccessInfo } from '@/api/contracts.gen';
 import { useSystemStatus } from '@/api/status';
 import { useResource } from '@/api/store';
-import { Badge, Button, Card, FactList, HumanErrorCard, Skeleton, StatusDot } from '@/ui';
+import { Badge, Button, Card, FactList, HumanErrorCard, Skeleton, StatusDot, safeHref } from '@/ui';
 
 const MDNS: Record<AccessInfo['mdns'], { label: string; hint: string }> = {
   published: { label: 'Published', hint: 'Devices on your network can use the .local name.' },
@@ -14,8 +14,10 @@ const MDNS: Record<AccessInfo['mdns'], { label: string; hint: string }> = {
 };
 
 function Url({ href }: { href: string }) {
+  const link = safeHref(href);
+  if (!link) return <span class="mono">{href}</span>;
   return (
-    <a href={href} class="mono" rel="noopener">
+    <a href={link} class="mono" rel="noopener">
       {href}
     </a>
   );
@@ -34,7 +36,7 @@ export function NetworkTab() {
   else if (!access.data) body = access.error ? <HumanErrorCard error={access.error} onRetry={() => void access.refresh()} /> : null;
   else {
     const a = access.data;
-    const mdns = MDNS[a.mdns];
+    const mdns = MDNS[a.mdns] ?? MDNS.unknown;
     body = (
       <FactList
         items={[

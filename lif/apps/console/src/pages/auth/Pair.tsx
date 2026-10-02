@@ -37,7 +37,8 @@ function useSecondsLeft(expiresAt: number | undefined): number | null {
     const t = setInterval(() => setNow(Date.now() / 1000), 1000);
     return () => clearInterval(t);
   }, [expiresAt]);
-  return expiresAt ? Math.max(0, Math.round(expiresAt - now)) : null;
+  // Ceil: 0 only once the expiry has passed (rounding hit 0 up to half a second early and stopped polling).
+  return expiresAt ? Math.max(0, Math.ceil(expiresAt - now)) : null;
 }
 
 export default function Pair() {
@@ -98,7 +99,10 @@ export default function Pair() {
   useEffect(() => {
     if (phase !== 'claimed') return;
     let live = true;
+    let polling = false; // one poll at a time: a slow network must not stack requests on the claim's rate limit
     const t = setInterval(async () => {
+      if (polling) return;
+      polling = true;
       try {
         const p = await get<Pairing>('/api/pair/status', { allow401: true });
         if (!live) return;
@@ -109,6 +113,8 @@ export default function Pair() {
         if (e instanceof OfflineError) return setOffline(true);
         // The claim cookie is gone or the pairing vanished server-side: treat as expired, never spin forever.
         if (e instanceof ApiError && (e.status === 401 || e.status === 404 || e.status === 410)) setPhase('expired');
+      } finally {
+        polling = false;
       }
     }, POLL_MS);
     return () => {

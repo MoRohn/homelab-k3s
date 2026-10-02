@@ -48,9 +48,19 @@ def _internal(request: Request) -> bool:
     return config.internal_ok(request)
 
 
+def _missing(b, *fields: str) -> JSONResponse | None:
+    """400 for a body that isn't an object or lacks a required field (instead of a KeyError → 500/404)."""
+    if not isinstance(b, dict):
+        return _err(400, "body must be a JSON object")
+    gone = [f for f in fields if b.get(f) in (None, "")]
+    return _err(400, f"missing {', '.join(f'`{f}`' for f in gone)}") if gone else None
+
+
 @router.post("/decide")
 async def decide(request: Request):
     b = await request.json()
+    if bad := _missing(b, "decision"):
+        return bad
     try:
         d = await RT.intel.decide(b["decision"], b.get("state") or {}, agent=b.get("agent", ""),
                                   workflow=b.get("workflow", ""), data_class=b.get("data_class"),
@@ -66,8 +76,13 @@ async def decide(request: Request):
 @router.post("/decide_many")
 async def decide_many(request: Request):
     b = await request.json()
+    if bad := _missing(b):
+        return bad
+    items = b.get("requests") or []
+    if not isinstance(items, list) or not all(isinstance(r, dict) and r.get("name") for r in items):
+        return _err(400, "`requests` must be a list of objects, each with a `name`")
     reqs = [fanout.DecisionRequest(name=r["name"], state=r.get("state") or {}, depends_on=r.get("depends_on") or [],
-                                   data_class=r.get("data_class")) for r in b.get("requests") or []]
+                                   data_class=r.get("data_class")) for r in items]
     if any(r.depends_on for r in reqs):
         return _err(400, "dependent decisions need state built from earlier answers; use the SDK (state_fn)")
     try:
@@ -80,6 +95,8 @@ async def decide_many(request: Request):
 @router.post("/outcome")
 async def outcome(request: Request):
     b = await request.json()
+    if bad := _missing(b, "outcome"):
+        return bad
     try:
         return shadow.record_outcome(RT.store, outcome=b["outcome"], provenance_id=b.get("provenance_id"),
                                      state_hash=b.get("state_hash"), decision=b.get("decision"),
@@ -127,6 +144,8 @@ async def lint_spec(request: Request):
 @router.post("/test")
 async def test(request: Request):
     b = await request.json()
+    if bad := _missing(b, "decision"):
+        return bad
     ref = b["decision"]
     try:
         d = RT.registry.get(ref) if "/" in ref else RT.fabric.definition(ref)
@@ -146,8 +165,13 @@ async def test(request: Request):
 @router.post("/benchmark")
 async def benchmark(request: Request):
     b = await request.json()
+    if bad := _missing(b, "decision"):
+        return bad
     ref = b["decision"]
-    d = RT.registry.get(ref)
+    try:
+        d = RT.registry.get(ref)
+    except RegistryError as e:
+        return _err(404, str(e))
     against = b.get("against") or next((v.ref for v in reversed(RT.registry.versions(d.name))
                                         if v.version != d.version), None)
     new, old = RT.latest_test(ref), RT.latest_test(against) if against else None
@@ -161,6 +185,8 @@ async def benchmark(request: Request):
 @router.post("/calibrate")
 async def calibrate(request: Request):
     b = await request.json()
+    if bad := _missing(b, "decision"):
+        return bad
     try:
         return RT.calibrate(b["decision"], use_agreement=bool(b.get("use_agreement")))
     except RegistryError as e:
@@ -170,6 +196,8 @@ async def calibrate(request: Request):
 @router.post("/simulate")
 async def simulate(request: Request):
     b = await request.json()
+    if bad := _missing(b, "decision"):
+        return bad
     ref = b["decision"]
     samples = shadow.samples(RT.store, ref)
     if not samples:
@@ -197,6 +225,8 @@ async def transition(request: Request):
     if not _internal(request):
         return _err(403, "internal key required")
     b = await request.json()
+    if bad := _missing(b, "ref", "stage"):
+        return bad
     pol = b.get("policy") or {}
     ev = RT.evidence(b["ref"], pol)
     try:
@@ -218,6 +248,8 @@ async def rollback(request: Request):
     if not _internal(request):
         return _err(403, "internal key required")
     b = await request.json()
+    if bad := _missing(b, "name"):
+        return bad
     try:
         rel = RT.registry.rollback(b["name"], actor=b.get("actor", ""), reason=b.get("reason", ""))
     except RegistryError as e:
@@ -293,14 +325,21 @@ async def upload_inventory(request: Request):
     if not _internal(request):
         return _err(403, "internal key required")
     b = await request.json()
+    if bad := _missing(b):
+        return bad
+    ops = b.get("operations") or []
+    if ops:
+        # Saved first: a bad operation must not leave the new inventory half-applied.
+        from lif.decision.mining.classify import Operation
+        fields = Operation.__dataclass_fields__
+        try:
+            parsed = [Operation(**{k: v for k, v in o.items() if k in fields}) for o in ops]
+        except (AttributeError, TypeError) as e:
+            return _err(400, f"bad operation: {e}")
+        RT.save_operations(parsed)
     LATEST_INVENTORY.clear()
     LATEST_INVENTORY.update({k: b.get(k) for k in ("inventory", "audit", "steps_by_bucket", "runs", "span_days")})
     LATEST_INVENTORY["generated_at"] = b.get("generated_at", time.time())
-    ops = b.get("operations") or []
-    if ops:
-        from lif.decision.mining.classify import Operation
-        fields = Operation.__dataclass_fields__
-        RT.save_operations([Operation(**{k: v for k, v in o.items() if k in fields}) for o in ops])
     return {"stored_operations": len(ops), "inventory_items": len(b.get("inventory") or [])}
 
 

@@ -527,6 +527,8 @@ async def get_object(key: str, user: User = Depends(auth.require("read"))) -> Kn
     if str(o.get("type_name") or o.get("type") or "").split("::")[-1] == "decision":
         try:
             w, h = await asyncio.gather(src.why(o["key"]), src.history(o["key"]))
+        except KeyError as e:               # the service mode's 404 for a missing why/history record
+            raise _not_found() from e
         except Unavailable as e:
             raise _unavailable(str(e)) from e
         return KnowledgeObjectResponse(kind="decision", decision=decision_record(o["key"], w, h, sc))

@@ -6,7 +6,8 @@ import type { ComponentChildren } from 'preact';
 import { get } from '@/api/client';
 import type { HomeOverview, ServiceHealth, SystemStatus, Trend } from '@/api/contracts.gen';
 import { useResource } from '@/api/store';
-import { Badge, Card, EmptyState, HumanErrorCard, Icon, List, ListItem, Skeleton, StatusDot, cx, fmt } from '@/ui';
+import { Badge, Card, EmptyState, HumanErrorCard, Icon, List, ListItem, Skeleton, StatusDot, cx, fmt, safeHref } from '@/ui';
+import { NEEDS_LOOK } from '@/pages/system/shared';
 import { Attention, needsAttention } from './Attention';
 import { RecentActivity } from './RecentActivity';
 import { Sparkline } from './Sparkline';
@@ -46,8 +47,9 @@ function Tile({ label, value, unit, sub, badge, trend, href }: TileProps) {
       )}
     </>
   );
-  return href ? (
-    <a class="lz-tile interactive" href={href}>
+  const link = safeHref(href);
+  return link ? (
+    <a class="lz-tile interactive" href={link}>
       {body}
     </a>
   ) : (
@@ -176,7 +178,7 @@ function Conversations({ h }: { h: HomeOverview }) {
 }
 
 function Services({ services }: { services: ServiceHealth[] }) {
-  const unwell = services.filter((s) => s.health !== 'healthy');
+  const unwell = services.filter((s) => NEEDS_LOOK.has(s.health));
   return (
     <Card as="section" title="Services" level={2}
       actions={
@@ -190,11 +192,15 @@ function Services({ services }: { services: ServiceHealth[] }) {
         <>
           <p class="row small">
             <StatusDot health={unwell.length ? 'degraded' : 'healthy'} />
-            {unwell.length ? `${unwell.length} of ${services.length} need a look` : `All ${services.length} services healthy`}
+            {unwell.length
+              ? `${unwell.length} of ${services.length} need a look`
+              : services.every((s) => s.health === 'healthy')
+                ? `All ${services.length} services healthy`
+                : 'No services need a look'}
           </p>
           <ul class="lz-svc-grid" aria-label="Service health">
             {services.map((s) => (
-              <li key={s.key} class={cx('lz-svc', s.health !== 'healthy' && 'lz-svc-unwell')} title={s.summary}>
+              <li key={s.key} class={cx('lz-svc', NEEDS_LOOK.has(s.health) && 'lz-svc-unwell')} title={s.summary}>
                 <StatusDot health={s.health} />
                 <span class="truncate">{s.name}</span>
               </li>

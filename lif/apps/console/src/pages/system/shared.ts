@@ -23,6 +23,9 @@ export function useLazy<P>(load: () => Promise<ComponentType<P>>): ComponentType
   return comp?.c ?? null;
 }
 
+/** Busy and paused are normal operation (§39); these are the states worth a look (Home and Services agree). */
+export const NEEDS_LOOK: ReadonlySet<Health> = new Set<Health>(['offline', 'attention', 'degraded']);
+
 /** Worst first, so what needs attention is read first (§2). */
 const HEALTH_RANK: Record<Health, number> = { offline: 0, attention: 1, degraded: 2, busy: 3, paused: 4, unknown: 5, healthy: 6 };
 

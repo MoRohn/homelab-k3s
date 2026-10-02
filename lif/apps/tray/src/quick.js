@@ -82,4 +82,4 @@ $('server-form').addEventListener('submit', async (e) => {
 
 listen('status', (e) => render(e.payload));
 listen('focus-input', () => q.focus());
-invoke('get_status').then(render);
+invoke('get_status').then(render, (err) => console.error('get_status failed', err)); // the 'status' event still renders

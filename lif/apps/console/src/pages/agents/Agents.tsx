@@ -10,7 +10,7 @@ import { can, useMe } from '@/api/session';
 import { invalidate, useResource } from '@/api/store';
 import { usePageTitle } from '@/shell/usePageTitle';
 import { AgentCard, ApprovalCard, Badge, Button, Card, EmptyState, HumanErrorCard, Progress, Skeleton, Table, fmt, toast, type Column } from '@/ui';
-import { AGENTS_KEY, APPROVALS_KEY, RUN_STATUS, runHref } from './labels';
+import { AGENTS_KEY, APPROVALS_KEY, runHref, runStatus } from './labels';
 import { RunAgentSheet } from './RunAgentSheet';
 import './agents.css';
 
@@ -113,8 +113,8 @@ const columns: Column<AgentRun>[] = [
     header: 'Status',
     width: '9rem',
     render: (r) => (
-      <Badge size="sm" tone={RUN_STATUS[r.status].tone}>
-        {RUN_STATUS[r.status].label}
+      <Badge size="sm" tone={runStatus(r.status).tone}>
+        {runStatus(r.status).label}
       </Badge>
     ),
   },

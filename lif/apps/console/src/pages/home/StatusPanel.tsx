@@ -9,7 +9,7 @@ const NOT_REPORTED = <span class="muted">Not reported</span>;
 /** "61.2 / 121.7 GB": the total is node-exporter's MemTotal (measured), not the nominal 128 GB. */
 export function memoryText(r: ResourceState): string | null {
   const { mem_used_gb: used, mem_total_gb: total } = r;
-  if (used == null && total == null) return null;
+  if (used == null || total == null) return null;     // half a pair isn't a reading: "Not reported"
   return `${fmt.num(used, 1)} / ${fmt.num(total, 1)} GB`;
 }
 

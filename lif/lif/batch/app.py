@@ -36,8 +36,8 @@ async def lifespan(app: FastAPI):
     gpu = GpuStateWatcher()
     await gpu.refresh()
     fabric = DecisionFabric(load_definitions(), rules, jev=JevProvider(config.secret("TYPE_SAFE_JEV_API_KEY")))
-    E = BatchEngine(os.environ.get("LIF_BATCH_DB", "/data/batch.db"), fabric, gpu,
-                    httpx.AsyncClient(timeout=httpx.Timeout(600, connect=5)),
+    client = httpx.AsyncClient(timeout=httpx.Timeout(600, connect=5))
+    E = BatchEngine(os.environ.get("LIF_BATCH_DB", "/data/batch.db"), fabric, gpu, client,
                     os.environ.get("LIF_GATEWAY_URL", "http://gateway.ai-system.svc:8080"),
                     config.secret("LIF_BATCH_GATEWAY_KEY") or "",
                     default_timeout_sec=float(config.get("batch.default_timeout_sec", 600)),
@@ -57,9 +57,13 @@ async def lifespan(app: FastAPI):
                 await asyncio.sleep(15)
     _tasks[:] = [asyncio.create_task(gpu.run()), asyncio.create_task(E.run()),
                  asyncio.create_task(kill_switch())]
-    yield
-    for t in _tasks:
-        t.cancel()
+    try:
+        yield
+    finally:
+        for t in _tasks:
+            t.cancel()
+        await asyncio.gather(*_tasks, return_exceptions=True)
+        await client.aclose()
 
 
 app = FastAPI(title="LIF batch", lifespan=lifespan)
@@ -113,6 +117,8 @@ async def control(request: Request):
         body = await request.json()
     except Exception:
         return _err(400, "body must be JSON")
+    if not isinstance(body, dict):
+        return _err(400, "body must be a JSON object")
     return E.control(bool(body.get("paused")), str(body.get("reason") or ""))
 
 

@@ -49,6 +49,19 @@ def secret(name: str) -> str | None:
     return p.read_text().strip() if p.exists() else None
 
 
+def keys(name: str) -> dict[str, str]:
+    """key → client name, from the `name:key` lines of secret `name`. Lines with a blank name or key
+    are skipped: an empty key would otherwise authenticate a bare `Authorization: Bearer `."""
+    out = {}
+    for line in (secret(name) or "").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and ":" in line:
+            n, k = (s.strip() for s in line.split(":", 1))
+            if n and k:
+                out[k] = n
+    return out
+
+
 def internal_ok(request) -> bool:
     """Control endpoints between LIF services carry X-LIF-Internal (Secret LIF_INTERNAL_KEY)."""
     import hmac

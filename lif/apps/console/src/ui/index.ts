@@ -11,6 +11,7 @@ export { Select, type SelectProps, type SelectOption } from './Select';
 export { Switch, type SwitchProps } from './Switch';
 export { Card, type CardProps } from './Card';
 export { List, ListItem, type ListProps, type ListItemProps } from './List';
+export { safeHref } from './href';
 export { Table, type TableProps, type Column } from './Table';
 export { Modal, type ModalProps } from './Modal';
 export { Drawer, type DrawerProps } from './Drawer';

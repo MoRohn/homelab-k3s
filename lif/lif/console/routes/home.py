@@ -63,14 +63,28 @@ async def _cached(key: str, ttl: float, fn: Callable[[], Awaitable[Any]]) -> Any
     _inflight[key] = fut
     try:
         val = await fn()
+    except asyncio.CancelledError:
+        fut.cancel()                        # release the callers waiting on this fetch, never leave them hanging
+        raise
+    except Exception as e:
+        fut.set_exception(e)
+        fut.exception()                     # retrieved here, so no "never retrieved" warning without waiters
+        raise
+    else:
         _cache[key] = (time.time(), val)
         fut.set_result(val)
         return val
     finally:
-        _inflight.pop(key, None)
+        if _inflight.get(key) is fut:
+            _inflight.pop(key, None)
 
 
 # ── parts ─────────────────────────────────────────────────────────────────────────────────────
+
+def _count(v: Any) -> int:
+    """A stored token count, or 0 when an old or damaged receipt holds something else."""
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else 0
+
 
 def _pct(xs: list[float], q: float) -> float | None:
     if not xs:
@@ -94,11 +108,13 @@ def ask_stats(user_id: str, now: float) -> AskStats:
             rec = json.loads(r["receipt_json"] or "{}")
         except ValueError:
             continue
+        if not isinstance(rec, dict):
+            continue
         if isinstance(rec.get("latency_ms"), (int, float)):
             lat.append(float(rec["latency_ms"]))
-        tok = rec.get("tokens") or {}
-        st.prompt_tokens += int(tok.get("prompt") or 0)
-        st.completion_tokens += int(tok.get("completion") or 0)
+        tok = rec.get("tokens") if isinstance(rec.get("tokens"), dict) else {}
+        st.prompt_tokens += _count(tok.get("prompt"))
+        st.completion_tokens += _count(tok.get("completion"))
     st.median_latency_ms = round(statistics.median(lat), 1) if lat else None
     st.p90_latency_ms = _pct(lat, 0.9)
     return st

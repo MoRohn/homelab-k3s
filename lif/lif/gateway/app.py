@@ -24,6 +24,7 @@ import time
 from collections import OrderedDict, defaultdict
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
+from urllib.parse import quote
 
 import httpx
 from fastapi import FastAPI, Request
@@ -46,14 +47,7 @@ LOG = log.get("lif.gateway")
 
 def load_keys() -> dict[str, str]:
     """key → client name, from `name:key` lines (Secret lif-gateway-keys)."""
-    raw = config.secret("LIF_GATEWAY_KEYS") or ""
-    out = {}
-    for line in raw.splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and ":" in line:
-            name, key = line.split(":", 1)
-            out[key.strip()] = name.strip()
-    return out
+    return config.keys("LIF_GATEWAY_KEYS")
 
 
 class RateLimiter:
@@ -144,7 +138,11 @@ class ResponseCache:
     @staticmethod
     def key(profile: str, revision: str, body: dict) -> str | None:
         # Only explicitly deterministic requests: non-streaming with temperature == 0.
-        if body.get("stream") or body.get("temperature") is None or float(body["temperature"]) != 0.0:
+        try:
+            temp = float(body["temperature"]) if body.get("temperature") is not None else None
+        except (TypeError, ValueError):
+            return None                      # not deterministic as far as the cache can tell
+        if body.get("stream") or temp != 0.0:
             return None
         clean = {k: v for k, v in body.items() if k not in ("lif", "user", "stream_options")}
         return hashlib.sha256(json.dumps([profile, revision, clean], sort_keys=True).encode()).hexdigest()
@@ -214,6 +212,7 @@ async def lifespan(app: FastAPI):
     yield
     for t in S.tasks:
         t.cancel()
+    await asyncio.gather(*S.tasks, return_exceptions=True)
     await S.http.aclose()
 
 
@@ -557,6 +556,7 @@ async def _batch_proxy(request: Request, method: str, path: str):
     try:
         content = await request.body()
         r = await S.http.request(method, f"{S.batch_url}{path}", content=content,
+                                 params=request.query_params,
                                  headers={"content-type": "application/json",
                                           "x-lif-client": getattr(request.state, "client", "unknown"),
                                           "x-lif-data-class": request.headers.get("x-lif-data-class", "")},
@@ -578,14 +578,14 @@ async def batch_list(request: Request):
 
 @app.get("/v1/batch/{bid}")
 async def batch_get(bid: str, request: Request):
-    return await _batch_proxy(request, "GET", f"/v1/batch/{bid}")
+    return await _batch_proxy(request, "GET", f"/v1/batch/{quote(bid, safe='')}")
 
 
 @app.get("/v1/batch/{bid}/results")
 async def batch_results(bid: str, request: Request):
-    return await _batch_proxy(request, "GET", f"/v1/batch/{bid}/results")
+    return await _batch_proxy(request, "GET", f"/v1/batch/{quote(bid, safe='')}/results")
 
 
 @app.delete("/v1/batch/{bid}")
 async def batch_cancel(bid: str, request: Request):
-    return await _batch_proxy(request, "DELETE", f"/v1/batch/{bid}")
+    return await _batch_proxy(request, "DELETE", f"/v1/batch/{quote(bid, safe='')}")

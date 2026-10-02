@@ -607,6 +607,8 @@ def test_settings_keep_maintenance_pause(fake: Fake, published: list[tuple[str, 
     assert sent == {"batch_paused": False, "maintenance": True}
     r = c.post("/api/system/settings", json={"key": "reserve_gpu_mib", "value": -5})
     assert r.status_code == 422
+    r = c.post("/api/system/settings", json={"key": "reserve_gpu_mib", "value": 1.5})    # never truncated to 1
+    assert r.status_code == 422
     r = c.post("/api/system/settings", json={"key": "maintenance", "value": 3})
     assert r.status_code == 422
     items = {i["key"]: i for i in c.get("/api/system/settings").json()["items"]}

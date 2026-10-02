@@ -13,7 +13,11 @@ let loader: Promise<QrFactory> | null = null;
 
 /** Encode `text` (byte mode, error correction M) into an SVG path over a size×size module grid. */
 export async function qrMatrix(text: string): Promise<Matrix> {
-  loader ??= loadQr();
+  // A failed chunk load is forgotten, so the next render retries instead of failing forever.
+  loader ??= loadQr().catch((e: unknown) => {
+    loader = null;
+    throw e;
+  });
   const qr = (await loader)(0, 'M');
   qr.addData(text, 'Byte');
   qr.make();

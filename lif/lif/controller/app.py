@@ -49,11 +49,7 @@ class State:
         self.disc = Discovery(self.reg, self.dag, admissible_mib=lambda: self.gpu.current().admissible_mib,
                               observer=self._observe if (config.get("decision_engineering.observe") or {}).get(
                                   "discovery") else None)
-        self.admin = {}
-        for line in (config.secret("LIF_ADMIN_KEYS") or "").splitlines():
-            if ":" in line and not line.strip().startswith("#"):
-                n, k = line.strip().split(":", 1)
-                self.admin[k.strip()] = n.strip()
+        self.admin = config.keys("LIF_ADMIN_KEYS")
         self.gateway_url = os.environ.get("LIF_GATEWAY_URL", "http://gateway.ai-system.svc:8080")
         self.gateway_key = config.secret("LIF_PROBE_KEY") or ""
         self.decision_url = os.environ.get("LIF_DECISION_URL", "http://decision-fabric.ai-system.svc:8080")
@@ -141,23 +137,27 @@ async def lifespan(app: FastAPI):
                asyncio.create_task(_loop(S.auto.tick, 60, "auto-promotion")),
                asyncio.create_task(_loop(lambda: _daily(), 3600, "daily"))]
     S.reg.event("controller_started", "", "system")
-    yield
-    for t in S.tasks:
-        t.cancel()
+    try:
+        yield
+    finally:
+        for t in S.tasks:
+            t.cancel()
+        await asyncio.gather(*S.tasks, return_exceptions=True)
+        await S.http.aclose()
 
 
 async def _daily() -> None:
     S.reg.prune_availability()
     last = S.reg.setting("last_gc", 0)
     if time.time() - last > 86400:
-        S.reg.set_setting("last_gc", time.time(), actor="retention")
         if S.k8s.enabled:
             await S.life.gc()
+        S.reg.set_setting("last_gc", time.time(), actor="retention")     # only once it ran: a failure retries
     if S.reg.setting("automatic_discovery", config.get("models.automatic_discovery")):
         last_d = S.reg.setting("last_auto_discovery", 0)
         if time.time() - last_d > 7 * 86400:
-            S.reg.set_setting("last_auto_discovery", time.time(), actor="scheduler")
             await S.disc.run(actor="scheduler")
+            S.reg.set_setting("last_auto_discovery", time.time(), actor="scheduler")
 
 
 app = FastAPI(title="LIF controller", lifespan=lifespan)
@@ -422,7 +422,9 @@ async def delete(mid: str):
 @app.post("/v1/aliases/rollback")
 async def rollback(request: Request):
     b = await _body(request)
-    return await _op(S.life.rollback, b["alias"], "operator", b.get("to_version"))
+    if not isinstance(b.get("alias"), str) or not b["alias"].strip():
+        return JSONResponse({"error": "alias is required"}, status_code=400)
+    return await _op(S.life.rollback, b["alias"].strip(), "operator", b.get("to_version"))
 
 
 @app.get("/v1/benchmarks")
@@ -484,14 +486,30 @@ async def set_settings(request: Request):
 
 async def _post(url: str, body: dict) -> None:
     try:
-        await S.http.post(url, json=body, timeout=5,
-                          headers={"X-LIF-Internal": config.secret("LIF_INTERNAL_KEY") or ""})
+        r = await S.http.post(url, json=body, timeout=5,
+                              headers={"X-LIF-Internal": config.secret("LIF_INTERNAL_KEY") or ""})
+        r.raise_for_status()
     except Exception as e:
         LOG.warning("control propagation failed", extra={"fields": {"url": url, "err": str(e)[:120]}})
 
 
+class BadBody(Exception):
+    pass
+
+
+@app.exception_handler(BadBody)
+async def _bad_body(request: Request, e: BadBody):
+    return JSONResponse({"error": str(e)}, status_code=400)
+
+
 async def _body(request: Request) -> dict:
-    try:
-        return await request.json() if (await request.body()) else {}
-    except Exception:
+    """{} for an empty body; malformed or non-object JSON is a 400, never a silent empty update."""
+    if not await request.body():
         return {}
+    try:
+        b = await request.json()
+    except ValueError as e:
+        raise BadBody("body must be JSON") from e
+    if not isinstance(b, dict):
+        raise BadBody("body must be a JSON object")
+    return b

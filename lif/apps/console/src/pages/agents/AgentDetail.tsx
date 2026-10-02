@@ -7,7 +7,7 @@ import type { AgentRun } from '@/api/contracts.gen';
 import { useResource } from '@/api/store';
 import { usePageTitle } from '@/shell/usePageTitle';
 import { Badge, Card, DecisionBadge, FactList, HumanErrorCard, Icon, List, ListItem, Progress, Skeleton, TechDetails, Timeline, fmt, type FactItem } from '@/ui';
-import { RUN_SOURCE, RUN_STATUS } from './labels';
+import { RUN_SOURCE, runStatus } from './labels';
 import './agents.css';
 
 function summary(run: AgentRun): FactItem[] {
@@ -59,8 +59,8 @@ export default function AgentDetail({ id }: { id?: string }) {
             <div class="stack-sm">
               <h1>{run.agent}</h1>
               <div class="row wrap">
-                <Badge tone={RUN_STATUS[run.status].tone}>{RUN_STATUS[run.status].label}</Badge>
-                <span class="muted small">{RUN_SOURCE[run.source]}</span>
+                <Badge tone={runStatus(run.status).tone}>{runStatus(run.status).label}</Badge>
+                <span class="muted small">{RUN_SOURCE[run.source] ?? ''}</span>
               </div>
             </div>
           </header>

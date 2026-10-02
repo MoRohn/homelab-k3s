@@ -35,7 +35,8 @@ function useSecondsLeft(expiresAt: number | undefined): number | null {
     const t = setInterval(() => setNow(Date.now() / 1000), 1000);
     return () => clearInterval(t);
   }, [expiresAt]);
-  return expiresAt ? Math.max(0, Math.round(expiresAt - now)) : null;
+  // Ceil: 0 only once the expiry has passed, never half a second before the server's window closes.
+  return expiresAt ? Math.max(0, Math.ceil(expiresAt - now)) : null;
 }
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

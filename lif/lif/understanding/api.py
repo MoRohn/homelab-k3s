@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -47,7 +47,7 @@ class OverrideBody(BaseModel):
 
 
 class FeedbackBody(BaseModel):
-    kind: str                          # helpful | not_helpful | abandoned | override | quiz_correct | quiz_wrong
+    kind: Literal["helpful", "not_helpful", "abandoned", "override", "quiz_correct", "quiz_wrong"]
     detail: dict[str, Any] = {}
 
 
@@ -118,7 +118,10 @@ def make_router(get_compiler: Callable[[], Compiler], dependencies: list | None 
 
     @r.get("/v1/explanations/{spec_id}/history")
     async def history(spec_id: str):
-        return {"lineage": get_compiler().history(spec_id)}
+        comp = get_compiler()
+        if comp.store.get_spec(spec_id) is None:            # same 404 as GET /v1/explanations/{spec_id}
+            raise HTTPException(404, "no such explanation")
+        return {"lineage": comp.history(spec_id)}
 
     @r.post("/v1/explanations/{spec_id}/render")
     async def render(spec_id: str, body: OverrideBody, stream: bool = Query(False)):
@@ -158,7 +161,7 @@ def make_router(get_compiler: Callable[[], Compiler], dependencies: list | None 
         comp = get_compiler()
         if comp.store.get_session(sid) is None:
             raise HTTPException(404, "no such session")
-        comp.store.feedback(sid, body.kind[:40], body.detail)
+        comp.store.feedback(sid, body.kind, body.detail)
         return {"ok": True}
 
     @r.get("/v1/sessions/{sid}/artifacts/{renderer}")

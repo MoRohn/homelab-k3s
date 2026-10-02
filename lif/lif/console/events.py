@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -82,10 +83,18 @@ class Hub:
 
     def __init__(self) -> None:
         self._subs: set[_Sub] = set()
+        # Routes in the threadpool publish and disconnect while the loop adds and removes viewers: every
+        # read takes a snapshot under the lock; delivery happens outside it.
+        self._lock = threading.Lock()
         self.last_status: str | None = None    # latest encoded status frame, for viewers joining late
 
     def __len__(self) -> int:
-        return len(self._subs)
+        with self._lock:
+            return len(self._subs)
+
+    def _snapshot(self) -> list[_Sub]:
+        with self._lock:
+            return list(self._subs)
 
     @staticmethod
     def _deliver(sub: _Sub, frame: object) -> None:
@@ -96,7 +105,10 @@ class Hub:
         if running is sub.loop:
             sub.put(frame)
         elif not sub.loop.is_closed():
-            sub.loop.call_soon_threadsafe(sub.put, frame)
+            try:
+                sub.loop.call_soon_threadsafe(sub.put, frame)
+            except RuntimeError:        # its loop closed after the check: skip it, keep delivering to the rest
+                pass
 
     def publish(self, type: EventType, data: BaseModel | dict[str, Any], audience: str | None = None) -> None:
         """Queue one event for every matching subscriber. Never blocks, never raises."""
@@ -104,7 +116,7 @@ class Hub:
             frame = encode(type, data)
             if type == "status" and audience is None:
                 self.last_status = frame
-            for sub in list(self._subs):
+            for sub in self._snapshot():
                 if sub.wants(audience):
                     self._deliver(sub, frame)
         except Exception as e:      # a bad payload must not break the poller or a route
@@ -116,31 +128,35 @@ class Hub:
         match: Callable[[_Sub], bool] = lambda s: bool(          # noqa: E731
             (session and s.session == session) or (device_id and s.device_id == device_id)
             or (user_id and s.user.id == user_id))
-        hits = [s for s in list(self._subs) if match(s)]
+        hits = [s for s in self._snapshot() if match(s)]
         for s in hits:
             self._deliver(s, _CLOSE)
         return len(hits)
 
     def close(self) -> None:
         """Shutdown: end every stream so uvicorn's graceful window isn't spent waiting on SSE."""
-        for s in list(self._subs):
+        for s in self._snapshot():
             self._deliver(s, _CLOSE)
 
     def check_capacity(self, session: str | None) -> None:
         """Called before the response starts (an error mid-stream couldn't carry a human body)."""
-        if session and sum(1 for s in self._subs if s.session == session) >= MAX_PER_SESSION:
+        if session and sum(1 for s in self._snapshot() if s.session == session) >= MAX_PER_SESSION:
             raise human(429, "Too many open Labzilla windows", "Live updates are paused in this window.",
                         "Close a few Labzilla tabs, then reload.", [("Reload", "reload")])
 
     def _add(self, user: User, session: str | None, device_id: str | None) -> _Sub:
         sub = _Sub(user, session, device_id, asyncio.get_running_loop())
-        self._subs.add(sub)
-        sse_clients.set(len(self._subs))
+        with self._lock:
+            self._subs.add(sub)
+            n = len(self._subs)
+        sse_clients.set(n)
         return sub
 
     def _remove(self, sub: _Sub) -> None:
-        self._subs.discard(sub)
-        sse_clients.set(len(self._subs))
+        with self._lock:
+            self._subs.discard(sub)
+            n = len(self._subs)
+        sse_clients.set(n)
 
     async def subscribe(self, user: User, *, session: str | None = None, device_id: str | None = None,
                         initial: str | None = None,

@@ -50,7 +50,8 @@ function PauseAll({ data, mutate }: { data: JobsResponse; mutate: (fn: (p: JobsR
         tone: 'success',
       });
     } catch (e) {
-      mutate((p) => ({ ...(p ?? data), batch_paused: !next }));
+      // Only undo our own optimistic flip: a refresh that landed meanwhile already holds the server's truth.
+      mutate((p) => (p && p.batch_paused !== next ? p : { ...(p ?? data), batch_paused: !next }));
       const err = toHumanError(e);
       toast({ title: err.title, body: err.impact || err.next_step, tone: 'error' });
     } finally {

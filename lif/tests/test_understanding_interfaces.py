@@ -44,6 +44,9 @@ def test_explain_then_overrides_over_http(client, comp):
     ev = client.post(f"/v1/explanations/{xid}/evaluate", json={"session": sid}).json()
     assert {f["kind"] for f in ev["feedback"]} == {"override", "simplify"}
     assert client.post(f"/v1/sessions/{sid}/feedback", json={"kind": "helpful"}).json() == {"ok": True}
+    assert client.post(f"/v1/sessions/{sid}/feedback", json={"kind": "helpfull"}).status_code == 422
+    assert client.get(f"/v1/explanations/{xid}/history").status_code == 200
+    assert client.get("/v1/explanations/no-such-spec/history").status_code == 404
     assert comp.builder_calls == 1
 
 

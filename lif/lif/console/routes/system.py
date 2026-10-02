@@ -166,10 +166,12 @@ async def storage(_: User = _read) -> StorageSummary:
         notes.append("Disk usage needs Prometheus, which isn't answering.")
     vols = await upstream.prom('kubelet_volume_stats_used_bytes{namespace=~"ai-system|ai-batch|ai-serving"}')
     caps = await upstream.prom('kubelet_volume_stats_capacity_bytes{namespace=~"ai-system|ai-batch|ai-serving"}')
-    cap_by = {(s.get("metric") or {}).get("persistentvolumeclaim"): upstream.prom_value([s]) for s in caps}
+    # Keyed by namespace too: two namespaces may each have a PVC with the same name.
+    cap_by = {((s.get("metric") or {}).get("namespace"), (s.get("metric") or {}).get("persistentvolumeclaim")):
+              upstream.prom_value([s]) for s in caps}
     for s in vols:
         pvc = (s.get("metric") or {}).get("persistentvolumeclaim")
-        used, total = upstream.prom_value([s]), cap_by.get(pvc)
+        used, total = upstream.prom_value([s]), cap_by.get(((s.get("metric") or {}).get("namespace"), pvc))
         if not pvc or used is None:
             continue
         frac = (total - used) / total if total else None
@@ -312,7 +314,7 @@ async def update_setting(req: SettingUpdate, user: User = Depends(auth.current_u
         raise human(422, "That setting is on or off", "Nothing was changed.", "Choose on or off.")
     if kind == "number":
         v = hz.num(req.value)
-        if isinstance(req.value, bool) or v is None or v < 0 or v > RESERVE_MAX_MIB:
+        if isinstance(req.value, bool) or v is None or v != int(v) or v < 0 or v > RESERVE_MAX_MIB:
             raise human(422, "That reserve isn't valid", "Nothing was changed.",
                         f"Enter a whole number of MiB between 0 and {RESERVE_MAX_MIB}.")
         value: Any = int(v)

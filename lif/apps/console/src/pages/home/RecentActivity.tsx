@@ -36,7 +36,7 @@ export function fold(events: ActivityEvent[], limit = SHOWN): FoldedEvent[] {
 
 export function RecentActivity() {
   const feed = useResource<ActivityEvent[]>(KEY, async () => {
-    const res = await get<LogsResponse>(`/api/system/logs${qs({ level: 'all' })}`);
+    const res = await get<LogsResponse>(`/api/system/logs${qs({ level: 'all', limit: FETCHED })}`);
     return res.events.slice(0, FETCHED);
   });
   useEvent('activity', (ev) =>

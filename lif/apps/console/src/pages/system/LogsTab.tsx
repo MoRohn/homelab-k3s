@@ -21,6 +21,7 @@ import {
   Tabs,
   TechDetails,
   fmt,
+  safeHref,
 } from '@/ui';
 
 type Level = 'error' | 'warning' | 'all';
@@ -55,6 +56,7 @@ function useDebounced<T>(value: T, ms: number): T {
 
 function EventDrawer({ event, onClose }: { event: ActivityEvent | null; onClose: () => void }) {
   const s = event ? SEVERITY[event.severity] : null;
+  const link = safeHref(event?.href);
   return (
     <Drawer open={!!event} onClose={onClose} title={event?.title ?? ''} subtitle={event ? fmt.ago(event.ts) : undefined}>
       {event && s && (
@@ -67,8 +69,8 @@ function EventDrawer({ event, onClose }: { event: ActivityEvent | null; onClose:
               ...(event.detail ? [{ label: 'Detail', value: event.detail }] : []),
             ]}
           />
-          {event.href && (
-            <a href={event.href} onClick={onClose}>
+          {link && (
+            <a href={link} onClick={onClose}>
               Open the related item
             </a>
           )}

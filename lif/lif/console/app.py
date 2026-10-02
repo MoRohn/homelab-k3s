@@ -58,7 +58,7 @@ SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
 
 # Bounded label set for lif_console_requests_total (never raw paths: ids would explode cardinality).
 _API_AREAS = frozenset({"v1", "auth", "setup", "access", "pair", "devices", "events", "system", "models", "ai",
-                        "command", "jobs", "agents", "approvals", "knowledge"})
+                        "command", "jobs", "agents", "approvals", "knowledge", "home", "earn", "trust"})
 
 requests_total = Counter("lif_console_requests_total", "Console HTTP requests by route class and status class",
                          ["route", "status"])

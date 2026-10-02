@@ -39,12 +39,7 @@ API = "/v1/knowledge"
 
 
 def _keys(secret: str) -> dict[str, str]:
-    out = {}
-    for line in (config.secret(secret) or "").splitlines():
-        if ":" in line and not line.strip().startswith("#"):
-            n, k = line.strip().split(":", 1)
-            out[k.strip()] = n.strip()
-    return out
+    return config.keys(secret)
 
 
 class State:
@@ -129,11 +124,26 @@ def _jsonable(x):
     return json.loads(json.dumps(x, default=str))
 
 
+class BadBody(Exception):
+    pass
+
+
+@app.exception_handler(BadBody)
+async def _bad_body(request: Request, e: BadBody):
+    return JSONResponse({"error": str(e)}, status_code=400)
+
+
 async def _body(request: Request) -> dict:
-    try:
-        return await request.json()
-    except Exception:
+    """{} for an empty body; malformed or non-object JSON is a 400 (it used to surface as a missing-key 404)."""
+    if not await request.body():
         return {}
+    try:
+        b = await request.json()
+    except ValueError as e:
+        raise BadBody("body must be JSON") from e
+    if not isinstance(b, dict):
+        raise BadBody("body must be a JSON object")
+    return b
 
 
 @app.get("/healthz")
@@ -182,6 +192,8 @@ async def get_object(request: Request, key: str):
 @app.post(API + "/objects")
 async def create(request: Request):
     b = await _body(request)
+    if not b.get("type"):
+        return JSONResponse({"error": "`type` is required"}, status_code=400)
     return run(request, W, "create", lambda: S.kn.writer(request.state.actor).create(
         b["type"], b.get("fields") or {}, b.get("body", ""), b.get("id"), b.get("repo")))
 

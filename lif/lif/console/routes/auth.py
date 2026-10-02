@@ -269,7 +269,10 @@ def local_ca() -> tuple[str, str] | None:
     m = _PEM.search(text)
     if m is None or "PRIVATE KEY" in text:
         return None
-    der = base64.b64decode("".join(m.group(1).split()))
+    try:
+        der = base64.b64decode("".join(m.group(1).split()), validate=True)
+    except ValueError:                  # binascii.Error: a damaged file is "no CA", not a 500
+        return None
     fp = hashlib.sha256(der).hexdigest().upper()
     return m.group(0) + "\n", ":".join(fp[i:i + 2] for i in range(0, len(fp), 2))
 

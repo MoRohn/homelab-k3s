@@ -315,6 +315,12 @@ export async function renameThread(id: string, title: string): Promise<HumanErro
   }
 }
 
+/** A deleted conversation's prompt and attachment text must not outlive it in this tab's memory. */
+function forget(id: string): void {
+  lastBody.delete(id);
+  finished.delete(id);
+}
+
 /** Conversations this tab deleted itself: their `deleted` event is not news here. */
 const deletedHere = new Set<string>();
 
@@ -331,6 +337,7 @@ export async function deleteThread(id: string): Promise<HumanError | null> {
     }
   }
   inflight.get(id)?.ctrl.abort();
+  forget(id);
   patchList((rows) => rows.filter((r) => r.id !== id));
   return null;
 }
@@ -346,6 +353,7 @@ function onThreadEvent(ev: ThreadEvent): void {
     return;
   }
   if (ev.kind === 'deleted') {
+    forget(ev.thread_id);
     patchList((rows) => rows.filter((r) => r.id !== ev.thread_id));
     if (!deletedHere.delete(ev.thread_id) && peek<Thread>(threadKey(ev.thread_id))) deletedThread.set(ev.thread_id);
     return;

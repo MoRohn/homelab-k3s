@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { safeHref } from './href';
 import { Icon } from './Icon';
 import { cx } from './tone';
 
@@ -33,7 +34,8 @@ export interface ListItemProps {
   class?: string;
 }
 
-export function ListItem({ title, subtitle, leading, trailing, meta, href, onClick, class: cls }: ListItemProps) {
+export function ListItem({ title, subtitle, leading, trailing, meta, href: rawHref, onClick, class: cls }: ListItemProps) {
+  const href = safeHref(rawHref);
   const inner = (
     <>
       {leading && <span class="lz-li-leading">{leading}</span>}

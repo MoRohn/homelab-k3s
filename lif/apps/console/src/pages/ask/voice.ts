@@ -66,7 +66,17 @@ export function useDictation(onFinal: (text: string) => void): Dictation {
   const [interim, setInterim] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => () => rec.current?.abort(), []);
+  useEffect(
+    () => () => {
+      // Unmounting: detach first so a late onend/onerror can't touch this component's state.
+      const r = rec.current;
+      rec.current = null;
+      if (!r) return;
+      r.onresult = r.onerror = r.onend = null;
+      r.abort();
+    },
+    [],
+  );
 
   const start = () => {
     if (!Ctor || rec.current) return;
@@ -78,11 +88,14 @@ export function useDictation(onFinal: (text: string) => void): Dictation {
       // One event can carry several final phrases; hand them over in one call so none is lost.
       let pending = '';
       const done: string[] = [];
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      // Finals from resultIndex on are new; the interim line is every result not yet final, including
+      // unchanged ones before resultIndex (else words flicker out of the grey preview).
+      for (let i = 0; i < e.results.length; i++) {
         const res = e.results[i];
         const text = res?.[0]?.transcript ?? '';
-        if (res?.isFinal) done.push(text.trim());
-        else pending += text;
+        if (res?.isFinal) {
+          if (i >= e.resultIndex) done.push(text.trim());
+        } else pending += text;
       }
       if (done.length) cb.current(done.filter(Boolean).join(' '));
       setInterim(pending);

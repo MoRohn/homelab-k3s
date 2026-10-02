@@ -16,7 +16,13 @@ export interface ContinueElsewhereProps {
 
 /** Prefer the address the server advertises for phones (labzilla.local / public URL) over whatever this tab used (maybe localhost). */
 function baseUrl(advertised: string | undefined): string {
-  if (advertised && /^https?:\/\//.test(advertised)) return advertised.replace(/\/+$/, '');
+  try {
+    // A bare "https://" passed the old prefix test and produced a broken link; it needs a host too.
+    const u = advertised ? new URL(advertised) : null;
+    if (u && (u.protocol === 'http:' || u.protocol === 'https:') && u.hostname) return advertised!.replace(/\/+$/, '');
+  } catch {
+    /* not a URL: fall back to this tab's origin */
+  }
   return location.origin;
 }
 
@@ -30,7 +36,10 @@ export function ContinueElsewhere({ open, onClose, threadId }: ContinueElsewhere
   useEffect(() => {
     if (!open || Qr) return;
     import('@/pages/connect/QrCode').then(
-      (m) => setQr(() => m.QrCode),
+      (m) => {
+        setFailed(false); // an earlier failed load must not linger next to the QR that loaded on retry
+        setQr(() => m.QrCode);
+      },
       () => setFailed(true),
     );
   }, [open]);

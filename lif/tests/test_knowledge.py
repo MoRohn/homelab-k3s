@@ -712,6 +712,11 @@ def test_api_serves_knowledge_with_scopes(ws, monkeypatch):
         assert any(r["key"] == "proj::use-k3s" for r in v["rows"])
         bad = c.post("/v1/knowledge/objects", headers=w, json={"type": "decision", "fields": {"status": "nope"}})
         assert bad.status_code == 422 and bad.json()["diagnostics"]
+        # Bad bodies are client errors, never a "not found".
+        assert c.post("/v1/knowledge/objects", headers=w, json={"fields": {}}).status_code == 400
+        assert c.post("/v1/knowledge/objects", headers={**w, "content-type": "application/json"},
+                      content=b"{oops").status_code == 400
+        assert c.post("/v1/knowledge/links", headers=w, json=["x"]).status_code == 400
 
 
 # ── the full loop (§112) ─────────────────────────────────────────────────────

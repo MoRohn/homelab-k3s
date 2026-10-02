@@ -85,9 +85,12 @@ async def lifespan(app: FastAPI):
     t = asyncio.create_task(daily())
     from lif.decision import jobs
     improve = asyncio.create_task(jobs.loop(S.de))       # mine → calibrate → recommend (never applies)
-    yield
-    t.cancel()
-    improve.cancel()
+    try:
+        yield
+    finally:
+        t.cancel()
+        improve.cancel()
+        await asyncio.gather(t, improve, return_exceptions=True)
 
 
 app = FastAPI(title="LIF decision fabric", lifespan=lifespan)
@@ -136,13 +139,19 @@ async def validate(request: Request):
 @app.post("/decision/batch")
 async def batch(request: Request):
     body = await request.json()
+    if not isinstance(body, dict):
+        return _err(400, "body must be a JSON object")
+    if not body.get("decision"):
+        return _err(400, "`decision` is required")
     states = body.get("states") or []
     if not isinstance(states, list) or len(states) > 10000:
         return _err(400, "`states` must be a list of at most 10000 items")
+    conc = body.get("concurrency", 32)
+    if isinstance(conc, bool) or not isinstance(conc, int) or not 1 <= conc <= 256:
+        return _err(400, "`concurrency` must be an integer from 1 to 256")
     t0 = time.perf_counter()
     try:
-        rs = await S.fabric.evaluate_many(body["decision"], states, body.get("data_class"),
-                                          int(body.get("concurrency", 32)))
+        rs = await S.fabric.evaluate_many(body["decision"], states, body.get("data_class"), conc)
     except KeyError as e:
         return _err(404, str(e))
     wall = time.perf_counter() - t0
@@ -166,7 +175,9 @@ async def control(request: Request):
         return _err(403, "internal key required")
     body = await request.json()
     if "jev_enabled" in body:
-        S.fabric.jev_enabled_override = bool(body["jev_enabled"])
+        if not isinstance(body["jev_enabled"], bool):
+            return _err(400, "`jev_enabled` must be true or false")
+        S.fabric.jev_enabled_override = body["jev_enabled"]
         LOG.info("jev kill-switch", extra={"fields": {"jev_enabled": body["jev_enabled"]}})
     if body.get("invalidate_cache") and S.fabric.cache:
         n = S.fabric.cache.invalidate(body.get("decision_ref"))
@@ -191,7 +202,7 @@ async def recent(limit: int = 100, decision: str | None = None):
     if decision:
         sql += " WHERE decision_ref LIKE ?"
         args.append(f"{decision}%")
-    rows = S.db.q(sql + " ORDER BY id DESC LIMIT ?", tuple(args + [min(limit, 1000)]))
+    rows = S.db.q(sql + " ORDER BY id DESC LIMIT ?", tuple(args + [max(0, min(limit, 1000))]))
     return {"recent": [json.loads(r["record"]) for r in rows]}
 
 

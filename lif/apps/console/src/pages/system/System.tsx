@@ -61,7 +61,7 @@ export default function System({ tab }: { tab?: string }) {
         {current === 'services' && <ServicesTab />}
         {current === 'storage' && <StorageTab />}
         {current === 'network' && <NetworkTab />}
-        {current === 'logs' && <LogsTab initialQuery={query.q ?? ''} />}
+        {current === 'logs' && <LogsTab key={query.q ?? ''} initialQuery={query.q ?? ''} />}
         {current === 'settings' && <SettingsTab />}
       </div>
     </div>

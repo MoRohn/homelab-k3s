@@ -4,14 +4,12 @@
 import { useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso/router';
 import { get, post } from '@/api/client';
-import type { AlertsResponse, Health, ServiceHealth } from '@/api/contracts.gen';
+import type { AlertsResponse, ServiceHealth } from '@/api/contracts.gen';
 import { can, useMe } from '@/api/session';
 import { invalidate, useResource } from '@/api/store';
 import { Button, Card, EmptyState, HumanErrorCard, Icon, List, ListItem, SEVERITY, Skeleton, StatusBadge, TechDetails, fmt } from '@/ui';
-import { act, byHealth } from './shared';
+import { NEEDS_LOOK, act, byHealth } from './shared';
 
-/** Busy and paused are normal operation (§39); these are the states worth a look. */
-const NEEDS_LOOK = new Set<Health>(['offline', 'attention', 'degraded']);
 
 function ServiceRow({ svc, canRetry }: { svc: ServiceHealth; canRetry: boolean }) {
   const { route } = useLocation();
