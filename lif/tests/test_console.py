@@ -895,3 +895,26 @@ def test_thread_storage_errors_are_human_and_leave_no_orphan(app, world, monkeyp
     assert owner.get(f"/api/ai/threads/{tid}").json()["messages"] == []    # no question without an answer
     monkeypatch.setattr(threads.db, "q", lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("x")))
     assert owner.get("/api/ai/threads").status_code == 503
+
+
+# ── Understanding Compiler mount (off by default) ────────────────────────────────────────────
+
+def test_understanding_api_is_off_unless_enabled(app: Any) -> None:
+    assert browser(app).get("/api/v1/renderers").status_code == 404
+
+
+def test_understanding_api_mounts_behind_console_auth(world: World, tmp_path: Path,
+                                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    from lif.console.app import create_app
+    from lif.understanding import api as uapi
+    from lif.understanding.compiler import Compiler
+    from lif.understanding.store import Store
+    monkeypatch.setenv("LIF_CONSOLE_UNDERSTANDING", "1")
+    monkeypatch.setattr(uapi, "_compiler", Compiler(Store(str(tmp_path / "u.db")), collectors={}))
+    a = create_app()
+    anon = browser(a)
+    assert anon.get("/api/v1/renderers").status_code in (401, 403)
+    owner = admin(a)
+    assert owner.get("/api/v1/renderers").status_code == 200
+    r = post(owner, "/api/v1/explain", {"question": "What is Kubernetes?"})
+    assert r.status_code == 200 and r.json()["primary"] == "ste-prose"

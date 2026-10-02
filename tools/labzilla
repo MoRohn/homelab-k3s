@@ -6,6 +6,7 @@
 #   labzilla trust           download the Labzilla CA, verify its fingerprint, install it (asks for sudo)
 #   labzilla open            open the console in the browser
 #   labzilla doctor          what this machine has and needs
+#   labzilla explain "Q"     explain a question with the best representation (on the host; see local-ai explain -h)
 #   labzilla help
 #
 # Options (any command): --url URL (default $LABZILLA_URL or https://labzilla.local), --yes (no prompts),
@@ -33,7 +34,15 @@ info() { printf '  %s·%s %s\n' "$D" "$N" "$*"; }
 head1() { printf '\n%s%s%s\n' "$B" "$*" "$N"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-usage() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+
+# `explain` hands everything after it to the in-process compiler (lif/lif/understanding, docs/UNDERSTANDING.md).
+if [ "${1:-}" = explain ]; then
+  shift
+  LOCAL_AI="$ROOT/lif/.venv/bin/local-ai"
+  [ -x "$LOCAL_AI" ] || { echo "labzilla explain runs on the Labzilla host (needs $LOCAL_AI; run tools/setup.sh)" >&2; exit 2; }
+  exec "$LOCAL_AI" explain "$@"
+fi
 
 while [ $# -gt 0 ]; do
   case "$1" in

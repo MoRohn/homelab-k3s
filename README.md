@@ -105,6 +105,7 @@ executor that can do it correctly, and the platform keeps measuring whether that
 |---|---|---|
 | **Gateway** | One OpenAI-compatible endpoint with logical models (`local/default`, `local/auto`, …), fallbacks, and yielding to the primary workload | [lif/README.md](lif/README.md) |
 | **Decision Engineering** | Mines agent traces for decisions hidden in LLM calls. Turns them into versioned Jev questions that are linted, tested, shadowed, calibrated per decision and promoted only by a person. Escalates by confidence | [DECISION_ENGINEERING](lif/docs/DECISION_ENGINEERING.md) |
+| **Understanding Compiler** | Turns "help me understand" into one canonical explanation IR, then picks the cheapest representation that explains it: a summary, a causal diagram, a table or an interactive simulation. Renderers cannot add facts | [UNDERSTANDING](lif/docs/UNDERSTANDING.md) |
 | **Knowledge layer** | Typed Markdown repos of decisions, evidence, incidents and methods. A graph with context assembly, and an MCP server so agents resume work with provenance | [KNOWLEDGE](lif/docs/KNOWLEDGE.md) |
 | **Model lifecycle** | Hugging Face discovery → benchmark → canary → promotion, with rollback | [MODEL_LIFECYCLE](lif/docs/MODEL_LIFECYCLE.md) |
 | **Labzilla Console** | The everyday UI for desktop and phone: Ask with streaming and routing receipts, health in plain language, models, jobs, agents, knowledge, QR phone pairing | [CONSOLE](lif/docs/CONSOLE.md) |

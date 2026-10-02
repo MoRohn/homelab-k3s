@@ -93,7 +93,13 @@ def plan(req: RenderRequest) -> DiagramPlan:
         if any(e[3] == r.id for e in p.edges):
             continue
         add(r.source), add(r.target)
-        p.edges.append((r.source, r.target, r.label or r.type.replace("_", " "), r.id, dashed_claim(r.claim)))
+        edge = (r.source, r.target, r.label or r.type.replace("_", " "), r.id, dashed_claim(r.claim))
+        same = next((k for k, e in enumerate(p.edges) if e[:2] == edge[:2] and not e[2]), None)
+        if same is not None:            # a labelled relationship replaces the bare step edge between the same pair
+            old = p.edges[same]
+            p.edges[same] = (*edge[:4], edge[4] or old[4])
+        else:
+            p.edges.append(edge)
     claims = {spec.summary.headline} | {e[3] for e in p.edges}
     for ref in list(claims):
         el = spec.get(ref)

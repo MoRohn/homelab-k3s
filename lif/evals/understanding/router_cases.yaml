@@ -1,0 +1,75 @@
+# Router evaluation set (docs/UNDERSTANDING.md, spec §103–§104). Synthetic: each case describes the
+# SHAPE of an explanation (what structure its ExplanationSpec has), not real content. evalset.py builds a
+# valid spec of that shape and checks the router's choice against the expected characteristics.
+#   primary_in        acceptable primary renderers
+#   must_include      renderers that must be selected (primary or supporting)
+#   must_not_include  renderers that must not be selected
+#   max_artifacts     upper bound on selected artifacts
+cases:
+  - id: definition
+    question: What is a vector database?
+    shape: {concepts: 3}
+    depth: summary
+    expect: {primary_in: [ste-prose], max_artifacts: 1, must_not_include: [simulation, step-through, mermaid]}
+  - id: definition-deep
+    question: What is a vector database?
+    shape: {concepts: 4, relationships: 2}
+    depth: learn
+    expect: {primary_in: [ste-prose, structured-prose], max_artifacts: 2, must_not_include: [simulation]}
+  - id: causal
+    question: Why did the canary roll back?
+    shape: {concepts: 6, chain: 4, relationships: 2}
+    depth: learn
+    expect: {primary_in: [mermaid, excalidraw, structured-prose], must_include: [ste-prose], must_not_include: [simulation, table]}
+  - id: procedural
+    question: How does a model promotion work?
+    shape: {concepts: 6, process: 6}
+    depth: learn
+    expect: {primary_in: [mermaid, structured-prose, step-through], must_not_include: [simulation, table]}
+  - id: architectural
+    question: How do the gateway, router and serving tiers fit together?
+    shape: {concepts: 8, relationships: 8}
+    depth: learn
+    expect: {primary_in: [mermaid, excalidraw, static-explainer], must_not_include: [simulation]}
+  - id: comparative
+    question: Compare the fast, default and reasoning tiers
+    shape: {concepts: 4, comparison: 12}
+    depth: learn
+    expect: {primary_in: [table, static-explainer], must_not_include: [simulation]}
+  - id: temporal
+    question: What changed after the last incident?
+    shape: {concepts: 6, timeline: 6}
+    depth: learn
+    expect: {primary_in: [mermaid], must_not_include: [simulation, table]}
+  - id: mathematical
+    question: How is the KV cache size computed?
+    shape: {concepts: 4, variables: 4, equations: 2, chain: 3}
+    depth: learn
+    expect: {primary_in: [mermaid, structured-prose, static-explainer], must_not_include: [simulation]}
+  - id: data-driven
+    question: Why did latency rise this afternoon?
+    shape: {concepts: 6, chain: 3, observed: 5, uncertain: 2}
+    depth: learn
+    expect: {primary_in: [mermaid, structured-prose, static-explainer], must_include: [ste-prose]}
+  - id: debugging
+    question: Why are the batch pods stuck pending?
+    shape: {concepts: 7, chain: 5, relationships: 3, process: 4, uncertain: 1}
+    depth: learn
+    expect: {primary_in: [mermaid, excalidraw], must_include: [ste-prose], must_not_include: [simulation]}
+  - id: simulation-worthy
+    question: How does changing the retry limit affect queue length?
+    shape: {concepts: 4, chain: 3, variables: 3, simulation: true}
+    depth: learn
+    expect: {primary_in: [simulation], must_include: [ste-prose]}
+  - id: simulation-no-time
+    question: How does changing the retry limit affect queue length?
+    shape: {concepts: 4, chain: 3, variables: 3, simulation: true}
+    depth: summary
+    budget: 30
+    expect: {primary_in: [mermaid, ste-prose], must_not_include: [simulation], max_artifacts: 2}
+  - id: mobile-process
+    question: Walk me through a deploy
+    shape: {concepts: 6, process: 6}
+    depth: learn
+    viewport: mobile
+    expect: {must_not_include: [excalidraw]}

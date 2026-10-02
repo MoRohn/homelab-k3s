@@ -83,6 +83,7 @@ Streaming responses carry `X-LIF-Served-By`, `X-LIF-Fallback`, `X-LIF-Degraded`,
 | [KNOWLEDGE](docs/KNOWLEDGE.md) | Persistent knowledge layer: typed agent repos, decisions/evidence/assumptions, reconsideration, sessions, MCP, packages |
 | [OPERATIONS](docs/OPERATIONS.md) | Runbook, `local-ai` CLI, Control Center |
 | [CONSOLE](docs/CONSOLE.md) | Labzilla Console: design, routes, security model, API, deploy & access (DNS, mDNS, TLS) |
+| [UNDERSTANDING](docs/UNDERSTANDING.md) | Adaptive Understanding Compiler: ExplanationSpec IR, representation router, contract-checked renderers, explain CLI/API/MCP |
 | [DECISION_ENGINEERING](docs/DECISION_ENGINEERING.md) | Decision mining, versioned Jev questions, calibration, cascade (code → Jev → local → Kimi K3 → human), shadow, agent SDK |
 | [DISASTER_RECOVERY](docs/DISASTER_RECOVERY.md) | Reboot, outages, restore |
 | [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) | Symptoms → causes → fixes |

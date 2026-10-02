@@ -4,11 +4,12 @@ The question is "what is the cheapest representation that communicates this well
 fanciest artifact we can make". For each renderer in the registry:
 
     Utility(R) = fit·(0.55 + 0.35·clarity)                     relationship fit × how directly R shows it
-               + 0.20·interactivity + 0.15·learning_value     only when parameters change outcomes
+               + 0.20·interactivity + 0.15·learning_value     only when parameters change outcomes;
+                                                              interactivity × min(1, budget ÷ time to use it)
                + audience_fit + viewport_fit
-               − 0.25·latency − 0.30·overload − cost − 0.30·unsupported
+               − 0.25·latency − 0.60·overload − cost − 0.30·unsupported
     fit          max strength of the structures R is best_for (analysis.Features.structure)
-    latency      expected render seconds ÷ time budget        overload: time to take it in beyond half the budget
+    latency      expected render seconds ÷ time budget        overload: (time to take it in ÷ budget − 0.5) ÷ 2, ≤ 1.5
     cost         resource class (LIGHT 0 … LONG_RUNNING 0.4)  unsupported: strongest structure R cannot show
 
 The best renderer is PRIMARY. Others are added only while their marginal value clears THRESHOLD:
@@ -120,6 +121,7 @@ def score(caps: RendererCapabilities, f: Features, ctx: RouteContext) -> tuple[f
     unsupported = max((st.get(k, 0.0) for k in caps.unsupported), default=0.0)
     interactivity = st.get("parameter", 0.0) if caps.interactive and "parameter" in caps.best_for else \
         (0.3 * max(st.get("process", 0), st.get("causal", 0)) if caps.interactive and ctx.viewport == "mobile" else 0.0)
+    interactivity *= _clip(budget / max(caps.consume_seconds, 1))     # no time to play → little value in controls
     if caps.interactive and not ctx.interaction_allowed:
         interactivity = -1.0
     learning = st.get("parameter", 0.0) if "parameter" in caps.best_for and ctx.depth in ("learn", "deep") else 0.0
@@ -139,10 +141,10 @@ def score(caps: RendererCapabilities, f: Features, ctx: RouteContext) -> tuple[f
         view -= 0.10 if caps.consume_seconds > 120 else 0.0
         view += 0.10 if caps.target == "INTERACTIVE_HTML" else 0.0    # step-through instead of a wide diagram
     latency = _clip(LATENCY_SECONDS[caps.latency_class] / max(budget, 1))
-    overload = max(0.0, _clip(caps.consume_seconds / max(budget, 1)) - 0.5)
+    overload = min(1.5, max(0.0, (caps.consume_seconds / max(budget, 1) - 0.5) / 2))   # grows with how far over budget
     cost = COST[caps.resource_class]
     u = (fit * (0.55 + 0.35 * caps.clarity) + 0.20 * interactivity + 0.15 * learning + aud + view
-         - 0.25 * latency - 0.30 * overload - cost - 0.30 * unsupported)
+         - 0.25 * latency - 0.60 * overload - cost - 0.30 * unsupported)
     # Jev adjustments (bounded judgments over features; only actionable answers reach here).
     j = ctx.judgments
     if j.get("understanding-prose-sufficient") == "yes" and caps.target not in PROSE:

@@ -29,6 +29,9 @@ credentials, or private findings. Personal, machine-specific instructions go in
 - `lif/decision-packages/<pkg>/<name>/v<N>.yaml` are versioned Jev questions (docs: `lif/docs/DECISION_ENGINEERING.md`).
   Never edit a version in place; add `v<N+1>`. Keep `local-ai decision lint decision-packages` error-free. Drafts mined
   from real traces, calibration on production traffic and audit reports go in `private/lif/`.
+- `lif/lif/understanding/` is the Understanding Compiler (docs: `lif/docs/UNDERSTANDING.md`). Reusable specs go in
+  `lif/explanation-packages/`. Keep `local-ai explain --lint-packages` clean. Specs built from live state go in
+  `private/lif/understanding/`.
 - `tools/`: repo-level tooling. `assets/brand/` holds the logo.
 
 ## Production safety

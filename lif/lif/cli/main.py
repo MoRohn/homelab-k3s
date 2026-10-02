@@ -22,7 +22,7 @@ from typing import Any
 
 import httpx
 
-from lif.cli import decision_cmds
+from lif.cli import decision_cmds, explain_cmds
 
 
 class CliError(Exception):
@@ -339,6 +339,7 @@ def build_parser() -> argparse.ArgumentParser:
     mt.add_argument("state", choices=["on", "off"])
     a = sub.add_parser("activity")
     a.add_argument("--limit", type=int, default=50)
+    explain_cmds.add_parser(sub)
     for sp in sub.choices.values():
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
     return p
@@ -346,7 +347,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 HANDLERS = {"status": cmd_status, "doctor": cmd_doctor, "gpu": cmd_gpu, "models": cmd_models,
             "decision": cmd_decision, "batch": cmd_batch, "maintenance": cmd_maintenance, "activity": cmd_activity,
-            "agent": decision_cmds.cmd_agent, "workflow": decision_cmds.cmd_workflow}
+            "agent": decision_cmds.cmd_agent, "workflow": decision_cmds.cmd_workflow,
+            "explain": explain_cmds.cmd_explain}
 
 
 def main(argv: list[str] | None = None, api: Api | None = None) -> int:

@@ -13,6 +13,13 @@
     "lif-decisions": {
       "command": "lif/.venv/bin/lif-decisions-mcp",
       "args": []
+    },
+    "lif-understanding": {
+      "command": "lif/.venv/bin/python",
+      "args": [
+        "-m",
+        "lif.understanding.mcp"
+      ]
     }
   }
 }

@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from functools import partial
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from starlette.datastructures import MutableHeaders
@@ -57,7 +57,7 @@ SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
 )
 
 # Bounded label set for lif_console_requests_total (never raw paths: ids would explode cardinality).
-_API_AREAS = frozenset({"auth", "setup", "access", "pair", "devices", "events", "system", "models", "ai",
+_API_AREAS = frozenset({"v1", "auth", "setup", "access", "pair", "devices", "events", "system", "models", "ai",
                         "command", "jobs", "agents", "approvals", "knowledge"})
 
 requests_total = Counter("lif_console_requests_total", "Console HTTP requests by route class and status class",
@@ -334,6 +334,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await _maybe(upstream.close, what="upstream.close")
 
 
+def settings_flag(name: str) -> bool:
+    import os
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Labzilla Console", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.limiters = auth.Limiters()
@@ -341,6 +346,11 @@ def create_app() -> FastAPI:
     errors.install(app)
     for r in ROUTERS:
         app.include_router(r)
+    if settings_flag("LIF_CONSOLE_UNDERSTANDING"):
+        # Explanation API (lif/understanding/api.py) behind the console session; off unless enabled.
+        from lif.understanding import api as understanding_api
+        app.include_router(understanding_api.make_router(understanding_api.compiler,
+                                                         [Depends(auth.require("ask"))], prefix="/api"))
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:
