@@ -65,7 +65,7 @@ tools/labzilla          # checks this machine, checks Labzilla, installs its cer
 | `labzilla trust` | Downloads the Labzilla CA from the console, checks its SHA-256 fingerprint (against `--fingerprint`, the host's copy, or your confirmation) and installs it |
 | `labzilla open` / `doctor` | Open the console; list what this machine has and needs |
 
-`tools/setup.sh` puts `labzilla` on your PATH. Other devices (phones, Windows) use **Trust this device** in the console.
+`tools/setup.sh` puts `labzilla` on your PATH (`~/.local/bin/labzilla`). If `labzilla` says *command not found*, re-run `tools/setup.sh --no-venv`, or use `tools/labzilla` from the repo root. Other devices (phones, Windows) use **Trust this device** in the console.
 
 It is already deployed. Each new device needs the one-time steps below; steps 2 and 3 happen once per install.
 
