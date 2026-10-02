@@ -111,13 +111,13 @@ def gateway_key() -> str | None:
 
 def earn_read_key() -> str | None:
     """Earning service read key (EARN_READ_KEY there): status only."""
-    return config.secret("LIF_EARN_READ_KEY") or None
+    return (config.secret("LIF_EARN_READ_KEY") or "").strip() or None
 
 
 def earn_admin_key() -> str | None:
     """Earning service control key (EARN_ADMIN_KEY there): pause/stop/kill/resume. Never moves money or
     enables live trading — the earn API has no such endpoint."""
-    return config.secret("LIF_EARN_ADMIN_KEY") or None
+    return (config.secret("LIF_EARN_ADMIN_KEY") or "").strip() or None
 
 
 def setup_code() -> str | None:
