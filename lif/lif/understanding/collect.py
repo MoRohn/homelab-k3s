@@ -57,8 +57,12 @@ async def gpu_state() -> dict[str, Any]:
     st: dict[str, Any] = {"collected_at": time.time(), "gpu": {}, "blerbz": {}, "pods": [], "residents": {},
                           "errors": {}}
     try:
-        from lif.gpu.state import GpuStateWatcher
-        w = GpuStateWatcher()
+        import os
+
+        from lif.gpu.state import GpuStateWatcher, _read_token
+        # On the host (outside the cluster) point this at a readable copy of gpusched's metrics token.
+        tf = os.environ.get("LIF_GPUSCHED_TOKEN_FILE")
+        w = GpuStateWatcher(token=_read_token(tf)) if tf else GpuStateWatcher()
         snap = await w.refresh()
         if snap.reachable:
             st["gpu"]["util_percent"] = snap.gpu_util_percent

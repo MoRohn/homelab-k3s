@@ -162,7 +162,8 @@ returns `failed`, and the compiler falls back (simulation/interactive → static
 | `package:<pkg>/<name>` | a pattern in `explanation-packages/` matches | none |
 | `llm:local` | otherwise | the local gateway (`local/default`), CONFIDENTIAL, never external. One validated repair round |
 
-The GPU builder never states what it could not read. With gpusched unreadable it drops lease and state
+On the host, set `LIF_GPUSCHED_TOKEN_FILE` to a readable copy of gpusched's metrics token; in the cluster the
+configured `gpusched.token_file` is used. The GPU builder never states what it could not read. With gpusched unreadable it drops lease and state
 claims, lowers confidence and lists "gpusched metrics (read failed)" as evidence needed.
 
 ## Interfaces
