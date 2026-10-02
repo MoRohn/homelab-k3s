@@ -13,7 +13,6 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Any
 
 from lif.knowledge.compiler import Compiler
 from lif.knowledge.graph import Graph

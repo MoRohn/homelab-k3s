@@ -34,7 +34,7 @@ from lif.decision import provenance
 from lif.decision.escalation import EscalationPackage, EscalationProvider, HumanReviewProvider
 from lif.decision.fabric import DecisionFabric
 from lif.decision.providers import ProviderUnavailable
-from lif.decision.registry import LIVE, OBSERVED, Registry
+from lif.decision.registry import Registry
 from lif.decision.store import Store
 from lif.decision.types import DecisionDef, DecisionResult, normalize_state
 from lif.policy import engine as policy

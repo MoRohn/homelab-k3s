@@ -291,7 +291,6 @@ def c_package(kn, a):
             return "\n".join(L)
         emit(a, rep, r)
     elif act == "lock":
-        from lif.knowledge.repo import Workspace
         repo = kn.ws.repo(a.repo or kn.ws.repos[0].name)
         emit(a, P.lock(kn.ws, repo), lambda d: f"locked {len(d['packages'])} package(s) in {repo.lock_path()}")
     elif act == "publish":

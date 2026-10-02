@@ -12,7 +12,6 @@ import asyncio
 import base64
 import json
 import re
-import statistics
 import struct
 import time
 import zlib

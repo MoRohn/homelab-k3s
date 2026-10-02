@@ -19,7 +19,7 @@ import statistics
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Iterable
 
 from lif.common import config, log, metrics
 from lif.decision import pricing

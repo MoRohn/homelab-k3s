@@ -15,7 +15,7 @@ import json
 import statistics
 import time
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 from lif.common import config
 from lif.decision import calibration, provenance

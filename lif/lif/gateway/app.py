@@ -23,7 +23,7 @@ import os
 import time
 from collections import OrderedDict, defaultdict
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 import httpx
 from fastapi import FastAPI, Request
@@ -95,7 +95,7 @@ class YieldLimiter:
         production-time cap holds cluster-wide, not per replica."""
         deadline = time.monotonic() + timeout
         if upstream_busy is not None:
-            while (busy := await upstream_busy()) >= limit_fn():
+            while await upstream_busy() >= limit_fn():
                 if time.monotonic() >= deadline:
                     raise TimeoutError("queue timeout waiting for a model slot (primary-workload yield)")
                 metrics.throttled.labels("cluster_yield_wait").inc()

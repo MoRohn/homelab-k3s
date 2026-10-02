@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import httpx
 

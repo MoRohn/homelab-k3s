@@ -7,7 +7,6 @@ confidence so the policy gate escalates rather than acting automatically.
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from lif.decision.providers import RulesProvider
 

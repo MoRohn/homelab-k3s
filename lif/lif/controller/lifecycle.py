@@ -26,7 +26,7 @@ from lif.controller.k8s import K8s
 from lif.decision.fabric import DecisionFabric
 from lif.gpu.state import BlerbzState, GpuStateWatcher
 from lif.models import evaluator
-from lif.models.registry import Registry, RegistryError
+from lif.models.registry import Registry
 
 LOG = log.get("lif.lifecycle")
 

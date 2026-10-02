@@ -93,7 +93,6 @@ def _pct(x):
 
 
 def _internal(api, method: str, path: str, body: Any) -> Any:
-    import httpx
     from lif.cli.main import CliError
     key = os.environ.get("LIF_INTERNAL_KEY", "")
     if not key:
@@ -308,7 +307,7 @@ f"Steps analyzed              {a['steps_analyzed']:>8,}", "",
              f"  avoidable as-is           {a['avoidable_heavy_calls']:>8,}  ({_pct(a['avoidable_heavy_share'])})",
              f"  with a fused decision     {a['calls_with_fused_decisions']:>8,}  (split decide()/generate() first)",
              f"Tokens in / out             {a['tokens']['input']:,} / {a['tokens']['output']:,}",
-             f"Est. savings / day          " + (f"${a['estimated_savings_per_day_usd']:.2f}"
+             "Est. savings / day          " + (f"${a['estimated_savings_per_day_usd']:.2f}"
                                                if a["estimated_savings_per_day_usd"] is not None
                                                else f"unknown ({a['savings_note']})"), "", "Top opportunities:"]
     for i, t in enumerate(a["top_opportunities"], 1):

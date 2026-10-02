@@ -178,7 +178,7 @@ def cmd_gpu(api: Api, args) -> int:
             f"admissible        {g.get('admissible_mib', 0):.0f} MiB",
             f"MemAvailable      {g.get('mem_available_mib', 0):.0f} MiB",
             f"GPU util          {g.get('gpu_util_percent')}%",
-            f"residents         " + ", ".join(f"{k}={'loaded' if v else 'NOT LOADED'}" for k, v in res.items()),
+            "residents         " + ", ".join(f"{k}={'loaded' if v else 'NOT LOADED'}" for k, v in res.items()),
             f"data age          {g.get('age_sec')} s"])
     out(args, api.ctl("GET", "/v1/gpu"), r)
     return 0

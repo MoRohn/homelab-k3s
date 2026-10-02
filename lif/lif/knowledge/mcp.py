@@ -17,7 +17,7 @@ import json
 import sys
 import time
 import traceback
-from typing import Any, Callable
+from typing import Any
 
 from lif.knowledge.ops import Knowledge, PermissionDenied
 
