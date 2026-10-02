@@ -75,6 +75,8 @@ spec:
           value: /app/knowledge
         - name: LIF_KNOWLEDGE_INDEX             # derived index, rebuilt on start (root filesystem is read-only)
           value: /tmp/knowledge-index.db
+        - name: LIF_CONSOLE_UNDERSTANDING       # explain API at /api/v1/* behind session auth (docs/UNDERSTANDING.md);
+          value: "1"                            # its store is /data/understanding.db, next to LIF_CONSOLE_DB
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

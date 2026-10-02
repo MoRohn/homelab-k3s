@@ -177,3 +177,20 @@ async def test_llm_builder_asks_for_less_when_the_gateway_cuts_it_off():
         assert "token limit" in str(e)
     else:
         raise AssertionError("expected a ValueError")
+
+
+async def test_gateway_generate_reads_the_console_key_from_the_secrets_dir(monkeypatch, tmp_path):
+    import httpx
+    (tmp_path / "LIF_CONSOLE_GATEWAY_KEY").write_text("console-key\n")
+    monkeypatch.setenv("LIF_SECRETS_DIR", str(tmp_path))
+    for k in ("LIF_API_KEY", "LIF_CONSOLE_GATEWAY_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}]})
+    real = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    assert await C.gateway_generate()([{"role": "user", "content": "x"}]) == "{}"
+    assert seen["auth"] == "Bearer console-key"

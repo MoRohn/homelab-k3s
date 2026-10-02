@@ -30,7 +30,7 @@ Code: `lif/lif/understanding/`. Packages: `lif/explanation-packages/`. Decisions
 | 8 Manim / video | Not built. Declared in the registry as unavailable, so the router explains why it did not pick them | `registry.py` |
 | 9 Critic + consistency | Done: contract (per artifact), critic (across artifacts). No vision critic | `render/base.py`, `critic.py` |
 | Feedback → routing (§130 last step) | Partial: overrides, simplify/deepen and helpful/abandoned feedback are recorded, with override rate per primary renderer. Nothing adjusts the weights automatically yet | `store.py` |
-| 10 Ask/UI integration | Partial: API, CLI and MCP. The console mounts the API only with `LIF_CONSOLE_UNDERSTANDING=1`, and there is no UI yet | `api.py` |
+| 10 Ask/UI integration | Partial: API, CLI and MCP. The console serves the API (enabled 2026-10-02); there is no UI yet | `api.py` |
 
 | Acceptance test | State | Test |
 |---|---|---|
@@ -178,7 +178,7 @@ claims, lowers confidence and lists "gpusched metrics (read failed)" as evidence
 |---|---|
 | CLI | `local-ai explain "Q" [--format F] [--profile quick\|standard\|deep\|teach] [--audience A] [--mobile] [--offline]`, `local-ai explain ID --simplify \| --deepen \| --interactive \| --video \| --show-ir \| --evaluate \| --history`, `local-ai explain --renderers \| --lint-packages`. `labzilla explain …` forwards on the host |
 | HTTP | `uvicorn lif.understanding.api:app --host 127.0.0.1 --port 18084`: `POST /v1/explain` (`?stream=1` for SSE), `GET /v1/explanations/{id}[/history]`, `POST /v1/explanations/{id}/render\|simplify\|deepen\|evaluate`, `POST /v1/sessions/{sid}/feedback`, `GET /v1/sessions/{sid}/artifacts/{renderer}`, `GET /v1/renderers` |
-| Console | set `LIF_CONSOLE_UNDERSTANDING=1` to mount the same routes under `/api/v1/…` behind session auth (`ask`); off by default. Inside the console the store defaults to `understanding.db` next to `LIF_CONSOLE_DB`, and local generation uses `LIF_CONSOLE_GATEWAY_KEY` |
+| Console | the same routes under `/api/v1/…` behind session auth (`ask`), enabled in `deploy/k8s/base/16-console.yaml` with `LIF_CONSOLE_UNDERSTANDING=1` (remove it to turn the API off). There is no UI for it yet. In the pod there is no kubectl and no gpusched token, so live GPU explanations report those sources as unreadable. Inside the console the store defaults to `understanding.db` next to `LIF_CONSOLE_DB`, and local generation uses `LIF_CONSOLE_GATEWAY_KEY` |
 | MCP | `lif-understanding` in `.mcp.json`: `explanation_create`, `_get`, `_render`, `_simplify`, `_deepen`, `_evaluate`, `_renderers` |
 
 Stream events: `analysis.started`, `knowledge_model.ready`, `explanation_ir.ready`, `summary.ready`,

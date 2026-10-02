@@ -173,7 +173,9 @@ def gateway_generate(alias: str = "local/default", max_tokens: int = 1200) -> Ge
     import httpx
 
     url = os.environ.get("LIF_GATEWAY_URL", "http://127.0.0.1:18080").rstrip("/")
-    key = os.environ.get("LIF_API_KEY") or os.environ.get("LIF_CONSOLE_GATEWAY_KEY", "")
+    from lif.common import config
+    # Env first, then the mounted secrets dir: the console keeps its gateway key in /var/run/lif/secrets.
+    key = config.secret("LIF_API_KEY") or config.secret("LIF_CONSOLE_GATEWAY_KEY") or ""
 
     async def gen(messages: list[dict]) -> str:
         headers = {"X-LIF-Data-Class": "CONFIDENTIAL", "X-LIF-Workload": "understanding"}
