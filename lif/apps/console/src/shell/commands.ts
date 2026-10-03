@@ -31,7 +31,6 @@ export const PALETTE_COMMANDS: PaletteCommand[] = [
   { id: 'logs', label: 'Open Logs', hint: 'Errors, warnings and relevant events', icon: 'file', kind: 'navigate', href: '/system/logs', keywords: 'logs errors' },
   { id: 'services', label: 'Open Services', hint: 'Health of every platform service', icon: 'server', kind: 'navigate', href: '/system/services', keywords: 'k3s kubernetes services health pods' },
   { id: 'trust', label: 'Trust this device', hint: 'Secure connection, install and voice', icon: 'shield', kind: 'navigate', href: '/trust', keywords: 'https certificate tls install pwa voice' },
-  { id: 'earn', label: 'Open Earn', hint: 'Earning system state, safety stops and controls', icon: 'benchmark', kind: 'navigate', href: '/earn', keywords: 'earn trading kalshi polymarket synth liquidity arbitrage kill pause' },
   { id: 'decisions', label: 'Open Decisions', hint: 'Jev decisions and reviews', icon: 'decision', kind: 'navigate', href: '/agents?tab=decisions', keywords: 'jev decision fabric review approvals' },
 ];
 

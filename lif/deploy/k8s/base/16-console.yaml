@@ -77,18 +77,6 @@ spec:
           value: /tmp/knowledge-index.db
         - name: LIF_CONSOLE_UNDERSTANDING       # explain API at /api/v1/* behind session auth (docs/UNDERSTANDING.md);
           value: "1"                            # its store is /data/understanding.db, next to LIF_CONSOLE_DB
-        # Earn page (earn/deploy): the console reads status with EARN_READ_KEY and sends pause/stop/kill/resume with
-        # EARN_ADMIN_KEY. Both are optional: without Secret earn-console the page says the service isn't connected.
-        # ai-system has ingress-only NetworkPolicies, so console → earn egress is open; earn's own ingress policy
-        # must admit app=console from ai-system.
-        - name: LIF_EARN_URL
-          value: http://earn.earn.svc:8080
-        - name: LIF_EARN_READ_KEY
-          valueFrom:
-            secretKeyRef: {name: earn-console, key: LIF_EARN_READ_KEY, optional: true}
-        - name: LIF_EARN_ADMIN_KEY
-          valueFrom:
-            secretKeyRef: {name: earn-console, key: LIF_EARN_ADMIN_KEY, optional: true}
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

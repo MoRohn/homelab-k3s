@@ -25,11 +25,11 @@ from lif.console.errors import HumanHTTPError, human
 
 LOG = log.get("lif.console.upstream")
 
-Svc = Literal["controller", "gateway", "batch", "prometheus", "knowledge", "earn"]
+Svc = Literal["controller", "gateway", "batch", "prometheus", "knowledge"]
 
 SERVICE_LABEL: dict[str, str] = {"controller": "Model control service", "gateway": "AI gateway",
                                  "batch": "Batch service", "prometheus": "Metrics history",
-                                 "knowledge": "Knowledge service", "earn": "Earning service"}
+                                 "knowledge": "Knowledge service"}
 # What the user loses while each upstream is unreachable (said once, here, for every error message).
 SERVICE_IMPACT: dict[str, str] = {
     "controller": "Model changes, discovery and history are unavailable; local AI keeps answering.",
@@ -37,8 +37,6 @@ SERVICE_IMPACT: dict[str, str] = {
     "batch": "Batch jobs can't be listed or controlled right now; queued work is kept.",
     "prometheus": "History and the memory breakdown are unavailable; live status still works.",
     "knowledge": "Knowledge search and decision records are unavailable.",
-    "earn": "Earning status and controls are unavailable here; the service keeps enforcing its own limits and "
-            "safety stops.",
 }
 
 
@@ -81,11 +79,6 @@ def _base(svc: Svc) -> str:
         return settings.batch_url()
     if svc == "prometheus":
         return settings.prometheus_url()
-    if svc == "earn":
-        earn = settings.earn_url()
-        if not earn:
-            raise UpstreamError("earn", 0, "earning service not configured")
-        return earn
     url = settings.knowledge_url()
     if not url:
         raise UpstreamError("knowledge", 0, "knowledge service not configured")
@@ -147,19 +140,18 @@ def _safe(svc: Svc, path: str) -> str:
 
 
 async def _request(svc: Svc, method: str, path: str, *, params: dict[str, Any] | None = None,
-                   json: dict[str, Any] | None = None, timeout: float, headers: dict[str, str] | None = None) -> Any:
+                   json: dict[str, Any] | None = None, timeout: float) -> Any:
     url = _base(svc) + _safe(svc, path)
     tmo = httpx.Timeout(timeout, connect=min(timeout, 3.0))
-    h = {**_headers(svc), **(headers or {})}
     try:
         try:
-            resp = await _client(svc).request(method, url, params=params, json=json, headers=h, timeout=tmo)
+            resp = await _client(svc).request(method, url, params=params, json=json, headers=_headers(svc), timeout=tmo)
         except (httpx.RemoteProtocolError, httpx.ReadError):
             # A pooled connection the server closed while idle fails before any response; a read is safe to repeat once
             # on a fresh connection. Mutations are never repeated (the first attempt may have been applied).
             if method != "GET":
                 raise
-            resp = await _client(svc).request(method, url, params=params, json=json, headers=h, timeout=tmo)
+            resp = await _client(svc).request(method, url, params=params, json=json, headers=_headers(svc), timeout=tmo)
     except httpx.TimeoutException:
         raise UpstreamError(svc, 0, "timed out") from None
     except httpx.HTTPError as e:
@@ -221,25 +213,6 @@ async def stream(svc: Svc, path: str, json: dict[str, Any], *, timeout: float = 
         raise UpstreamError(svc, 0, "timed out") from None
     except httpx.HTTPError as e:
         raise UpstreamError(svc, 0, type(e).__name__) from None
-
-
-# ── earning service (two allowlisted calls; each carries its own narrowly scoped key) ────────────
-
-async def earn_status(*, timeout: float = 5.0) -> Any:
-    """GET /api/status with the read key (X-Earn-Key). The key never leaves the BFF."""
-    key = settings.earn_read_key()
-    if not key:
-        raise UpstreamError("earn", 401, "read key not configured")
-    return await _request("earn", "GET", "/api/status", timeout=timeout, headers={"X-Earn-Key": key})
-
-
-async def earn_control(body: dict[str, Any], *, actor: str, timeout: float = 15.0) -> Any:
-    """POST /api/control with the control key (X-Earn-Admin). Never retried: a kill may already be applied."""
-    key = settings.earn_admin_key()
-    if not key:
-        raise UpstreamError("earn", 401, "control key not configured")
-    log.event(LOG, "upstream_mutation", svc="earn", path="/api/control", actor=actor, action=body.get("action"))
-    return await _request("earn", "POST", "/api/control", json=body, timeout=timeout, headers={"X-Earn-Admin": key})
 
 
 # ── Prometheus ────────────────────────────────────────────────────────────────────────────────

@@ -37,7 +37,6 @@ The spec section numbers (§) below refer to the owner's UI/UX brief for the con
 | Agents | Agents | Agent work, approvals, runnable agents |
 | Models | More → Models | Roles first (Fast, Balanced, Deep, Code…), then discovery and candidates |
 | Jobs | More → Jobs | Batch and background work, grouped by state |
-| Earn | More → Earn | Earning system (`earn/`): paper/live state, why it isn't trading, safety controls, P&L, rewards, Synth |
 | Knowledge | More → Knowledge | Decisions, evidence, assumptions, recent changes |
 | System | More → System | Compute, services, storage, network, logs, settings |
 | Connect a phone (side-nav footer, admin) | More → Connect a phone, Trust this device | Pairing, devices, certificate and install status. Trust is the connection line in the side-nav footer |
@@ -63,7 +62,6 @@ The spec section numbers (§) below refer to the owner's UI/UX brief for the con
 | `/models`, `/models/roles/:role`, `/models/deployments/:id` | Portfolio, role detail, physical model detail | lazy |
 | `/models/discovery`, `/models/candidates/:id` | Check for better models; candidate comparison | lazy |
 | `/jobs`, `/jobs/:id` | Jobs, job detail | lazy |
-| `/earn` | Earning system: lead sentence, why it isn't trading, Pause/Stop/Kill (Resume for admins), results, venues, markets, safety stops, arbitrage, Synth, learning, availability. Polls every 15 s | lazy |
 | `/knowledge`, `/knowledge/o/:key` | Knowledge home; decision record or object | lazy |
 | `/system`, `/system/:tab` | Tabs: compute, services, storage, network, logs, settings | lazy |
 | `/connect`, `/trust` | Connect Mobile (QR, URL, devices); Trust this device | lazy |
@@ -323,8 +321,6 @@ No new Python dependencies: `hashlib.scrypt`, `secrets`, stdlib `sqlite3` (WAL),
 | agents | `GET /api/agents`, `GET /api/agents/{id}`, `POST /api/agents/run` | `AgentsOverview` / `AgentRun` | read / models.discover or models.operate |
 | approvals | `GET /api/approvals`, `POST /api/approvals/{id}` | `Approval[]` / `Approval` | read / approvals.answer (pairings: devices.manage) |
 | knowledge | `GET /api/knowledge`, `/search?q=`, `/objects/{key}` | `KnowledgeHome`, `KnowledgeHit[]`, `KnowledgeObjectResponse` | read |
-| earn | `GET /api/earn`, `GET /api/earn/control/preview?action=&scope=` | `EarnOverview` / `ActionPreview` | read. Upstream: earn `GET /api/status` with `LIF_EARN_READ_KEY`. `LIF_EARN_URL` unset → "The earning service isn't configured"; unreachable → `available: false` with the reason |
-| earn | `POST /api/earn/control` (`EarnControlRequest`) | `OkResponse` | pause, stop, kill: system.safe (phones too, no confirmation, they only reduce risk); resume, close_only: system.settings + typed confirm (the scope). Upstream: earn `POST /api/control` with `LIF_EARN_ADMIN_KEY`. Scopes are validated before any call; there is no endpoint that enables live trading, raises a limit or moves money |
 | knowledge | `POST /api/knowledge/notes` | `OkResponse` | admin; refused while knowledge is read-only |
 | — | `GET /healthz`, `/readyz`, `/metrics` | liveness, readiness, Prometheus | none |
 
@@ -458,11 +454,6 @@ The status is the v1 target agreed in the architecture brief, and the integratio
 | 110 | 5-second comprehension; know before acting | Done | Principles | |
 | 111 | Make the system feel simpler than it is | Done | | |
 
-Addition after v1 (2026-10-02): the **Earn** page (`/earn`, `routes/earn.py`, `tests/test_console_earn.py`) shows the
-earning system from `earn/`. Partial: it polls every 15 s (no SSE event from the earn service), and it needs the earn
-service deployed plus Secret `ai-system/earn-console` (`LIF_EARN_READ_KEY`, `LIF_EARN_ADMIN_KEY`, matching the earn
-service's `EARN_READ_KEY` / `EARN_ADMIN_KEY`). Without them it says so instead of showing anything.
-
 ## 14. Follow-ups (not in v1)
 
 | Item | Needs |
@@ -475,7 +466,6 @@ service's `EARN_READ_KEY` / `EARN_ADMIN_KEY`). Without them it says so instead o
 | Raw pod logs in System → Logs | RBAC for ai-system pod logs through the controller |
 | Web Push for §100 | Trusted HTTPS + a local push design (no external push provider) |
 | Local-model command classification | A CONFIDENTIAL decision package on `local/instant` |
-| Earn page live updates | An earn → console event (SSE `earn`) instead of the 15 s poll |
 
 ## Deploy & access
 
