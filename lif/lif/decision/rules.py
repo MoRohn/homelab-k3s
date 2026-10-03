@@ -86,6 +86,14 @@ def request_route(s: dict) -> tuple[str, float] | None:
     return "default", 0.70
 
 
+@rules.register("needs-live-data")
+def needs_live_data(s: dict) -> tuple[str, float] | None:
+    from lif.web.freshness import assess_turn
+    prev = s.get("previous_user") or ""
+    f = assess_turn(s.get("last_user", "") or "", [prev] if prev else [])
+    return ("yes" if f.live else "no"), f.confidence
+
+
 @rules.register("output-acceptable")
 def output_acceptable(s: dict) -> tuple[str, float] | None:
     out = (s.get("output") or "").strip()

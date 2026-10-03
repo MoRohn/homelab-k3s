@@ -48,7 +48,8 @@ curl -sk https://ai.tiny-dgx.lan/v1/chat/completions \
 | `local/reasoning`, `local/code` | 4B | Marked `degraded: true`: below the alias's size floor (30B / 14B) |
 | `local/embedding` | Qwen3-Embedding-0.6B | |
 | `local/vision`, `local/rerank` | none | Returns 503 with the reason |
-| `local/auto` | `request-route` decision | Picks the smallest tier that fits |
+| `local/web` | none yet → `local/default` | Grounded answers to live questions ([docs/WEB_GROUNDING.md](docs/WEB_GROUNDING.md)) |
+| `local/auto` | `needs-live-data`, then `request-route` | Looks up live questions; otherwise picks the smallest tier that fits |
 
 Request headers, all optional:
 

@@ -67,6 +67,21 @@
   default: default
   fallback: [rules]
 
+- name: needs-live-data
+  version: v1
+  type: noul
+  data_class: CONFIDENTIAL        # the prompt; Jev sees it only when the caller declares PUBLIC
+  owner: gateway
+  instructions: >
+    Does answering this question well need information that may have changed after a language
+    model was trained: a score or result, news, weather, prices, who currently holds a role,
+    a release, or anything anchored to a recent date (last night, this weekend, a recent year)?
+    previous_user is the turn before, for short follow-ups. Answer no for writing, coding,
+    explanation, math and settled facts.
+  thresholds: {auto: 0.85, validate: 0.60, escalate: 0.45}
+  default: "no"
+  fallback: [rules]
+
 - name: output-acceptable
   version: v1
   type: noul

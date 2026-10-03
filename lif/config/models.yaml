@@ -79,6 +79,9 @@ aliases:
   # model is promoted the alias exists so callers get a clear 503 ("no vision model is installed
   # yet") rather than an unknown-model 404. No local reranker is deployed yet either.
   local/vision:    []
+  # Grounded answers to live questions (docs/WEB_GROUNDING.md). Empty until a model is promoted to it
+  # (`local-ai models promote <id> --alias local/web`); the gateway uses local/default meanwhile.
+  local/web:       []
   local/rerank:    []
 
 # Quality tier per alias. Used to label degraded service (e.g. local/default served by

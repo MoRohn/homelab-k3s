@@ -28,7 +28,7 @@ import './models.css';
 /** The roles people choose between (§10), in the order the portfolio shows them. */
 export const MAIN_ROLES: RoleKey[] = ['fast', 'balanced', 'deep', 'code', 'vision', 'auto'];
 /** Plumbing roles: real aliases, but nobody picks them for a prompt, so they sit behind "Advanced" (§97). */
-export const ADVANCED_ROLES: RoleKey[] = ['instant', 'batch', 'embedding', 'rerank'];
+export const ADVANCED_ROLES: RoleKey[] = ['instant', 'web', 'batch', 'embedding', 'rerank'];
 
 /**
  * A sentence or two per role for the role page (§96). The server's `blurb` stays the one-liner; this is the
@@ -45,6 +45,7 @@ export const ROLE_HELP: Record<RoleKey, string> = {
   batch: 'Batch serves background jobs that can wait, so they never compete with interactive requests.',
   embedding: 'Embedding turns text into vectors for search and knowledge lookups.',
   rerank: 'Rerank reorders search results by relevance.',
+  web: 'Web answers questions about recent events. Auto sends it a question together with live search results, and it answers with numbered sources.',
 };
 
 /** Roles are routed by alias; the auto role is synthetic and has no model of its own to roll back. */

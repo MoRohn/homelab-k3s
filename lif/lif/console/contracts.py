@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Contract(BaseModel):
@@ -39,7 +39,7 @@ UserRole = Literal["admin", "device"]
 PrivacyChoice = Literal["local_only", "allow_jev"]      # local_only = CONFIDENTIAL; allow_jev = PUBLIC
 PrivacyUsed = Literal["local_only", "local_jev", "external"]
 AskMode = Literal["auto", "fast", "balanced", "deep", "code", "vision"]    # §10 logical capabilities
-RoleKey = Literal["auto", "fast", "balanced", "deep", "code", "vision", "instant", "batch", "embedding", "rerank"]
+RoleKey = Literal["auto", "fast", "balanced", "deep", "code", "vision", "instant", "batch", "embedding", "rerank", "web"]
 
 
 class TechDetail(Contract):
@@ -633,6 +633,24 @@ class TokenUsage(Contract):
     completion: int = 0
 
 
+class WebSource(Contract):
+    """One cited web source: the answer refers to it as [n]."""
+    n: int = 0
+    title: str = ""
+    url: str = ""
+
+
+class WebLookup(Contract):
+    """The live lookup behind an answer: the one query that left the box, and what came back."""
+    status: Literal["ok", "empty", "error", "blocked", "not_needed"] = "not_needed"
+    query: str | None = None                # exactly what was sent to search
+    sources: list[WebSource] = []
+    providers: list[str] = []               # espn, open-meteo, searxng
+    ms: float | None = None
+    note: str | None = None                 # why nothing usable came back, in plain words
+    by_guard: bool = False                  # looked up after the model claimed its data was out of date
+
+
 class Receipt(Contract):
     """'Handled by: local/default · Qwen… · 1.4 sec' plus everything behind 'Open Details' (§9, §21)."""
     alias: str = ""
@@ -650,6 +668,7 @@ class Receipt(Contract):
     request_id: str | None = None
     tokens: TokenUsage | None = None
     clamped: bool = False                   # answer length capped while BLERBZ is busy
+    web: WebLookup | None = None            # set when the gateway looked the question up
     tech: list[TechDetail] = []
 
 
@@ -729,6 +748,7 @@ class MessageRequest(Contract):
     mode: AskMode = "auto"
     privacy: PrivacyChoice = "local_only"
     attachments: list[AttachmentIn] = []
+    tz: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+\-/]*$")   # browser's IANA zone
 
 
 class StreamRoute(Contract):

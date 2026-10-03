@@ -1,0 +1,134 @@
+# SearXNG: self-hosted meta-search for live lookups (docs/WEB_GROUNDING.md).
+# Only the gateway may call it (NetworkPolicy below). It forwards the gateway's built query, and nothing
+# else, to public search engines, with no account and no key. Its secret_key comes from Secret `searxng`
+# (scripts/create-secrets.sh). The image is pinned by digest (multi-arch: amd64, arm64).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-settings
+  namespace: ai-system
+  labels: {app: searxng, app.kubernetes.io/part-of: lif}
+data:
+  settings.yml: |
+    use_default_settings: true
+    general:
+      instance_name: "LIF search"
+      enable_metrics: false
+    server:
+      bind_address: "0.0.0.0"
+      port: 8080
+      limiter: false              # one internal caller, behind a NetworkPolicy
+      public_instance: false
+      image_proxy: false
+      method: GET
+    search:
+      safe_search: 1
+      autocomplete: ""
+      default_lang: "en-US"
+      formats: [html, json]
+    outgoing:
+      request_timeout: 2.5        # the gateway gives every lookup ~4 s in total
+      max_request_timeout: 3.5
+      pool_connections: 50
+      pool_maxsize: 10
+      enable_http2: true
+    ui:
+      static_use_hash: true
+    valkey:
+      url: false
+    engines:
+      - name: wikidata
+        disabled: true            # slow and rarely useful for live questions
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: ai-system
+  labels: &labels {app: searxng, app.kubernetes.io/part-of: lif}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: searxng}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata:
+      labels: *labels
+      annotations:
+        lif.dev/settings-rev: "1"          # bump to roll the pod after editing searxng-settings
+    spec:
+      priorityClassName: ai-interactive
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 977                    # the image's searxng user
+        runAsGroup: 977
+        fsGroup: 977
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+      - name: searxng
+        image: docker.io/searxng/searxng:2026.9.29-4e2c1ea7f@sha256:3284e8900e9b3e5df284ae8c48a26851ae2eff6f99b4b0b18ec3da5a4d9095c3
+        ports:
+        - {name: http, containerPort: 8080}
+        env:
+        - name: SEARXNG_SECRET
+          valueFrom: {secretKeyRef: {name: searxng, key: SEARXNG_SECRET}}
+        - name: SEARXNG_BASE_URL
+          value: http://searxng.ai-system.svc:8080/
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+        resources:
+          requests: {cpu: 50m, memory: 192Mi}
+          limits: {cpu: "1", memory: 512Mi}
+        volumeMounts:
+        - {name: settings, mountPath: /etc/searxng/settings.yml, subPath: settings.yml, readOnly: true}
+        - {name: cache, mountPath: /var/cache/searxng}
+        - {name: tmp, mountPath: /tmp}
+        startupProbe:
+          httpGet: {path: /healthz, port: http}
+          periodSeconds: 2
+          failureThreshold: 60
+        readinessProbe:
+          httpGet: {path: /healthz, port: http}
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: {path: /healthz, port: http}
+          periodSeconds: 30
+          failureThreshold: 4
+      volumes:
+      - name: settings
+        configMap: {name: searxng-settings}
+      - name: cache
+        emptyDir: {sizeLimit: 256Mi}
+      - name: tmp
+        emptyDir: {sizeLimit: 64Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: searxng
+  namespace: ai-system
+  labels: {app: searxng, app.kubernetes.io/part-of: lif}
+spec:
+  selector: {app: searxng}
+  ports:
+  - {name: http, port: 8080, targetPort: http}
+---
+# Only the gateway pods call SearXNG; nothing on the LAN or in other namespaces can.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: searxng-gateway-only, namespace: ai-system}
+spec:
+  podSelector: {matchLabels: {app: searxng}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app: gateway}}
+        - ipBlock: {cidr: 10.42.0.1/32}       # host (cni0): kubelet probes
+      ports: [{port: http}]

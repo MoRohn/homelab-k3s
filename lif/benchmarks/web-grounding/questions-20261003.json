@@ -1,0 +1,142 @@
+{
+ "as_of": "2026-10-03",
+ "timezone": "America/New_York",
+ "note": "Facts checked against public sources on 2026-10-03. Time-sensitive values (prices, weather) are checked by shape, not value. `live: false` rows check that no lookup happens.",
+ "questions": [
+  {
+   "q": "Who won the Panthers college football game last night?",
+   "expect": [
+    "Pitt",
+    "35"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Did the Steelers win on Sunday?",
+   "expect": [
+    "(?i)\\b(yes|won|beat|defeated)\\b",
+    "30"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Did LSU win their last football game?",
+   "expect": [
+    "(?i)\\b(yes|won|beat|defeated)\\b",
+    "35"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "How did Oregon State do in their last game?",
+   "expect": [
+    "(?i)UTEP|33"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Who won the Super Bowl this year?",
+   "expect": [
+    "(?i)seahawks"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Who won the World Cup this summer?",
+   "expect": [
+    "(?i)spain"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Who won the F1 race last weekend?",
+   "expect": [
+    "(?i)russell"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Who has the best record in the NFL?",
+   "expect": [
+    "3-0"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "Which college football team is ranked number one?",
+   "expect": [
+    "(?i)texas"
+   ],
+   "kind": "sports"
+  },
+  {
+   "q": "What did the Fed decide at its September meeting?",
+   "expect": [
+    "(?i)rais|hike|increase",
+    "3[.-]?(75|3/4)|3¾"
+   ],
+   "kind": "finance"
+  },
+  {
+   "q": "What is bitcoin trading at today?",
+   "expect": [
+    "\\$\\s?\\d{2},?\\d{3}"
+   ],
+   "kind": "finance"
+  },
+  {
+   "q": "What's NVIDIA's stock price right now?",
+   "expect": [
+    "\\$\\s?\\d{3}"
+   ],
+   "kind": "finance"
+  },
+  {
+   "q": "What's the weather in Paris tomorrow?",
+   "expect": [
+    "\\d+(\\.\\d+)?\\s*°\\s*C|degrees"
+   ],
+   "kind": "weather"
+  },
+  {
+   "q": "Who is the current president of the United States?",
+   "expect": [
+    "(?i)trump"
+   ],
+   "kind": "office"
+  },
+  {
+   "q": "Who is the CEO of OpenAI?",
+   "expect": [
+    "(?i)altman"
+   ],
+   "kind": "office"
+  },
+  {
+   "q": "When did iOS 27 come out?",
+   "expect": [
+    "(?i)september\\s+14|sept?\\.? 14|9/14"
+   ],
+   "kind": "general"
+  },
+  {
+   "q": "What is the latest stable Python release?",
+   "expect": [
+    "3\\.14"
+   ],
+   "kind": "general"
+  },
+  {
+   "q": "What is the capital of Australia?",
+   "expect": [
+    "(?i)canberra"
+   ],
+   "live": false
+  },
+  {
+   "q": "Write a haiku about the ocean",
+   "expect": [],
+   "live": false
+  }
+ ]
+}

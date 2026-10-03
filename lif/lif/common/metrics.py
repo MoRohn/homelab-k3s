@@ -92,3 +92,9 @@ human_queue = Gauge("lif_human_review_queue", "Decisions waiting for a human")
 heavy_avoided = Counter("lif_heavy_generation_avoided_total",
                         "Steps resolved by code/Jev/local-fast that the baseline sent to a heavy model",
                         ["decision"])
+
+# ── live information (lif/web) ────────────────────────────────────────────────
+web_lookups = Counter("lif_web_lookups_total", "Live web lookups by question kind and outcome", ["kind", "status"])
+web_latency = Histogram("lif_web_lookup_seconds", "Live lookup latency by source (total = the whole lookup)",
+                        ["source"], buckets=LAT)
+web_guard = Counter("lif_web_disclaimer_guard_total", "Knowledge-cutoff openings caught by the gateway", ["outcome"])

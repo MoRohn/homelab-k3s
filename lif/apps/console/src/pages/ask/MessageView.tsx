@@ -62,6 +62,51 @@ export interface AnswerViewProps {
   onRetry: () => void;
 }
 
+/** "Looked up …" with the numbered sources the answer cites as [1], [2]; or why a lookup found nothing. */
+export function WebSources({ r }: { r: Receipt }) {
+  const w = r.web;
+  if (!w) return null;
+  if (w.status !== 'ok') {
+    const why = w.status === 'blocked' ? 'Not looked up' : 'Couldn’t look this up';
+    return (
+      <p class="ask-web xsmall muted">
+        <Icon name="info" size={12} /> {why}
+        {w.note ? ` — ${w.note}` : ''}.
+      </p>
+    );
+  }
+  return (
+    <section class="ask-web" aria-label="Sources">
+      <p class="xsmall muted ask-web-query">
+        <Icon name="search" size={12} /> {w.by_guard ? 'Answered again after a live lookup' : 'Looked up'}
+        {w.query ? <> “<span class="ask-web-q">{w.query}</span>”</> : null}
+        {w.ms != null ? ` · ${fmt.ms(w.ms)}` : ''} · only this query left Labzilla
+      </p>
+      {w.sources.length > 0 && (
+        <ol role="list" class="ask-web-sources xsmall">
+          {w.sources.map((s) => (
+            <li key={s.url}>
+              <span class="ask-web-n num">[{s.n}]</span>{' '}
+              <a href={s.url} target="_blank" rel="noopener noreferrer nofollow">
+                {s.title || hostOf(s.url)}
+              </a>{' '}
+              <span class="muted">{hostOf(s.url)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 function Notes({ r }: { r: Receipt }) {
   const notes: { tone: 'warning' | 'info'; title: string; body: string }[] = [];
   if (r.fallback)
@@ -129,6 +174,9 @@ function DetailsDrawer({ r, open, onClose }: { r: Receipt; open: boolean; onClos
     { label: 'Time', value: fmt.ms(r.latency_ms) },
     r.tokens ? { label: 'Tokens', value: `${fmt.num(r.tokens.prompt)} in · ${fmt.num(r.tokens.completion)} out` } : null,
     { label: 'Privacy', value: PRIVACY_TEXT[r.privacy] },
+    r.web && r.web.status !== 'not_needed'
+      ? { label: 'Web lookup', value: r.web.query ? `“${r.web.query}” (only this query was sent)` : r.web.note ?? r.web.status }
+      : null,
     r.fallback || r.degraded ? { label: 'Why not the usual model', value: r.reason_label ?? (r.fallback ? 'Fallback active' : 'Below the quality floor') } : null,
     r.request_id ? { label: 'Request ID', value: <span class="mono small">{r.request_id}</span> } : null,
   ];
@@ -229,6 +277,7 @@ export function AnswerView({ msg, thread, prompt, user, remote, onContinue, onRe
       {msg.content && <Markdown text={msg.content} streaming={streaming} />}
       {msg.status === 'cancelled' && <p class="xsmall muted">Stopped{msg.content ? ' — the answer above is partial.' : ' before an answer arrived.'}</p>}
       {msg.status === 'error' && msg.error && <HumanErrorCard error={msg.error} onRetry={onRetry} onAction={(a) => a === 'details' && r && setDetails(true)} compact={!!msg.content} />}
+      {r && <WebSources r={r} />}
       {r && <Notes r={r} />}
       {r && <ReceiptLine r={r} onDetails={() => setDetails(true)} />}
       {!r && routeSoFar.length > 0 && msg.content && (

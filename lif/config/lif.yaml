@@ -121,6 +121,11 @@ privacy:
   jev_allowed: [PUBLIC]         # add INTERNAL here to allow internal data to Jev
   external_llm_allowed: []      # no cloud LLM fallback is configured
   confidential_external_allowed: false
+  # Live web lookups (docs/WEB_GROUNDING.md). Owner decision 2026-10-03: allowed under "Local only", because
+  # only the built search query (≤ 200 chars, never the conversation) leaves the box, and the receipt shows
+  # it. A query the detectors above flag (keys, emails, phone numbers) is never sent. RESTRICTED prompts
+  # are never looked up.
+  web_search_allowed: [PUBLIC, INTERNAL, CONFIDENTIAL]
 
 # ── Models ────────────────────────────────────────────────────────────────────
 models:
@@ -167,6 +172,24 @@ gateway:
   request_timeout_sec: 300
   max_body_bytes: 4194304
   rate_limit_rpm: 600
+
+# ── Live information (lif/web, docs/WEB_GROUNDING.md) ─────────────────────────────
+web:
+  enabled: true
+  searxng_url: http://searxng.ai-system.svc:8080
+  default_for_auto: true          # local/auto looks things up when needs-live-data says so; other aliases opt in
+  default_timezone: UTC           # callers send X-LIF-Timezone (the console sends the browser's)
+  default_location: ""            # for "what's the weather?" with no place named, e.g. "Springfield, Illinois" (set per host)
+  model_knowledge_year: 2025      # a year at or after this in a question means "needs live data"
+  alias: local/web                # grounded answers; falls back to local/default while local/web is empty
+  deadline_sec: 4.0               # all lookups for one question, page reads included
+  read_pages: 3                   # pages read when the search snippets don't hold the answer
+  read_timeout_sec: 2.0
+  max_results: 6
+  max_evidence_chars: 2400        # ~600 prompt tokens: ~4 s of prompt reading for the 4B on the CPU
+  rewrite_timeout_sec: 3.0        # follow-up → standalone query by local/instant
+  disclaimer_guard: true          # a "my knowledge has a cutoff" opening is replaced by a grounded answer
+  disclaimer_window_chars: 220
 
 # ── Labzilla Console (docs/CONSOLE.md) ────────────────────────────────────────
 console:

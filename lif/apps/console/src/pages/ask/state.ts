@@ -139,8 +139,18 @@ let seq = 0;
  * ends (done, error or stop). Never throws: failures become a HumanError on the assistant message.
  * `attachmentNotes` carries the client-side "not processed" reasons for files sent without text.
  */
+/** The browser's IANA timezone: the gateway resolves "last night" and "today" in it. */
+export function browserTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function send(threadId: string, body: MessageRequest, attachmentNotes: Record<string, string> = {}): Promise<void> {
   if (inflight.has(threadId)) return;
+  body = { ...body, tz: body.tz ?? browserTimeZone() };
   const n = ++seq;
   const now = Date.now() / 1000;
   const localId = `local-a-${n}`;

@@ -20,6 +20,7 @@ LOG = log.get("lif.router")
 
 AUTO_ALIAS = "local/auto"
 VISION_ALIAS = "local/vision"
+WEB_ALIAS = "local/web"
 ROUTE_TO_ALIAS = {"instant": "local/instant", "fast": "local/fast", "default": "local/default",
                   "reasoning": "local/reasoning", "code": "local/code"}
 
@@ -211,6 +212,8 @@ class Router:
             if alias == VISION_ALIAS:
                 raise NoRoute(alias, f"no local model is deployed for {alias}: no vision model is installed yet. "
                                      "Use Models → Check for better models (vision) to find one")
+            if alias == WEB_ALIAS:
+                raise NoRoute(alias, "no model is promoted to local/web yet: grounded answers use local/default")
             raise NoRoute(alias, f"no local model is deployed for {alias} (capacity; see /v1/capabilities)")
         tried = []
         for i, name in enumerate(chain):

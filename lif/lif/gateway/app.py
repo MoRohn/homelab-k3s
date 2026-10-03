@@ -12,7 +12,9 @@ Request headers (all optional):
   X-LIF-Data-Class   PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED (default CONFIDENTIAL)
   X-LIF-Workload     free-form tag for accounting (e.g. "bnn-stories")
   X-LIF-Priority     2..8 (spec priority class; default 2 interactive)
-Body extension (optional): "lif": {"budget": {...}} — see policy.Budget.
+  X-LIF-Timezone     IANA zone of the person asking (dates like "last night" resolve in it)
+Body extension (optional): "lif": {"budget": {...}, "web": "auto" | "off" | "required", "tz": "<IANA>"}
+  — see policy.Budget and docs/WEB_GROUNDING.md. local/auto defaults to web "auto"; other aliases to "off".
 """
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import time
 from collections import OrderedDict, defaultdict
 from contextlib import asynccontextmanager
@@ -39,6 +42,11 @@ from lif.decision.types import load_definitions
 from lif.gpu.state import BlerbzState, GpuStateWatcher
 from lif.policy import engine as policy
 from lif.routing.router import AUTO_ALIAS, ROUTE_TO_ALIAS, VISION_ALIAS, NoRoute, NotSupported, Route, Router
+from lif.web import ground as webground
+from lif.web.freshness import assess_turn
+from lif.web.search import SearxngProvider
+from lif.web.sports import SportsFeed
+from lif.web.weather import WeatherFeed
 
 LOG = log.get("lif.gateway")
 
@@ -179,6 +187,9 @@ class State:
                                                             connect=3))
         self.fabric = DecisionFabric(load_definitions(), rules, jev=JevProvider(config.secret("TYPE_SAFE_JEV_API_KEY")))
         self.batch_url = os.environ.get("LIF_BATCH_URL", "http://batch.ai-system.svc:8080")
+        searx = os.environ.get("LIF_SEARXNG_URL") or config.get("web.searxng_url")
+        self.grounder = webground.Grounder(SearxngProvider(searx) if searx else None, SportsFeed(),
+                                           httpx.AsyncClient(timeout=3.0, follow_redirects=False), WeatherFeed())
         self.started = time.time()
         self.tasks: list[asyncio.Task] = []
 
@@ -209,6 +220,12 @@ async def lifespan(app: FastAPI):
     S.tasks = [asyncio.create_task(_loop(S.router.probe_all, 10)),
                asyncio.create_task(_loop(refresh, 15)),
                asyncio.create_task(S.gpu.run())]
+    if config.get("web.enabled", True) and S.grounder.sports is not None:
+        # Team directories (~1 MB, refreshed daily) so the first sports question doesn't wait for them.
+        async def prewarm():
+            await asyncio.sleep(5)              # after startup probes; tests cancel the loops before this
+            await _loop(S.grounder.sports.prewarm, 6 * 3600)
+        S.tasks.append(asyncio.create_task(prewarm()))
     yield
     for t in S.tasks:
         t.cancel()
@@ -327,22 +344,171 @@ def _has_image(body: dict) -> bool:
     return False
 
 
-async def _route(body: dict, request: Request) -> Route:
+# ── live information (docs/WEB_GROUNDING.md) ─────────────────────────────────
+
+_QUESTION = re.compile(r"(?i)\?\s*$|^\s*(?:who|what|when|where|which|why|how|is|are|was|were|did|does|do|will|can"
+                       r"|has|have|should|could|would|tell me|any)\b")
+
+
+class WebPlan:
+    """What the gateway does about live information for one chat request."""
+
+    def __init__(self, mode: str, text: str, history: list[str], now, decision: dict | None = None,
+                 live: bool = False, kind: str = "general", allowed: bool = True):
+        self.mode, self.text, self.history, self.now = mode, text, history, now
+        self.decision, self.live, self.kind, self.allowed = decision, live, kind, allowed
+        self.grounding: webground.Grounding | None = None
+        self.route_result = None            # request-route, when it was decided together with needs-live-data
+
+    @property
+    def guard(self) -> bool:
+        """Watch the answer's opening for a knowledge-cutoff disclaimer (only for questions not looked up)."""
+        return (self.grounding is None and self.allowed and self.kind != "personal"
+                and bool(config.get("web.disclaimer_guard", True)) and bool(_QUESTION.search(self.text)))
+
+
+def _user_texts(body: dict) -> list[str]:
+    out = []
+    for m in body.get("messages") or []:
+        if m.get("role") == "user":
+            c = m.get("content")
+            out.append(c if isinstance(c, str) else " ".join(p.get("text", "") for p in c or [] if isinstance(p, dict)))
+    return out
+
+
+async def _web_plan(body: dict, request: Request) -> WebPlan | None:
+    """None: leave the request alone (non-chat, images, web off for this alias, or web disabled)."""
+    if not config.get("web.enabled", True) or not body.get("messages") or _has_image(body):
+        return None
+    ext = body.get("lif") if isinstance(body.get("lif"), dict) else {}
+    requested = body.get("model") or "local/default"
+    default = "auto" if requested == AUTO_ALIAS and config.get("web.default_for_auto", True) else "off"
+    mode = str(ext.get("web") or request.headers.get("x-lif-web") or default).lower()
+    if mode not in ("auto", "required"):
+        return None
+    users = _user_texts(body)
+    if not users or not users[-1].strip():
+        return None
+    text, history = users[-1], users[:-1]
+    now = webground.now_in(ext.get("tz") or request.headers.get("x-lif-timezone"))
+    declared = request.headers.get("x-lif-data-class")
+    allowed = policy.may_send(policy.classify(text, declared).data_class, "web_search")
+    plan = WebPlan(mode, text, history, now, allowed=allowed)
+    if mode == "required":
+        f = assess_turn(text, history)
+        plan.live, plan.kind = True, f.kind if f.kind not in ("none", "clock") else "general"
+        plan.decision = {"decision": "web", "confidence": 1.0, "provider": "caller", "action": "required"}
+        return plan
+    state = {"last_user": text[:2000], "previous_user": (history[-1] if history else "")[:500]}
+    if requested == AUTO_ALIAS and policy.DataClass.parse(declared, policy.DataClass.CONFIDENTIAL) == policy.DataClass.PUBLIC:
+        # PUBLIC: one Jev request answers both questions (needs-live-data and request-route).
+        both = await S.fabric.evaluate_group(["needs-live-data", "request-route"],
+                                             {**state, **_route_state(body, text)}, data_class=declared)
+        d, plan.route_result = both["needs-live-data"], both["request-route"]
+    else:
+        # Explicit aliases: rules only. Their receipt never shows a route decision, so the prompt must not
+        # reach Jev for this one either.
+        d = await S.fabric.evaluate("needs-live-data", state,
+                                    data_class=declared if requested == AUTO_ALIAS else "CONFIDENTIAL")
+    f = assess_turn(text, history)
+    # The rules stay in force whoever answered: a confident rules "yes" is never overruled to "no".
+    rules_yes = f.live and f.confidence >= 0.8
+    plan.live = (d.decision == "yes" and d.provider != "default") or rules_yes
+    plan.kind = f.kind if f.kind not in ("none", "clock") else "general"
+    if rules_yes and d.decision != "yes":
+        d.decision, d.provider, d.confidence, d.action = "yes", "rules", f.confidence, policy.Gate.VALIDATE
+    plan.decision = {"decision": "web" if plan.live else "no_web", "confidence": round(d.confidence, 3),
+                     "provider": d.provider, "action": d.action}
+    return plan
+
+
+def _route_state(body: dict, text: str) -> dict:
+    return {"last_user": text[:6000], "prompt_tokens": len(text) // 4,
+            "structured_output": bool(body.get("response_format"))}
+
+
+async def _rewrite_followup(text: str, convo: list[dict]) -> str | None:
+    """A short follow-up ("what about Clemson?") → one standalone search query, by local/instant.
+    Skipped while the primary workload is IMMINENT; the heuristic query is used instead."""
+    if _imminent():
+        return None
+    try:
+        route = S.router.resolve("local/instant")
+    except NoRoute:
+        return None
+    lines = []
+    for m in convo[-5:-1]:
+        c = m.get("content")
+        c = c if isinstance(c, str) else " ".join(p.get("text", "") for p in c or [] if isinstance(p, dict))
+        lines.append(f"{m.get('role', 'user').title()}: {c[:400]}")
+    prompt = "\n".join(lines) + f"\nUser (last message): {text[:400]}"
+    body = {"model": route.profile.name, "max_tokens": 40, "temperature": 0, "stream": False,
+            "messages": [{"role": "system", "content": "Rewrite the user's last message as one standalone web "
+                          "search query. Resolve pronouns and references from the conversation. Keep names, "
+                          "teams, places and dates. Output only the query."},
+                         {"role": "user", "content": prompt}]}
+    if route.profile.chat_template_kwargs:
+        body["chat_template_kwargs"] = route.profile.chat_template_kwargs
+    r = await S.http.post(f"{route.profile.endpoint}/v1/chat/completions", json=body, headers=_auth(route),
+                          timeout=float(config.get("web.rewrite_timeout_sec", 3.0)))
+    r.raise_for_status()
+    out = ((r.json().get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+    return re.sub(r"(?s)<think>.*?</think>", "", out).strip()
+
+
+async def _ground(plan: WebPlan, body: dict) -> webground.Grounding:
+    if not plan.allowed:
+        g = webground.Grounding("blocked", kind=plan.kind,
+                                note="this prompt's data class may not be looked up on the web")
+    else:
+        g = await S.grounder.ground(plan.text, plan.history, plan.now, plan.kind, rewrite=_rewrite_followup,
+                                    convo=body.get("messages") or [])
+    metrics.web_lookups.labels(plan.kind, g.status).inc()
+    metrics.web_latency.labels("total").observe(g.ms / 1000)
+    for k, v in g.timings.items():
+        metrics.web_latency.labels(k).observe(v / 1000)
+    plan.grounding = g
+    return g
+
+
+def _web_messages(plan: WebPlan, messages: list[dict]) -> list[dict]:
+    g = plan.grounding
+    msgs = webground.inject_date(messages, plan.now)
+    if g is None:
+        return msgs
+    if g.status == "ok":
+        return webground.inject_evidence(msgs, g, plan.now)
+    return webground.inject_unavailable(msgs, g, plan.now)
+
+
+def _web_route(requested: str, decision: dict | None) -> Route:
+    """Grounded local/auto answers go to the web alias (the strongest local model for reading sources),
+    else local/default: never the 1.7B instant tier."""
+    rd = {**(decision or {}), "decision": "web"}
+    for alias in (config.get("web.alias", "local/web"), "local/default"):
+        try:
+            return S.router.resolve(alias, requested=requested, blerbz_imminent=_imminent(), route_decision=rd)
+        except NoRoute:
+            continue
+    raise NoRoute(requested, "no local model is available for a grounded answer")
+
+
+async def _route(body: dict, request: Request, plan: WebPlan | None = None) -> Route:
     requested = body.get("model") or "local/default"
     vision = _has_image(body)
     if requested != AUTO_ALIAS:
         return S.router.resolve(requested, blerbz_imminent=_imminent(), need_vision=vision)
+    if plan is not None and plan.live:
+        return _web_route(requested, plan.decision)
     if vision:
         # Deterministic: images can only go to a model with an image projector. Never ask the
         # route decision (and never send image-bearing prompts to Jev).
         return S.router.resolve(VISION_ALIAS, requested=AUTO_ALIAS, blerbz_imminent=_imminent(), need_vision=True,
                                 route_decision={"decision": "vision", "confidence": 1.0, "provider": "rules",
                                                 "action": "auto", "why": "request contains images"})
-    text = _last_user(body)
-    d = await S.fabric.evaluate("request-route",
-                                {"last_user": text[:6000], "prompt_tokens": len(text) // 4,
-                                 "structured_output": bool(body.get("response_format"))},
-                                data_class=request.headers.get("x-lif-data-class"))
+    text = _last_user(body if plan is None else {"messages": [{"role": "user", "content": plan.text}]})
+    d = plan.route_result if plan is not None and plan.route_result is not None else await S.fabric.evaluate(
+        "request-route", _route_state(body, text), data_class=request.headers.get("x-lif-data-class"))
     choice = d.decision if d.action in (policy.Gate.AUTO, policy.Gate.VALIDATE) else "default"
     return S.router.resolve(ROUTE_TO_ALIAS[choice], requested=AUTO_ALIAS, blerbz_imminent=_imminent(),
                             route_decision={"decision": d.decision, "confidence": round(d.confidence, 3),
@@ -395,8 +561,22 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
     t0 = time.perf_counter()
     snap = S.gpu.current()
     vision = _has_image(body)
+    plan, original_messages = None, None
+    if path == "/v1/chat/completions" and isinstance(body, dict):
+        try:
+            plan = await _web_plan(body, request)
+            if plan is not None:
+                if plan.live:
+                    await _ground(plan, body)
+                original_messages = body.get("messages")
+                body = {**body, "messages": _web_messages(plan, body["messages"])}
+        except Exception as exc:        # live lookups are an enrichment: never fail the request for them
+            LOG.exception("web plan failed; answering without a lookup",
+                          extra={"fields": {"err": type(exc).__name__}})
+            metrics.web_lookups.labels("unknown", "error").inc()
+            plan, original_messages = None, None
     try:
-        route = await _route(body, request)
+        route = await _route(body, request, plan)
     except NotSupported as e:
         metrics.requests.labels(endpoint_name, requested, "422").inc()
         return _err(422, e.reason, "not_supported", code="images_not_supported",
@@ -407,7 +587,9 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
         return _err(503, e.reason, "capacity", lif={"requested": requested, "blerbz": snap.state.name})
 
     budget = policy.Budget.from_request((body.get("lif") or {}).get("budget"))
-    if budget.max_latency_ms and snap.state == BlerbzState.IMMINENT and route.profile.params_b >= 4 and not vision:
+    grounded = plan is not None and plan.grounding is not None
+    if (budget.max_latency_ms and snap.state == BlerbzState.IMMINENT and route.profile.params_b >= 4 and not vision
+            and not grounded):
         # production is running and the caller is latency-sensitive: prefer the smaller model
         try:
             alt = S.router.resolve("local/instant", requested=route.requested, blerbz_imminent=True)
@@ -420,7 +602,9 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
     exclude: set[str] = set()
     while True:
         upstream = _prepare(body, route, snap.state)
-        ck = S.cache.key(route.profile.name, route.profile.revision, upstream) if path != "/v1/embeddings" else None
+        # Live answers are never cached: a score or a price an hour old is a wrong answer.
+        ck = (S.cache.key(route.profile.name, route.profile.revision, upstream)
+              if path != "/v1/embeddings" and not grounded else None)
         hit = S.cache.get(ck)
         if hit is not None:
             metrics.tasks.labels(workload, "deterministic").inc()
@@ -432,7 +616,8 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
                                                 and route.profile.device == "cpu") else None
         try:
             if upstream.get("stream"):
-                return await _stream(route, path, upstream, limit, workload, endpoint_name, requested, t0, busy)
+                return await _stream(route, path, upstream, limit, workload, endpoint_name, requested, t0, busy,
+                                     plan=plan, original_messages=original_messages, raw_body=body)
             async with S.yielder.slot(route.profile.name, limit, timeout=120, upstream_busy=busy):
                 r = await S.http.post(f"{route.profile.endpoint}{path}", json=upstream, headers=_auth(route))
             if r.status_code >= 500:
@@ -465,18 +650,81 @@ async def _proxy(request: Request, path: str, endpoint_name: str):
     tm = data.pop("timings", None) or {}
     if tm.get("predicted_per_second"):
         metrics.decode_tps.labels(route.profile.name).observe(tm["predicted_per_second"])
+    if plan is not None and plan.guard and webground.is_disclaimer(_content(data)):
+        regen = await _regenerate(plan, body, original_messages, path, workload)
+        if regen is not None:
+            route, data = regen
+            ck = None
+            dt = time.perf_counter() - t0
     data["model"] = route.requested
     S.cache.put(ck, data)
     data["lif"] = {**route.meta(), "blerbz": snap.state.name, "latency_ms": round(dt * 1000, 1)}
+    if plan is not None:
+        data["lif"]["web"] = _web_meta(plan)
     metrics.requests.labels(endpoint_name, requested, "200").inc()
     metrics.request_latency.labels(endpoint_name, requested).observe(dt)
     return JSONResponse(data)
 
 
-async def _stream(route: Route, path: str, upstream: dict, limit, workload: str, endpoint_name: str,
-                  requested: str, t0: float, busy=None) -> StreamingResponse:
-    # Acquire the slot and open the upstream BEFORE returning, so connection errors can
-    # still fall back; once bytes flow to the client the route is committed.
+def _content(data: dict) -> str:
+    try:
+        return str(((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
+    except (AttributeError, IndexError, TypeError):
+        return ""
+
+
+def _web_meta(plan: WebPlan) -> dict:
+    g = plan.grounding
+    base = {"decision": plan.decision}
+    return {**base, **g.meta()} if g is not None else {**base, "status": "not_needed"}
+
+
+def _plan_route(requested: str, plan: WebPlan) -> Route:
+    if requested == AUTO_ALIAS:
+        return _web_route(requested, plan.decision)
+    return S.router.resolve(requested, blerbz_imminent=_imminent())
+
+
+async def _guard_ground(plan: WebPlan, raw_body: dict, original_messages: list[dict]) -> dict:
+    """The model opened with a knowledge-cutoff disclaimer: look the question up and build the grounded body."""
+    metrics.web_guard.labels("caught").inc()
+    plan.decision = {"decision": "web", "confidence": 1.0, "provider": "guard", "action": "regenerate",
+                     "why": "the first answer opened with a knowledge-cutoff disclaimer"}
+    if plan.grounding is None:
+        f = assess_turn(plan.text, plan.history)
+        plan.kind = f.kind if f.kind not in ("none", "clock") else "general"
+        await _ground(plan, {**raw_body, "messages": original_messages})
+    return {**raw_body, "messages": _web_messages(plan, original_messages)}
+
+
+async def _regenerate(plan: WebPlan, raw_body: dict, original_messages: list[dict], path: str,
+                      workload: str) -> tuple[Route, dict] | None:
+    body = await _guard_ground(plan, raw_body, original_messages)
+    try:
+        route = _plan_route(raw_body.get("model") or "local/default", plan)
+    except NoRoute:
+        return None
+    upstream = {**_prepare(body, route, S.gpu.current().state), "stream": False}
+    upstream.pop("stream_options", None)
+    limit = lambda: S.yielder.limit(route.profile.concurrency, S.gpu.current().state)
+    try:
+        async with S.yielder.slot(route.profile.name, limit, timeout=120):
+            r = await S.http.post(f"{route.profile.endpoint}{path}", json=upstream, headers=_auth(route))
+    except (TimeoutError, httpx.HTTPError):
+        metrics.web_guard.labels("failed").inc()
+        return None
+    if r.status_code != 200:
+        metrics.web_guard.labels("failed").inc()
+        return None
+    data = r.json()
+    data.pop("timings", None)
+    _account(route, data.get("usage") or {}, workload, 0.0)
+    metrics.web_guard.labels("regenerated").inc()
+    return route, data
+
+
+async def _open_stream(route: Route, path: str, upstream: dict, limit, busy=None):
+    """Hold a slot and open the upstream stream; on failure the slot is released and the error raised."""
     cm = S.yielder.slot(route.profile.name, limit, timeout=120, upstream_busy=busy)
     await cm.__aenter__()
     try:
@@ -488,33 +736,101 @@ async def _stream(route: Route, path: str, upstream: dict, limit, workload: str,
     except BaseException:
         await cm.__aexit__(None, None, None)
         raise
-    meta = route.meta()
+    return cm, resp
+
+
+_SENTENCE_END = re.compile(r"[.!?](?:\s|$)|\n")
+
+
+def _opening_done(text: str, window: int) -> bool:
+    """Enough of the answer to judge its opening: the first sentence (≥ 30 chars) or `window` characters."""
+    return len(text) >= window or (len(text) >= 30 and bool(_SENTENCE_END.search(text, 25)))
+
+
+async def _stream(route: Route, path: str, upstream: dict, limit, workload: str, endpoint_name: str,
+                  requested: str, t0: float, busy=None, plan: WebPlan | None = None,
+                  original_messages: list[dict] | None = None, raw_body: dict | None = None) -> StreamingResponse:
+    # Acquire the slot and open the upstream BEFORE returning, so connection errors can
+    # still fall back; once bytes flow to the client the route is committed.
+    cm, resp = await _open_stream(route, path, upstream, limit, busy)
+    window = int(config.get("web.disclaimer_window_chars", 220))
 
     async def gen() -> AsyncIterator[bytes]:
+        nonlocal route
         first = True
         usage: dict = {}
+        cur_cm, cur_resp = cm, resp
+        # Disclaimer guard: hold the answer's opening until it can be judged (≈ one sentence). A
+        # "my knowledge has a cutoff" opening is dropped and the question answered again with a lookup.
+        guard = bool(plan is not None and plan.guard and original_messages)
+        held: list[bytes] = []
+        held_text = ""
         try:
-            async for line in resp.aiter_lines():
-                if not line:
-                    continue
-                if line.startswith("data: ") and line != "data: [DONE]":
-                    try:
-                        chunk = json.loads(line[6:])
-                    except json.JSONDecodeError:
-                        yield (line + "\n\n").encode()
-                        continue
-                    if first and any((c.get("delta") or {}).get("content") or c.get("text")
-                                     for c in chunk.get("choices") or []):
-                        metrics.ttft.labels(route.requested, route.profile.name).observe(time.perf_counter() - t0)
-                        first = False
-                    chunk["model"] = route.requested
-                    chunk.pop("timings", None)
-                    if chunk.get("usage"):
-                        usage = chunk["usage"]
-                        chunk["lif"] = meta
-                    yield f"data: {json.dumps(chunk)}\n\n".encode()
-                else:
-                    yield (line + "\n\n").encode()
+            while True:
+                switch = False
+                try:
+                    async for line in cur_resp.aiter_lines():
+                        if not line:
+                            continue
+                        if line.startswith("data: ") and line != "data: [DONE]":
+                            try:
+                                chunk = json.loads(line[6:])
+                            except json.JSONDecodeError:
+                                yield (line + "\n\n").encode()
+                                continue
+                            choices = chunk.get("choices") or []
+                            text = "".join(str((c.get("delta") or {}).get("content") or c.get("text") or "")
+                                           for c in choices)
+                            if first and text:
+                                metrics.ttft.labels(route.requested, route.profile.name).observe(time.perf_counter() - t0)
+                                first = False
+                            chunk["model"] = route.requested
+                            chunk.pop("timings", None)
+                            if chunk.get("usage"):
+                                usage = chunk["usage"]
+                                chunk["lif"] = {**route.meta(), **({"web": _web_meta(plan)} if plan else {})}
+                            out = f"data: {json.dumps(chunk)}\n\n".encode()
+                            if guard and (text or held):
+                                held.append(out)
+                                held_text += text
+                                ended = any(c.get("finish_reason") for c in choices) or bool(chunk.get("usage"))
+                                if not (ended or _opening_done(held_text, window)):
+                                    continue
+                                guard = False
+                                if webground.is_disclaimer(held_text):
+                                    switch = True
+                                    break
+                                for h in held:
+                                    yield h
+                                held = []
+                                continue
+                            yield out
+                        else:
+                            if held and line == "data: [DONE]":
+                                guard = False
+                                if webground.is_disclaimer(held_text):
+                                    switch = True
+                                    break
+                                for h in held:
+                                    yield h
+                                held = []
+                            yield (line + "\n\n").encode()
+                finally:
+                    await cur_resp.aclose()
+                    await cur_cm.__aexit__(None, None, None)
+                if not switch:
+                    if held:                 # the stream ended without [DONE] while the opening was held
+                        for h in held:
+                            yield h
+                    break
+                got = await _regen_stream(plan, raw_body or {}, original_messages or [], path)
+                if got is None:              # keep the original answer rather than none
+                    for h in held:
+                        yield h
+                    yield b"data: [DONE]\n\n"
+                    break
+                route, cur_cm, cur_resp = got
+                held, held_text, first, usage = [], "", True, {}
             S.router.mark_success(route.profile.name)
             metrics.requests.labels(endpoint_name, requested, "200").inc()
         except httpx.HTTPError as e:
@@ -522,8 +838,6 @@ async def _stream(route: Route, path: str, upstream: dict, limit, workload: str,
             metrics.requests.labels(endpoint_name, requested, "502").inc()
             yield f"data: {json.dumps({'error': {'message': 'upstream stream failed', 'type': 'upstream'}})}\n\n".encode()
         finally:
-            await resp.aclose()
-            await cm.__aexit__(None, None, None)
             dt = time.perf_counter() - t0
             _account(route, usage, workload, dt)
             metrics.request_latency.labels(endpoint_name, requested).observe(dt)
@@ -532,7 +846,32 @@ async def _stream(route: Route, path: str, upstream: dict, limit, workload: str,
                "X-LIF-Degraded": str(route.degraded).lower(), "X-LIF-Requested": route.requested}
     if route.reason:
         headers["X-LIF-Reason"] = route.reason[:200]
+    if plan is not None:
+        g = plan.grounding
+        headers["X-LIF-Web"] = g.status if g else "not_needed"
+        if g is not None:
+            headers["X-LIF-Web-Sources"] = str(len(g.sources))
+            if g.query:
+                headers["X-LIF-Web-Query"] = quote(g.query[:200], safe=" ,:'-")
     return StreamingResponse(gen(), media_type="text/event-stream", headers=headers)
+
+
+async def _regen_stream(plan: WebPlan | None, raw_body: dict, original_messages: list[dict], path: str):
+    if plan is None:
+        return None
+    try:
+        body = await _guard_ground(plan, raw_body, original_messages)
+        route = _plan_route(raw_body.get("model") or "local/default", plan)
+        upstream = _prepare(body, route, S.gpu.current().state)
+        limit = lambda: S.yielder.limit(route.profile.concurrency, S.gpu.current().state)
+        ep = route.profile.endpoint
+        busy = (lambda: _upstream_busy(ep)) if _imminent() and route.profile.device == "cpu" else None
+        cm, resp = await _open_stream(route, path, upstream, limit, busy)
+    except (NoRoute, TimeoutError, httpx.HTTPError):
+        metrics.web_guard.labels("failed").inc()
+        return None
+    metrics.web_guard.labels("regenerated").inc()
+    return route, cm, resp
 
 
 @app.post("/v1/chat/completions")

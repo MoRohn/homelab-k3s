@@ -19,7 +19,7 @@ export type PrivacyUsed = "local_only" | "local_jev" | "external";
 
 export type AskMode = "auto" | "fast" | "balanced" | "deep" | "code" | "vision";
 
-export type RoleKey = "auto" | "fast" | "balanced" | "deep" | "code" | "vision" | "instant" | "batch" | "embedding" | "rerank";
+export type RoleKey = "auto" | "fast" | "balanced" | "deep" | "code" | "vision" | "instant" | "batch" | "embedding" | "rerank" | "web";
 
 /** One raw fact for the Technical Details drawer (k8s resource, pod, revision, raw reason, request id). */
 export interface TechDetail {
@@ -657,6 +657,28 @@ export interface TokenUsage {
   completion: number;
 }
 
+/** One cited web source: the answer refers to it as [n]. */
+export interface WebSource {
+  n: number;
+  title: string;
+  url: string;
+}
+
+/** The live lookup behind an answer: the one query that left the box, and what came back. */
+export interface WebLookup {
+  status: "ok" | "empty" | "error" | "blocked" | "not_needed";
+  /** exactly what was sent to search */
+  query?: string | null;
+  sources: WebSource[];
+  /** espn, open-meteo, searxng */
+  providers: string[];
+  ms?: number | null;
+  /** why nothing usable came back, in plain words */
+  note?: string | null;
+  /** looked up after the model claimed its data was out of date */
+  by_guard: boolean;
+}
+
 /** 'Handled by: local/default · Qwen… · 1.4 sec' plus everything behind 'Open Details' (§9, §21). */
 export interface Receipt {
   alias: string;
@@ -675,6 +697,8 @@ export interface Receipt {
   tokens?: TokenUsage | null;
   /** answer length capped while BLERBZ is busy */
   clamped: boolean;
+  /** set when the gateway looked the question up */
+  web?: WebLookup | null;
   tech: TechDetail[];
 }
 
@@ -760,6 +784,8 @@ export interface MessageRequest {
   mode: AskMode;
   privacy: PrivacyChoice;
   attachments: AttachmentIn[];
+  /** browser's IANA zone */
+  tz?: string | null;
 }
 
 export interface StreamRoute {

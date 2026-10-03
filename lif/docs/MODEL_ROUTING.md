@@ -35,11 +35,22 @@ During a request, an upstream 5xx or connect error excludes that profile and ret
 ## `local/auto` (intelligence hierarchy at the gateway)
 
 ```
-request → request-route decision (rules for private prompts; Jev only if X-LIF-Data-Class: PUBLIC)
-   gate auto/validate → instant | fast | default | reasoning | code alias
-   otherwise          → local/default
 request with an image part → local/vision (code, before any decision)
+request → needs-live-data decision (docs/WEB_GROUNDING.md)
+   yes → look it up (feeds + SearXNG) → local/web (empty → local/default), never local/instant
+   no  → request-route decision (rules for private prompts; Jev only if X-LIF-Data-Class: PUBLIC)
+           gate auto/validate → instant | fast | default | reasoning | code alias
+           otherwise          → local/default
 ```
+
+For PUBLIC prompts, one Jev request answers both decisions. Every `local/auto` chat request gets today's date in its system message, in the caller's `X-LIF-Timezone`. The system message is the same all day, so the prompt cache holds. For a question that wasn't looked up, the gateway holds the answer's first sentence. If it is a knowledge-cutoff disclaimer, the gateway discards it, looks the question up, and answers again (`route_decision.provider: guard`). Grounded answers are never cached.
+
+| Request | Web behaviour |
+|---|---|
+| `local/auto` | `lif.web` defaults to `auto` |
+| Any other alias | `off` unless `"lif": {"web": "auto" \| "required"}` or `X-LIF-Web`. The alias is kept; only the messages change |
+| Image request | Never looked up |
+| RESTRICTED prompt, or a query carrying a key, email or phone number | Never looked up (`lif.web.status: blocked`) |
 
 The response's `lif.route_decision` shows `{decision, confidence, provider, action}`.
 
@@ -56,4 +67,4 @@ The response's `lif.route_decision` shows `{decision, confidence, provider, acti
 
 ## Current aliases
 
-See the README table. `local/rerank` has an empty chain. `local/vision` stays empty until a vision model from discovery is downloaded, benchmarked and promoted. `/v1/capabilities` shows `vision` per profile, and `/v1/models` shows `vision` per available alias.
+See the README table. `local/rerank` has an empty chain. `local/web` is empty until a model is promoted to it, and grounded answers go to `local/default` meanwhile. `local/vision` stays empty until a vision model from discovery is downloaded, benchmarked and promoted. `/v1/capabilities` shows `vision` per profile, and `/v1/models` shows `vision` per available alias.

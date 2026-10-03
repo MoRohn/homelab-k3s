@@ -46,7 +46,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import httpx
 from fastapi import APIRouter, Depends, Request
@@ -58,7 +58,8 @@ from lif.console.contracts import (AiCapabilities, AskMode, Attachment, Attachme
                                    CommandResolution, CreateThreadRequest, DecisionBadge, Fact, HumanError,
                                    HumanErrorAction, MessageRequest, ModeOption, OkResponse, PrivacyChoice,
                                    PrivacyOption, PrivacyUsed, Receipt, RenameThreadRequest, RouteStep, StreamDone,
-                                   StreamPhase, StreamRoute, TechDetail, Thread, ThreadEvent, ThreadSummary, TokenUsage, User)
+                                   StreamPhase, StreamRoute, TechDetail, Thread, ThreadEvent, ThreadSummary, TokenUsage, User,
+                                   WebLookup, WebSource)
 from lif.console.errors import human
 from lif.console.events import hub
 
@@ -500,11 +501,15 @@ def _true(v: str | None) -> bool:
     return (v or "").lower() == "true"
 
 
-def _trail(mode: AskMode, alias: str, decision: dict[str, Any] | None) -> list[RouteStep]:
-    """'Auto ↓ Jev ↓ Local Fast' (§11): the mode, who decided (only when Jev did), the role that answered."""
+def _trail(mode: AskMode, alias: str, decision: dict[str, Any] | None,
+           web: WebLookup | None = None) -> list[RouteStep]:
+    """'Auto ↓ Jev ↓ Web search ↓ Local Fast' (§11): the mode, who decided (only when Jev did), a live
+    lookup when one ran, the role that answered."""
     steps = [RouteStep(label=MODES[mode][1], kind="mode")]
     if decision and decision.get("provider") == "jev":
         steps.append(RouteStep(label="Jev", kind="decision"))
+    if web is not None and web.status == "ok":
+        steps.append(RouteStep(label="Web search", kind="external"))
     if alias and alias != "local/auto":
         steps.append(RouteStep(label=f"Local {_alias_label(alias)}", kind="model"))
     return steps
@@ -513,15 +518,22 @@ def _trail(mode: AskMode, alias: str, decision: dict[str, Any] | None) -> list[R
 def _decision_badge(d: dict[str, Any], alias: str, privacy: PrivacyChoice) -> DecisionBadge:
     """The local/auto route decision as a badge (§25): outcome, confidence and structured why — never reasoning."""
     provider, action = str(d.get("provider") or ""), str(d.get("action") or "")
-    acted = action in ("auto", "validate")
+    web = d.get("decision") == "web"
+    acted = action in ("auto", "validate", "required", "regenerate")
     label = _alias_label(alias).lower()
-    sentence = (f"Use the {label} local model" if acted else
+    sentence = (f"Look it up live, then answer with the {label} local model" if web else
+                f"Use the {label} local model" if acted else
                 f"Not sure which model fits; used the {label} model")
     by = {"jev": "jev", "rules": "rules", "local_llm": "local_model"}.get(provider, "code")
-    why = [Fact(label="Request looks like", value=str(d.get("decision") or "unknown")),
+    looks = "needs current information" if web else str(d.get("decision") or "unknown")
+    why = [Fact(label="Request looks like", value=looks),
            Fact(label="Decided by", value={"jev": "Jev (fast decision model)", "rules": "Built-in rules",
-                                           "local_llm": "Local model"}.get(provider, "Default choice")),
-           Fact(label="Confidence", value={"auto": "High", "validate": "Good enough to act"}.get(action, "Too low to act on")),
+                                           "local_llm": "Local model", "caller": "The request asked for it",
+                                           "guard": "Answer check: the model said its data was out of date, "
+                                                    "so the question was looked up and answered again"
+                                           }.get(provider, "Default choice")),
+           Fact(label="Confidence", value={"auto": "High", "validate": "Good enough to act", "required": "Asked for",
+                                           "regenerate": "Certain"}.get(action, "Too low to act on")),
            Fact(label="Prompt shared with Jev", value="Yes" if provider == "jev" and privacy == "allow_jev" else "No")]
     conf = d.get("confidence")
     return DecisionBadge(decision=sentence, confidence=float(conf) if isinstance(conf, (int, float)) else None,
@@ -536,6 +548,10 @@ def build_receipt(o: _Outcome, mode: AskMode, requested: str, privacy: PrivacyCh
     served = str(m.get("served_by") or h.get("x-lif-served-by") or "") or None
     reason = str(m.get("reason") or h.get("x-lif-reason") or "") or None
     decision = m.get("route_decision") if isinstance(m.get("route_decision"), dict) else None
+    web = _web_lookup(m.get("web"), h)
+    wd = (m.get("web") or {}).get("decision") if isinstance(m.get("web"), dict) else None
+    if web is not None and web.by_guard and isinstance(wd, dict):
+        decision = wd                       # the answer was redone with a lookup: that is the route that counts
     # The gateway sets fallback=true whenever local/auto resolves to another alias; that is routing, not a
     # fallback. A real fallback is a later model in the chain (reason 'primary unavailable…').
     fallback = bool(reason and reason.lower().startswith(("primary unavailable", "upstream_error"))) or (
@@ -549,16 +565,41 @@ def build_receipt(o: _Outcome, mode: AskMode, requested: str, privacy: PrivacyCh
             "gateway reason": reason, "route decision": json.dumps(decision) if decision else None,
             "data class sent": DATA_CLASS[privacy], "finish reason": o.finish,
             "time to first token": f"{o.first_token_ms:.0f} ms" if o.first_token_ms is not None else None,
-            "cache": m.get("cache"), "canary": "yes" if m.get("canary") else None}
+            "cache": m.get("cache"), "canary": "yes" if m.get("canary") else None,
+            "web lookup": f"{web.status} ({', '.join(web.providers) or 'no source'}, {web.ms:.0f} ms)"
+            if web and web.ms is not None and web.status != "not_needed" else None,
+            "web query sent": web.query if web and web.status != "not_needed" else None,
+            "web note": web.note if web else None}
     return Receipt(alias=alias, role_label=_alias_label(alias), served_by=served, model_name=friendly_model(served),
                    physical_model=str(m["model"]) if m.get("model") else None, fallback=fallback, degraded=degraded,
                    reason_label=reason_label(reason, fallback=fallback, degraded=degraded),
-                   latency_ms=round(latency_ms, 1), privacy=used, route=_trail(mode, alias, decision),
+                   latency_ms=round(latency_ms, 1), privacy=used, route=_trail(mode, alias, decision, web),
                    decision=_decision_badge(decision, alias, privacy) if decision else None, request_id=message_id,
                    tokens=TokenUsage(prompt=int(usage.get("prompt_tokens") or 0),
                                      completion=int(usage.get("completion_tokens") or 0)) if usage else None,
                    clamped=clamp_possible and o.finish == "length",
+                   web=web if web is not None and web.status != "not_needed" else None,
                    tech=[TechDetail(label=k, value=str(v)) for k, v in tech.items() if v not in (None, "")])
+
+
+def _web_lookup(meta: Any, h: dict[str, str]) -> WebLookup | None:
+    """The gateway's `lif.web` (final chunk), else its X-LIF-Web* headers."""
+    if isinstance(meta, dict) and meta.get("status"):
+        status = str(meta["status"])
+        d = meta.get("decision") if isinstance(meta.get("decision"), dict) else {}
+        srcs = [WebSource(n=int(x.get("n") or i + 1), title=str(x.get("title") or "")[:200], url=str(x.get("url") or ""))
+                for i, x in enumerate(meta.get("sources") or []) if isinstance(x, dict)
+                and str(x.get("url") or "").startswith(("https://", "http://"))]
+        return WebLookup(status=status if status in ("ok", "empty", "error", "blocked", "not_needed") else "error",
+                         query=meta.get("query"), sources=srcs, providers=[str(p) for p in meta.get("providers") or []],
+                         ms=float(meta["ms"]) if isinstance(meta.get("ms"), (int, float)) else None,
+                         note=meta.get("note"), by_guard=d.get("provider") == "guard")
+    status = h.get("x-lif-web")
+    if not status:
+        return None
+    q = h.get("x-lif-web-query")
+    return WebLookup(status=status if status in ("ok", "empty", "error", "blocked", "not_needed") else "error",
+                     query=unquote(q) if q else None)
 
 
 def parse_line(line: str) -> tuple[str, Any]:
@@ -779,7 +820,11 @@ async def send_message(thread_id: str, req: MessageRequest, request: Request,
         if threads.thread_bytes(thread_id) + len(content.encode()) > threads.THREAD_QUOTA_BYTES:
             raise _too_long()
         history = threads.context(thread_id, before=time.time())
-        body = {"model": alias, "stream": True, "return_progress": True, "messages": [*history, {"role": "user", "content": user_content}]}
+        body = {"model": alias, "stream": True, "return_progress": True,
+                "messages": [*history, {"role": "user", "content": user_content}],
+                # Live lookups for every text mode: the gateway decides per question (needs-live-data) and only
+                # the built query leaves the box. The browser's timezone anchors "last night" and "today".
+                "lif": {"web": "auto", **({"tz": req.tz} if req.tz else {})}}
         if images and len(json.dumps(body)) > GATEWAY_BODY_MAX:      # before anything is stored
             raise human(413, "Too much to send in one message", "The images and files together are over the 4 MB "
                         "the AI gateway accepts. Nothing was sent.", "Remove an image or a file, then send again.")

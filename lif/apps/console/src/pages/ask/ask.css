@@ -161,6 +161,13 @@
 .ask-note > .lz-icon { color: var(--tone); flex-shrink: 0; margin-top: 2px; }
 .ask-note-body { color: var(--text-muted); }
 .ask-receipt { display: flex; flex-direction: column; gap: var(--space-1); }
+.ask-web { display: flex; flex-direction: column; gap: var(--space-1); margin-block: var(--space-2); }
+.ask-web-query { overflow-wrap: anywhere; }
+.ask-web-q { color: var(--text); }
+.ask-web-sources { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ask-web-sources li { overflow-wrap: anywhere; }
+.ask-web-sources a { color: var(--brand-text); }
+.ask-web-n { color: var(--text-muted); margin-inline-end: 2px; }
 .ask-receipt-line { overflow-wrap: anywhere; }
 .ask-receipt-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
 .ask-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: calc(-1 * var(--space-2)); }

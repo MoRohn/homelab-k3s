@@ -165,6 +165,7 @@ ROLES: tuple[tuple[RoleKey, str, str, str, bool], ...] = (
     ("code", "local/code", "Code", "Writing, reviewing and explaining code.", False),
     ("vision", "local/vision", "Vision", "Understands images.", False),
     ("instant", "local/instant", "Instant", "The smallest, quickest model for tiny tasks.", True),
+    ("web", "local/web", "Web", "Reads live web results and answers with sources.", True),
     ("batch", "local/batch", "Batch", "Background batch work.", True),
     ("embedding", "local/embedding", "Embeddings", "Turns text into vectors for search.", True),
     ("rerank", "local/rerank", "Rerank", "Orders search results by relevance.", True),
@@ -204,6 +205,8 @@ def role_cause(reason: str | None, *, fallback: bool, degraded: bool, shed: bool
         return "canary", f"Trialling a new model on {pct} requests"
     if shed:
         return "shed_by_memory_guard", "Main model paused to free memory for BLERBZ"
+    if "promoted to local/web yet" in low:
+        return "not_deployed", "No dedicated model yet: the Balanced model answers with web results"
     if low.startswith("no local model is deployed") or "no local model is deployed" in low:
         return "not_deployed", "No model is installed for this role"
     # The router appends "(GPU reserved for the primary workload)" to every size-floor message, so a floor

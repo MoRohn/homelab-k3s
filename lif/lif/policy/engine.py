@@ -64,9 +64,12 @@ def classify(text: str, declared: str | None = None) -> Classification:
 
 
 def may_send(data_class: DataClass, destination: str) -> bool:
-    """destination: 'jev' | 'external_llm'. Restricted data never leaves; confidential
-    only if explicitly allowed (it is not, by default)."""
-    if data_class >= DataClass.RESTRICTED:
+    """destination: 'jev' | 'external_llm' | 'web_search'. Restricted data never leaves; confidential
+    only if explicitly allowed (it is not, by default). 'web_search' sends only a built search query,
+    never the conversation, so it has its own list (privacy.web_search_allowed)."""
+    if destination == "web_search":
+        allowed = data_class < DataClass.RESTRICTED and data_class.name in (config.get("privacy.web_search_allowed") or [])
+    elif data_class >= DataClass.RESTRICTED:
         allowed = False
     elif data_class == DataClass.CONFIDENTIAL and not config.get("privacy.confidential_external_allowed", False):
         allowed = False

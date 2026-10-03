@@ -27,6 +27,7 @@ K_PROBE=$(gen probe); K_BATCH=$(gen batch); K_DEC=$(gen decision); K_BNN=$(gen b
 K_ADMIN=$(gen admin); K_INTERNAL=$(gen internal); K_ENGINE=$(gen engine)   # engine = primary-workload vLLM LIF door
 # Labzilla Console: its own controller admin key and gateway client key (audited as `console`).
 K_CON_ADMIN=$(gen console-admin); K_CON_GW=$(gen console-gateway); C_SETUP=$(gen_code console-setup)
+K_SEARX=$(gen searxng)        # SearXNG's own secret_key (cookie/HMAC signing; the instance has no users)
 # Earning system (arbies): read, never generated here, so LIF keeps working without it.
 K_EARN=$(cat "$SECRETS/earn-gateway.key" 2>/dev/null || true)
 
@@ -50,6 +51,7 @@ printf '%s' "$K_CON_ADMIN" > "$tmp/LIF_CONSOLE_ADMIN_KEY"
 printf '%s' "$K_CON_GW" > "$tmp/LIF_CONSOLE_GATEWAY_KEY"
 printf '%s' "$C_SETUP" > "$tmp/LIF_CONSOLE_SETUP_CODE"
 printf '%s' "$MTOK" > "$tmp/token"
+printf '%s' "$K_SEARX" > "$tmp/SEARXNG_SECRET"
 
 kubectl -n ai-system create secret generic lif-secrets --from-file="$tmp/TYPE_SAFE_JEV_API_KEY" \
   --from-file="$tmp/LIF_GATEWAY_KEYS" --from-file="$tmp/LIF_ADMIN_KEYS" --from-file="$tmp/LIF_PROBE_KEY" \
@@ -60,7 +62,9 @@ kubectl -n ai-system create secret generic lif-secrets --from-file="$tmp/TYPE_SA
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 kubectl -n ai-system create secret generic lif-gpusched --from-file="$tmp/token" \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-echo "secrets applied: ai-system/lif-secrets, ai-system/lif-gpusched"
+kubectl -n ai-system create secret generic searxng --from-file="$tmp/SEARXNG_SECRET" \
+  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+echo "secrets applied: ai-system/lif-secrets, ai-system/lif-gpusched, ai-system/searxng"
 echo "keys on disk: $SECRETS/lif-{probe,batch,decision,bnn,operator,admin,console-admin,console-gateway}.key (the primary workload uses lif-bnn.key; the UI/CLI use lif-admin.key)"
 echo "console setup code: $SECRETS/lif-console-setup.code (read it on the host when creating the first console admin)"
 echo "gateway and controller read their key lists only at startup: roll them out so the console keys work:"
